@@ -16,6 +16,7 @@ import TimelinePlayhead from "./timeline-playhead";
 
 const TRACK_MIN_WIDTH = 1200;
 const LABEL_COLUMN_WIDTH = 180;
+const KEYFRAME_SECTION_HORIZONTAL_PADDING = 12; // Tailwind px-3
 const TIMELINE_DURATION = 10;
 
 function clamp(value: number, min: number, max: number) {
@@ -107,7 +108,8 @@ export default function TimelinePanel() {
         >
           <TimelinePlayhead
             duration={TIMELINE_DURATION}
-            keyframeSectionOffset={LABEL_COLUMN_WIDTH}
+            keyframeSectionOffset={LABEL_COLUMN_WIDTH + KEYFRAME_SECTION_HORIZONTAL_PADDING}
+            keyframeSectionRightOffset={KEYFRAME_SECTION_HORIZONTAL_PADDING}
           />
 
           <div className="sticky top-0 z-20 grid grid-cols-[180px_1fr] border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-600">

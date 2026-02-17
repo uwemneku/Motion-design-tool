@@ -13,7 +13,7 @@ export type ExportOptions = {
   height: number;
   durationInSeconds: number;
   fps?: number;
-  onFrame: (timeInSeconds: number) => void;
+  onFrame: (timeInSeconds: number) => void | Promise<void>;
   onProgress?: (progress: number) => void;
 };
 
@@ -23,7 +23,7 @@ export async function exportCanvasAsMp4(options: ExportOptions): Promise<Blob> {
     width,
     height,
     durationInSeconds,
-    fps = 30,
+    fps = 60,
     onFrame,
     onProgress,
   } = options;
@@ -33,10 +33,13 @@ export async function exportCanvasAsMp4(options: ExportOptions): Promise<Blob> {
     format: new Mp4OutputFormat({}),
   });
 
-  const videoCodec = await getFirstEncodableVideoCodec(output.format.getSupportedVideoCodecs(), {
-    width,
-    height,
-  });
+  const videoCodec = await getFirstEncodableVideoCodec(
+    output.format.getSupportedVideoCodecs(),
+    {
+      width: width,
+      height: height,
+    },
+  );
 
   if (!videoCodec) {
     throw new Error("No encodable video codec found for current browser.");
@@ -54,7 +57,8 @@ export async function exportCanvasAsMp4(options: ExportOptions): Promise<Blob> {
 
   for (let frameIndex = 0; frameIndex < totalFrames; frameIndex += 1) {
     const timestamp = frameIndex / fps;
-    onFrame(timestamp);
+    await onFrame(timestamp);
+
     await source.add(timestamp, 1 / fps);
     onProgress?.((frameIndex + 1) / totalFrames);
   }

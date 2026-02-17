@@ -1,17 +1,33 @@
 import type { Canvas } from "fabric";
-import { useRef, type ChangeEvent, type MutableRefObject } from "react";
+import {
+  useRef,
+  type ChangeEvent,
+  type MouseEvent,
+  type MutableRefObject,
+} from "react";
 import { useCanvasItems } from "./use-canvas-items";
 
 type CanvasHeaderProps = {
   fabricCanvas: MutableRefObject<Canvas | null>;
+  onExport: () => Promise<void>;
+  isExporting: boolean;
+  exportProgress: number;
 };
 
 const buttonClass =
   "rounded-md border border-slate-300 bg-slate-50 p-2 text-slate-800 hover:border-blue-500 hover:bg-blue-50";
 
-export default function CanvasHeader({ fabricCanvas }: CanvasHeaderProps) {
+export default function CanvasHeader({
+  fabricCanvas,
+  onExport,
+  isExporting,
+  exportProgress,
+}: CanvasHeaderProps) {
   const { addPolygon, addCircle, addImageFromFile, addText } = useCanvasItems({ fabricCanvas });
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const onToolbarButtonMouseDown = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+  };
 
   const onImageSelected = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -26,6 +42,7 @@ export default function CanvasHeader({ fabricCanvas }: CanvasHeaderProps) {
       <button
         type="button"
         onClick={addPolygon}
+        onMouseDown={onToolbarButtonMouseDown}
         aria-label="Add polygon"
         title="Add polygon"
         className={buttonClass}
@@ -38,6 +55,7 @@ export default function CanvasHeader({ fabricCanvas }: CanvasHeaderProps) {
       <button
         type="button"
         onClick={addCircle}
+        onMouseDown={onToolbarButtonMouseDown}
         aria-label="Add circle"
         title="Add circle"
         className={buttonClass}
@@ -52,6 +70,7 @@ export default function CanvasHeader({ fabricCanvas }: CanvasHeaderProps) {
         onClick={() => {
           imageInputRef.current?.click();
         }}
+        onMouseDown={onToolbarButtonMouseDown}
         aria-label="Add image"
         title="Add image"
         className={buttonClass}
@@ -73,6 +92,7 @@ export default function CanvasHeader({ fabricCanvas }: CanvasHeaderProps) {
       <button
         type="button"
         onClick={addText}
+        onMouseDown={onToolbarButtonMouseDown}
         aria-label="Add text"
         title="Add text"
         className={buttonClass}
@@ -81,6 +101,25 @@ export default function CanvasHeader({ fabricCanvas }: CanvasHeaderProps) {
           <path d="M5 6h14M12 6v12M8 18h8" />
         </svg>
       </button>
+
+      <div className="ml-auto flex items-center gap-2">
+        {isExporting ? (
+          <span className="text-xs text-slate-600">
+            Exporting {Math.round(exportProgress * 100)}%
+          </span>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => {
+            void onExport();
+          }}
+          onMouseDown={onToolbarButtonMouseDown}
+          disabled={isExporting}
+          className="rounded-md border border-blue-300 bg-blue-50 px-2.5 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Export MP4
+        </button>
+      </div>
     </div>
   );
 }

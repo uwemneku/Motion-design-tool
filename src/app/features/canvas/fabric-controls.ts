@@ -14,10 +14,6 @@ function styleObjectControls(object: FabricObject) {
     transparentCorners: false,
     padding: 0,
   });
-
-  object.setControlsVisibility({
-    mtr: false,
-  });
 }
 
 export function applyFigmaLikeControls(canvas: Canvas) {

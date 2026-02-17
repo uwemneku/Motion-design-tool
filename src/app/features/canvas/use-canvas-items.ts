@@ -1,10 +1,10 @@
 import type { Canvas, FabricObject } from "fabric";
-import { useDispatch, useStore } from "react-redux";
+import { useDispatch } from "react-redux";
 import type { MutableRefObject } from "react";
 import type { AnimatableObject } from "../shapes/animatable-object/object";
 import { useCanvasAppContext } from "./use-canvas-app-context";
 import { setSelectedId, upsertItemRecord } from "../../store/editor-slice";
-import type { AppDispatch, RootState } from "../../store";
+import { dispatchableSelector, type AppDispatch } from "../../store";
 import { CircleObject, ImageObject, PolygonObject, TextObject } from "../shapes/objects";
 
 type UseCanvasItemsParams = {
@@ -28,13 +28,14 @@ function createKeyframeMarkerId() {
 
 export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
   const dispatch = useDispatch<AppDispatch>();
-  const store = useStore<RootState>();
   const { registerInstance } = useCanvasAppContext();
 
   const addObjectToCanvas = (instance: AnimatableObject, typeName: string) => {
     const canvas = fabricCanvas.current;
     if (!canvas) return;
-    const playheadTime = store.getState().editor.playheadTime;
+    const playheadTime = dispatch(
+      dispatchableSelector((state) => state.editor.playheadTime),
+    );
 
     const customId = createCustomId(typeName);
     const object: FabricObject = instance.fabricObject;
