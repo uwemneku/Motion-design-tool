@@ -1,4 +1,4 @@
-import type { AnimatableProperties, Keyframe } from "./types";
+import type { Keyframe } from "./types";
 
 export function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -44,8 +44,8 @@ export function findInsertionIndex<T extends { time: number }>(
   return [low, false];
 }
 
-export function findBoundingKeyframes<K extends keyof AnimatableProperties>(
-  keyframes: Keyframe<K>[],
+export function findBoundingKeyframes<T extends { time: number }>(
+  keyframes: T[],
   time: number,
 ) {
   if (keyframes.length === 0) return { previous: null, next: null } as const;
@@ -80,7 +80,7 @@ export function findBoundingKeyframes<K extends keyof AnimatableProperties>(
 }
 
 export function hasKeyframeNearTime(
-  keyframes: Keyframe[],
+  keyframes: Keyframe[] | Array<{ time: number }>,
   time: number,
   epsilon = 0.02,
 ) {
@@ -96,4 +96,101 @@ export function hasKeyframeNearTime(
   if (right && Math.abs(right.time - time) <= epsilon) return true;
 
   return false;
+}
+
+type RgbaColor = {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+};
+
+const colorParserCanvas =
+  typeof document !== "undefined" ? document.createElement("canvas") : null;
+const colorParserContext = colorParserCanvas?.getContext("2d") ?? null;
+
+function clampColorChannel(value: number) {
+  return Math.min(255, Math.max(0, Math.round(value)));
+}
+
+function clampAlpha(value: number) {
+  return Math.min(1, Math.max(0, value));
+}
+
+function parseRgbText(text: string): RgbaColor | null {
+  const rgbMatch = text.match(
+    /^rgba?\(\s*([+-]?\d*\.?\d+)[,\s]+([+-]?\d*\.?\d+)[,\s]+([+-]?\d*\.?\d+)(?:[,\s/]+([+-]?\d*\.?\d+))?\s*\)$/i,
+  );
+  if (!rgbMatch) return null;
+
+  const r = Number(rgbMatch[1]);
+  const g = Number(rgbMatch[2]);
+  const b = Number(rgbMatch[3]);
+  const a = rgbMatch[4] === undefined ? 1 : Number(rgbMatch[4]);
+
+  if (![r, g, b, a].every(Number.isFinite)) return null;
+
+  return {
+    r: clampColorChannel(r),
+    g: clampColorChannel(g),
+    b: clampColorChannel(b),
+    a: clampAlpha(a),
+  };
+}
+
+function parseHexText(text: string): RgbaColor | null {
+  const hex = text.trim().replace(/^#/, "");
+  if (![3, 4, 6, 8].includes(hex.length)) return null;
+  if (!/^[\da-f]+$/i.test(hex)) return null;
+
+  const expand = (value: string) => (value.length === 1 ? `${value}${value}` : value);
+  const toByte = (value: string) => Number.parseInt(expand(value), 16);
+
+  if (hex.length === 3 || hex.length === 4) {
+    const r = toByte(hex[0]);
+    const g = toByte(hex[1]);
+    const b = toByte(hex[2]);
+    const a = hex.length === 4 ? toByte(hex[3]) / 255 : 1;
+    return { r, g, b, a };
+  }
+
+  const r = Number.parseInt(hex.slice(0, 2), 16);
+  const g = Number.parseInt(hex.slice(2, 4), 16);
+  const b = Number.parseInt(hex.slice(4, 6), 16);
+  const a = hex.length === 8 ? Number.parseInt(hex.slice(6, 8), 16) / 255 : 1;
+  return { r, g, b, a };
+}
+
+export function parseColor(value: string): RgbaColor | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const hex = parseHexText(trimmed);
+  if (hex) return hex;
+
+  const rgb = parseRgbText(trimmed);
+  if (rgb) return rgb;
+
+  if (!colorParserContext) return null;
+  colorParserContext.fillStyle = "#000";
+  colorParserContext.fillStyle = trimmed;
+  const normalized = colorParserContext.fillStyle;
+  return parseHexText(normalized) ?? parseRgbText(normalized);
+}
+
+export function rgbaToCss(color: RgbaColor) {
+  return `rgba(${clampColorChannel(color.r)}, ${clampColorChannel(color.g)}, ${clampColorChannel(color.b)}, ${clampAlpha(color.a).toFixed(3)})`;
+}
+
+export function interpolateColor(start: string, end: string, progress: number) {
+  const startColor = parseColor(start);
+  const endColor = parseColor(end);
+  if (!startColor || !endColor) return progress >= 1 ? end : start;
+
+  return rgbaToCss({
+    r: lerp(startColor.r, endColor.r, progress),
+    g: lerp(startColor.g, endColor.g, progress),
+    b: lerp(startColor.b, endColor.b, progress),
+    a: lerp(startColor.a, endColor.a, progress),
+  });
 }

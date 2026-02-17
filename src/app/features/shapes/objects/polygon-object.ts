@@ -10,7 +10,10 @@ export class PolygonObject extends AnimatableObject {
     options: ConstructorParameters<typeof Polygon>[1] = {},
     keyframes: KeyframesByProperty = {},
   ) {
-    const fabricObject = new Polygon(points, options);
+    const fabricObject = new Polygon(points, {
+      strokeUniform: true,
+      ...options,
+    });
     super(fabricObject, keyframes);
   }
 }

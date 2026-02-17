@@ -1,15 +1,16 @@
-import { Circle } from "fabric";
+import { Line } from "fabric";
 import { AnimatableObject } from "../animatable-object/object";
 import type { KeyframesByProperty } from "../animatable-object/types";
 
-export class CircleObject extends AnimatableObject {
-  declare fabricObject: Circle;
+export class LineObject extends AnimatableObject {
+  declare fabricObject: Line;
 
   constructor(
-    options: ConstructorParameters<typeof Circle>[0] = {},
+    points: ConstructorParameters<typeof Line>[0] = [0, 0, 140, 0],
+    options: ConstructorParameters<typeof Line>[1] = {},
     keyframes: KeyframesByProperty = {},
   ) {
-    const fabricObject = new Circle({
+    const fabricObject = new Line(points, {
       strokeUniform: true,
       ...options,
     });

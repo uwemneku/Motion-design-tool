@@ -19,7 +19,7 @@ export default function CanvasItemsList() {
       {canvasItemIds.length === 0 ? (
         <p className="text-sm text-slate-500">No items on canvas</p>
       ) : (
-        <ul className="space-y-1">
+        <ul className="space-y-1 rounded-lg bg-slate-950/50 p-1">
           {canvasItemIds.map((id) => {
             const item = itemsRecord[id];
             const name = item?.name ?? id;
@@ -29,10 +29,10 @@ export default function CanvasItemsList() {
               <li key={id}>
                 <button
                   type="button"
-                    className={`w-full rounded-md border px-3 py-2 text-left text-sm ${
+                  className={`w-full rounded-md px-3 py-2 text-left text-sm transition ${
                     isSelected
-                      ? "border-emerald-500/70 bg-emerald-500/15 font-semibold text-emerald-200"
-                      : "border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
+                      ? "bg-sky-500/15 font-semibold text-sky-200"
+                      : "text-slate-200 hover:bg-slate-800/70"
                   }`}
                   onClick={() => {
                     dispatch(setSelectedId(id));

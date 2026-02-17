@@ -2,6 +2,10 @@ import type { FabricObject } from "fabric";
 import type {
   AnimatableProperties,
   AnimatableSnapshot,
+  ColorAnimatableProperties,
+  ColorKeyframe,
+  ColorKeyframesByProperty,
+  ColorSnapshot,
   KeyframesByProperty,
   Keyframe,
   TimelineMarker,
@@ -14,6 +18,7 @@ import {
   findInsertionIndex,
   hasKeyframeNearTime,
   getNumeric,
+  interpolateColor,
   lerp,
 } from "./util";
 
@@ -26,15 +31,28 @@ export class AnimatableObject {
     "opacity",
     "angle",
   ];
+  static colorAnimatableProperties: (keyof ColorAnimatableProperties)[] = [
+    "fill",
+    "stroke",
+  ];
 
   fabricObject: FabricObject;
   keyframes: KeyframesByProperty;
+  colorKeyframes: ColorKeyframesByProperty;
 
-  constructor(fabricObject: FabricObject, keyframes: KeyframesByProperty = {}) {
+  constructor(
+    fabricObject: FabricObject,
+    keyframes: KeyframesByProperty = {},
+    colorKeyframes: ColorKeyframesByProperty = {},
+  ) {
     this.fabricObject = fabricObject;
     this.keyframes = keyframes;
+    this.colorKeyframes = colorKeyframes;
 
-    if (Object.keys(this.keyframes).length === 0) {
+    if (
+      Object.keys(this.keyframes).length === 0 &&
+      Object.keys(this.colorKeyframes).length === 0
+    ) {
       this.freezeProperties(0);
     } else {
       this.seek(0);
@@ -55,6 +73,7 @@ export class AnimatableObject {
   freezeProperties(time: number) {
     const snapshot = this.getSnapshot();
     this.addSnapshotKeyframe(time, snapshot);
+    this.addColorSnapshotKeyframe(time, this.getColorSnapshot());
   }
 
   addSnapshotKeyframe(time: number, snapshot: AnimatableSnapshot) {
@@ -82,6 +101,46 @@ export class AnimatableObject {
     return nextKeyframe.id;
   }
 
+  getColorSnapshot(): ColorSnapshot {
+    const fill = this.fabricObject.get("fill");
+    const stroke = this.fabricObject.get("stroke");
+
+    return {
+      ...(typeof fill === "string" && fill.length > 0 ? { fill } : {}),
+      ...(typeof stroke === "string" && stroke.length > 0 ? { stroke } : {}),
+    };
+  }
+
+  addColorSnapshotKeyframe(time: number, snapshot: ColorSnapshot) {
+    for (const property of AnimatableObject.colorAnimatableProperties) {
+      const value = snapshot[property];
+      if (typeof value !== "string" || value.length === 0) continue;
+      this.addColorKeyframe({
+        property,
+        value,
+        time,
+        easing: "linear",
+      });
+    }
+  }
+
+  addColorKeyframe<K extends keyof ColorAnimatableProperties>(
+    keyframe: Omit<ColorKeyframe<K>, "id">,
+  ) {
+    const propertyKeyframes = (this.colorKeyframes[keyframe.property] ??
+      []) as ColorKeyframe[];
+    const [insertIndex, shouldReplace] = findInsertionIndex(
+      propertyKeyframes,
+      keyframe.time,
+    );
+    const nextKeyframe: ColorKeyframe = { ...keyframe, id: createId("ckf") };
+
+    propertyKeyframes.splice(insertIndex, shouldReplace ? 1 : 0, nextKeyframe);
+    this.colorKeyframes[keyframe.property] = propertyKeyframes;
+
+    return nextKeyframe.id;
+  }
+
   deleteKeyframeAtTime(time: number, epsilon = 0.02) {
     for (const property of AnimatableObject.animatableProperties) {
       const propertyKeyframes = this.keyframes[property];
@@ -93,6 +152,19 @@ export class AnimatableObject {
 
       if (this.keyframes[property]?.length === 0) {
         delete this.keyframes[property];
+      }
+    }
+
+    for (const property of AnimatableObject.colorAnimatableProperties) {
+      const propertyKeyframes = this.colorKeyframes[property];
+      if (!propertyKeyframes) continue;
+
+      this.colorKeyframes[property] = propertyKeyframes.filter(
+        (keyframe) => Math.abs(keyframe.time - time) > epsilon,
+      ) as ColorKeyframesByProperty[typeof property];
+
+      if (this.colorKeyframes[property]?.length === 0) {
+        delete this.colorKeyframes[property];
       }
     }
   }
@@ -127,6 +199,32 @@ export class AnimatableObject {
       this.updateProperty(property, value);
     }
 
+    for (const property of AnimatableObject.colorAnimatableProperties) {
+      const propertyKeyframes = this.colorKeyframes[property];
+      if (!propertyKeyframes || propertyKeyframes.length === 0) continue;
+
+      const { previous, next } = findBoundingKeyframes(propertyKeyframes, time);
+      if (!previous || !next) continue;
+
+      if (
+        previous.id === next.id ||
+        Math.abs(next.time - previous.time) < 0.0001
+      ) {
+        this.updateColorProperty(property, previous.value);
+        continue;
+      }
+
+      const progress = clamp(
+        (time - previous.time) / (next.time - previous.time),
+        0,
+        1,
+      );
+      this.updateColorProperty(
+        property,
+        interpolateColor(previous.value, next.value, progress),
+      );
+    }
+
     this.fabricObject.setCoords();
   }
 
@@ -135,6 +233,20 @@ export class AnimatableObject {
 
     for (const property of AnimatableObject.animatableProperties) {
       const propertyKeyframes = this.keyframes[property];
+      if (!propertyKeyframes) continue;
+
+      for (const keyframe of propertyKeyframes) {
+        const key = keyframe.time.toFixed(4);
+        if (map.has(key)) continue;
+        map.set(key, {
+          id: keyframe.id,
+          time: keyframe.time,
+        });
+      }
+    }
+
+    for (const property of AnimatableObject.colorAnimatableProperties) {
+      const propertyKeyframes = this.colorKeyframes[property];
       if (!propertyKeyframes) continue;
 
       for (const keyframe of propertyKeyframes) {
@@ -156,6 +268,11 @@ export class AnimatableObject {
       if (!propertyKeyframes) continue;
       if (hasKeyframeNearTime(propertyKeyframes, time, epsilon)) return true;
     }
+    for (const property of AnimatableObject.colorAnimatableProperties) {
+      const propertyKeyframes = this.colorKeyframes[property];
+      if (!propertyKeyframes) continue;
+      if (hasKeyframeNearTime(propertyKeyframes, time, epsilon)) return true;
+    }
     return false;
   }
 
@@ -164,5 +281,12 @@ export class AnimatableObject {
     value: AnimatableProperties[K],
   ) {
     this.fabricObject.set(property, value as number);
+  }
+
+  private updateColorProperty<K extends keyof ColorAnimatableProperties>(
+    property: K,
+    value: ColorAnimatableProperties[K],
+  ) {
+    this.fabricObject.set(property, value);
   }
 }

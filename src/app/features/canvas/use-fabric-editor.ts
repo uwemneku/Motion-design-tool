@@ -8,13 +8,17 @@ import {
   setSelectedId,
   upsertItemRecord,
 } from "../../store/editor-slice";
-import { applyFigmaLikeControls } from "./fabric-controls";
+import {
+  applyFigmaLikeControls,
+  syncObjectControlBorderScale,
+} from "./fabric-controls";
 import { initAligningGuidelines } from "fabric/extensions";
 import { useCanvasAppContext } from "./use-canvas-app-context";
 
 const KEYFRAME_EPSILON = 0.001;
 const MIN_CANVAS_ZOOM = 0.25;
 const MAX_CANVAS_ZOOM = 4;
+const CANVAS_ZOOM_SENSITIVITY = 0.05;
 
 function createKeyframeMarkerId() {
   if (
@@ -114,13 +118,14 @@ function useFabricEditor() {
 
         const isGestureZoom = wheelEvent.ctrlKey || wheelEvent.metaKey;
         if (isGestureZoom) {
-          const zoomDelta = -wheelEvent.deltaY * 0.0015;
+          const zoomDelta = -wheelEvent.deltaY * CANVAS_ZOOM_SENSITIVITY;
           const nextZoom = Math.min(
             MAX_CANVAS_ZOOM,
             Math.max(MIN_CANVAS_ZOOM, canvas.getZoom() * (1 + zoomDelta)),
           );
           const zoomPoint = new Point(wheelEvent.offsetX, wheelEvent.offsetY);
           canvas.zoomToPoint(zoomPoint, nextZoom);
+          syncObjectControlBorderScale(canvas);
         } else {
           canvas.relativePan(new Point(-wheelEvent.deltaX, -wheelEvent.deltaY));
         }
@@ -169,6 +174,12 @@ function useFabricEditor() {
   useEffect(() => {
     const canvas = fabricRef.current;
     if (!canvas) return;
+
+    const activeObjects = canvas.getActiveObjects();
+    if (activeObjects.length > 1) {
+      // Do not collapse multi-selection into a single selectedId target.
+      return;
+    }
 
     if (!selectedId) {
       canvas.discardActiveObject();

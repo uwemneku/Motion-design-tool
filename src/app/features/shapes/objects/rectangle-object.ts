@@ -1,15 +1,15 @@
-import { Circle } from "fabric";
+import { Rect } from "fabric";
 import { AnimatableObject } from "../animatable-object/object";
 import type { KeyframesByProperty } from "../animatable-object/types";
 
-export class CircleObject extends AnimatableObject {
-  declare fabricObject: Circle;
+export class RectangleObject extends AnimatableObject {
+  declare fabricObject: Rect;
 
   constructor(
-    options: ConstructorParameters<typeof Circle>[0] = {},
+    options: ConstructorParameters<typeof Rect>[0] = {},
     keyframes: KeyframesByProperty = {},
   ) {
-    const fabricObject = new Circle({
+    const fabricObject = new Rect({
       strokeUniform: true,
       ...options,
     });

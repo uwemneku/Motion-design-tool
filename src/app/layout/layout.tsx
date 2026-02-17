@@ -10,7 +10,7 @@ export default function AppLayout() {
         data-objects
         className="flex min-h-0 flex-col border-b border-slate-800/80 bg-gradient-to-b from-slate-950 to-slate-900 p-6 md:border-r md:border-b-0"
       >
-        <ScrollArea.Root className="min-h-0 flex-1 overflow-hidden pr-1">
+        <ScrollArea.Root className="min-h-0 flex-1 overflow-hidden pr-1 max-h-[70dvh]">
           <ScrollArea.Viewport className="h-full w-full">
             <CanvasItemsList />
           </ScrollArea.Viewport>
