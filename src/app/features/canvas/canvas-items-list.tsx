@@ -12,7 +12,7 @@ export default function CanvasItemsList() {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-300">
         Canvas Items
       </h2>
 
@@ -29,10 +29,10 @@ export default function CanvasItemsList() {
               <li key={id}>
                 <button
                   type="button"
-                  className={`w-full rounded-md border px-3 py-2 text-left text-sm ${
+                    className={`w-full rounded-md border px-3 py-2 text-left text-sm ${
                     isSelected
-                      ? "border-blue-300 bg-blue-50 font-semibold text-blue-800"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      ? "border-emerald-500/70 bg-emerald-500/15 font-semibold text-emerald-200"
+                      : "border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
                   }`}
                   onClick={() => {
                     dispatch(setSelectedId(id));

@@ -48,7 +48,7 @@ export default function VideoWorkAreaOverlay({
   return (
     <div className="pointer-events-none absolute inset-0 z-20">
       <div
-        className="absolute rounded-sm border-2 border-sky-400/90 shadow-[0_0_0_9999px_rgba(15,23,42,0.32)]"
+        className="absolute rounded-sm border-2 border-emerald-400/90 shadow-[0_0_0_9999px_rgba(2,6,23,0.42)]"
         style={{
           left: rect.left,
           top: rect.top,
@@ -58,7 +58,7 @@ export default function VideoWorkAreaOverlay({
           transformOrigin: "0 0",
         }}
       >
-        <div className="absolute -top-6 left-0 rounded bg-sky-500/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+        <div className="absolute -top-6 left-0 rounded bg-emerald-600/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
           Video Area
         </div>
       </div>

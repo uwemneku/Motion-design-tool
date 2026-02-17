@@ -124,8 +124,8 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     }
   };
 
-  const addText = () => {
-    const text = new TextObject("Edit text", {
+  const addText = (content = "Edit text") => {
+    const text = new TextObject(content, {
       left: 240,
       top: 260,
       width: 260,

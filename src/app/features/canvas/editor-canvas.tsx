@@ -1,19 +1,24 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FabricImage, StaticCanvas } from "fabric";
 import type { FabricObject } from "fabric";
 import { exportCanvasAsMp4 } from "../export/export-media";
 import { getVideoWorkAreaRect } from "../export/video-work-area";
 import type { KeyframesByProperty } from "../shapes/animatable-object/types";
 import { AnimatableObject } from "../shapes/animatable-object/object";
+import {
+  AI_EDITOR_COMMAND_EVENT,
+  type AIEditorCommand,
+} from "../ai/editor-ai-events";
 import CanvasHeader from "./canvas-header";
 import TimelinePanel from "./timeline-panel";
 import { useCanvasAppContext } from "./use-canvas-app-context";
 import useFabricEditor from "./use-fabric-editor";
 import VideoWorkAreaOverlay from "./video-work-area-overlay";
+import { useCanvasItems } from "./use-canvas-items";
 
 const EXPORT_FPS = 30;
 const EXPORT_DURATION_SECONDS = 10;
-const EXPORT_PIXEL_DENSITY = 5;
+const EXPORT_PIXEL_DENSITY = 3;
 
 function cloneKeyframesForExport(
   keyframes: KeyframesByProperty,
@@ -54,7 +59,9 @@ function cloneKeyframesForExport(
   return next;
 }
 
-function cloneImageElementToCanvas(sourceObject: FabricImage): HTMLCanvasElement {
+function cloneImageElementToCanvas(
+  sourceObject: FabricImage,
+): HTMLCanvasElement {
   const element = sourceObject.getElement();
   const isImageElement = element instanceof HTMLImageElement;
   const isCanvasElement = element instanceof HTMLCanvasElement;
@@ -63,12 +70,12 @@ function cloneImageElementToCanvas(sourceObject: FabricImage): HTMLCanvasElement
     ? element.naturalWidth || element.width
     : isCanvasElement
       ? element.width
-      : sourceObject.width ?? 1;
+      : (sourceObject.width ?? 1);
   const height = isImageElement
     ? element.naturalHeight || element.height
     : isCanvasElement
       ? element.height
-      : sourceObject.height ?? 1;
+      : (sourceObject.height ?? 1);
 
   const snapshotCanvas = document.createElement("canvas");
   snapshotCanvas.width = Math.max(1, Math.round(width));
@@ -105,8 +112,43 @@ async function cloneFabricObjectWithCustomId(sourceObject: FabricObject) {
 export default function EditorCanvas() {
   const { instancesRef } = useCanvasAppContext();
   const { bindHost, fabricCanvas } = useFabricEditor();
+  const { addCircle, addPolygon, addText } = useCanvasItems({ fabricCanvas });
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
+
+  useEffect(() => {
+    const onAICommand = (event: Event) => {
+      const customEvent = event as CustomEvent<AIEditorCommand>;
+      const command = customEvent.detail;
+      const canvas = fabricCanvas.current;
+      if (!canvas) return;
+
+      if (command.type === "add_circle") {
+        addCircle();
+        return;
+      }
+
+      if (command.type === "add_polygon") {
+        addPolygon();
+        return;
+      }
+
+      if (command.type === "add_text") {
+        addText(command.text ?? "AI title");
+      }
+    };
+
+    window.addEventListener(
+      AI_EDITOR_COMMAND_EVENT,
+      onAICommand as EventListener,
+    );
+    return () => {
+      window.removeEventListener(
+        AI_EDITOR_COMMAND_EVENT,
+        onAICommand as EventListener,
+      );
+    };
+  }, [addCircle, addPolygon, addText, fabricCanvas, instancesRef]);
 
   const exportVideo = useCallback(async () => {
     const liveCanvas = fabricCanvas.current;
@@ -212,7 +254,7 @@ export default function EditorCanvas() {
   }, [fabricCanvas, instancesRef]);
 
   return (
-    <section className="flex h-full min-h-0 flex-col overflow-hidden  border border-slate-300 bg-white shadow-[0_1px_4px_rgba(15,23,42,0.08),0_8px_24px_rgba(15,23,42,0.06)]">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden border border-slate-700 bg-slate-900 shadow-[0_10px_35px_rgba(2,6,23,0.5)]">
       <CanvasHeader
         fabricCanvas={fabricCanvas}
         onExport={exportVideo}
@@ -221,13 +263,13 @@ export default function EditorCanvas() {
       />
 
       <div
-        className=" flex-1 place-items-center p-5"
+        className="flex-1 place-items-center"
         style={{
           background:
-            "repeating-linear-gradient(45deg, #f1f5f9, #f1f5f9 16px, #e2e8f0 16px, #e2e8f0 32px)",
+            "repeating-linear-gradient(45deg, #0f172a, #0f172a 16px, #111827 16px, #111827 32px)",
         }}
       >
-        <div className="relative h-full w-full overflow-hidden rounded-xl border border-slate-300 bg-slate-100">
+        <div className="relative h-full w-full overflow-hidden border border-slate-700 bg-slate-950">
           <canvas ref={bindHost} className="w-full h-full" />
           <VideoWorkAreaOverlay fabricCanvas={fabricCanvas} />
         </div>

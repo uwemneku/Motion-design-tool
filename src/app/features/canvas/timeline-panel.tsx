@@ -4,6 +4,7 @@ import {
   useEffect,
   useRef,
 } from "react";
+import * as ScrollArea from "@radix-ui/react-scroll-area";
 import { useDispatch, useSelector, useStore } from "react-redux";
 import type { RootState } from "../../store";
 import type { AppDispatch } from "../../store";
@@ -96,24 +97,25 @@ export default function TimelinePanel() {
 
   return (
     <section
-      className="shrink-0 border-t border-slate-200 bg-white"
+      className="shrink-0 border-t border-slate-700 bg-slate-900"
       data-testid="timeline"
       tabIndex={0}
       onKeyDown={onKeyDown}
     >
-      <div className="h-40 overflow-auto">
-        <div
-          className="relative min-w-[1200px]"
-          style={{ minWidth: TRACK_MIN_WIDTH }}
-        >
+      <ScrollArea.Root className="h-40 overflow-hidden">
+        <ScrollArea.Viewport className="h-full w-full">
+          <div
+            className="relative min-w-[1200px]"
+            style={{ minWidth: TRACK_MIN_WIDTH }}
+          >
           <TimelinePlayhead
             duration={TIMELINE_DURATION}
             keyframeSectionOffset={LABEL_COLUMN_WIDTH + KEYFRAME_SECTION_HORIZONTAL_PADDING}
             keyframeSectionRightOffset={KEYFRAME_SECTION_HORIZONTAL_PADDING}
           />
 
-          <div className="sticky top-0 z-20 grid grid-cols-[180px_1fr] border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-600">
-            <div className="sticky left-0 z-30 border-r border-slate-200 bg-slate-50 px-3 py-2">
+          <div className="sticky top-0 z-20 grid grid-cols-[180px_1fr] border-b border-slate-700 bg-slate-900 text-xs font-medium text-slate-300">
+            <div className="sticky left-0 z-30 border-r border-slate-700 bg-slate-900 px-3 py-2">
               Item
             </div>
             <div
@@ -137,8 +139,22 @@ export default function TimelinePanel() {
               />
             ))
           )}
-        </div>
-      </div>
+          </div>
+        </ScrollArea.Viewport>
+        <ScrollArea.Scrollbar
+          className="flex h-2.5 touch-none select-none border-t border-slate-800 bg-slate-950 p-0.5"
+          orientation="horizontal"
+        >
+          <ScrollArea.Thumb className="relative flex-1 rounded-full bg-slate-700" />
+        </ScrollArea.Scrollbar>
+        <ScrollArea.Scrollbar
+          className="flex w-2.5 touch-none select-none border-l border-slate-800 bg-slate-950 p-0.5"
+          orientation="vertical"
+        >
+          <ScrollArea.Thumb className="relative flex-1 rounded-full bg-slate-700" />
+        </ScrollArea.Scrollbar>
+        <ScrollArea.Corner className="bg-slate-950" />
+      </ScrollArea.Root>
     </section>
   );
 }

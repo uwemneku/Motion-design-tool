@@ -3,6 +3,7 @@
 @layer base {
   :root {
     font-family: "Söhne", "Inter", "Avenir Next", "Segoe UI", sans-serif;
+    color-scheme: dark;
   }
 
   html,
@@ -13,8 +14,8 @@
   }
 
   body {
-    background: radial-gradient(circle at 18% 18%, #dbeafe 0%, #f8fafc 44%), #f8fafc;
-    color: #0f172a;
+    background: radial-gradient(circle at 12% 10%, #1a2a22 0%, #0b0f0d 48%), #090b0a;
+    color: #e6ebe8;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }

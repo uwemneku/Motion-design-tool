@@ -25,10 +25,10 @@ export default function TimelineItemRow({
   const keyframes = useSelector((state: RootState) => state.editor.itemsRecord[id]?.keyframe ?? []);
 
   return (
-    <div className="grid grid-cols-[180px_1fr] border-b border-slate-100 text-sm">
+    <div className="grid grid-cols-[180px_1fr] border-b border-slate-800 text-sm">
       <div
-        className={`sticky left-0 z-10 border-r border-slate-200 px-3 py-2 text-slate-800 ${
-          selectedId === id ? "bg-blue-50 font-semibold" : "bg-white"
+        className={`sticky left-0 z-10 border-r border-slate-700 px-3 py-2 text-slate-100 ${
+          selectedId === id ? "bg-emerald-500/20 font-semibold" : "bg-slate-900"
         }`}
         onClick={() => {
           dispatch(setSelectedId(id));
@@ -41,14 +41,14 @@ export default function TimelineItemRow({
         <div
           className={`relative h-6 rounded-md border ${
             selectedId === id
-              ? "border-blue-500 shadow-[inset_0_0_0_1px_#bfdbfe]"
-              : "border-slate-200"
+              ? "border-emerald-400 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.45)]"
+              : "border-slate-700"
           }`}
           onClick={onSeekFromPointer}
           title="Click to move playhead"
           style={{
             background:
-              "repeating-linear-gradient(90deg, #f8fafc, #f8fafc 16px, #f1f5f9 16px, #f1f5f9 32px)",
+              "repeating-linear-gradient(90deg, #0f172a, #0f172a 16px, #111827 16px, #111827 32px)",
           }}
         >
           {keyframes.map((keyframe) => {
@@ -56,7 +56,7 @@ export default function TimelineItemRow({
             return (
               <div
                 key={keyframe.id}
-                className="pointer-events-none absolute top-1/2 z-10 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-slate-900 bg-amber-300"
+                className="pointer-events-none absolute top-1/2 z-10 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-200 bg-amber-400"
                 style={{ left: `${left}%` }}
                 title={`${name} @ ${keyframe.timestamp.toFixed(2)}s`}
               />
