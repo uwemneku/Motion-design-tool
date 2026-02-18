@@ -1,15 +1,20 @@
-import type { Canvas, FabricObject } from "fabric";
+import {
+  loadSVGFromString,
+  Point,
+  type Canvas,
+  type FabricObject,
+} from "fabric";
 import type { MutableRefObject } from "react";
 import { useRef } from "react";
 import { useDispatch } from "react-redux";
-import type { AnimatableObject } from "../shapes/animatable-object/object";
-import { useCanvasAppContext } from "./use-canvas-app-context";
+import { toast } from "sonner";
+import { AnimatableObject } from "../../shapes/animatable-object/object";
 import {
   removeItemRecord,
   setSelectedId,
   upsertItemRecord,
-} from "../../store/editor-slice";
-import { dispatchableSelector, type AppDispatch } from "../../store";
+} from "../../../store/editor-slice";
+import { dispatchableSelector, type AppDispatch } from "../../../store";
 import {
   CircleObject,
   ImageObject,
@@ -17,8 +22,20 @@ import {
   PolygonObject,
   RectangleObject,
   TextObject,
-} from "../shapes/objects";
-import type { AIItemKeyframe } from "../ai/editor-ai-events";
+} from "../../shapes/objects";
+import type { AIItemKeyframe } from "../../ai/editor-ai-events";
+import {
+  CANVAS_KEYFRAME_EPSILON as KEYFRAME_EPSILON,
+  IMAGE_PLACEHOLDER_HEIGHT_RATIO,
+  IMAGE_PLACEHOLDER_MIN_SIZE,
+  IMAGE_PLACEHOLDER_PULSE_DURATION_MS,
+  IMAGE_PLACEHOLDER_PULSE_MAX_OPACITY,
+  IMAGE_PLACEHOLDER_PULSE_MIN_OPACITY,
+  IMAGE_PLACEHOLDER_WIDTH_RATIO,
+} from "../../../const";
+import { useCanvasAppContext } from "./use-canvas-app-context";
+import { createRegularPolygonPoints, validateImageUrl } from "./util";
+import { createCustomId, createKeyframeMarkerId } from "../animations-utils";
 
 type UseCanvasItemsParams = {
   fabricCanvas: MutableRefObject<Canvas | null>;
@@ -32,58 +49,96 @@ type AddItemOptions = {
   name?: string;
   shouldSetSelected?: boolean;
 };
-const KEYFRAME_EPSILON = 0.001;
-const IMAGE_PLACEHOLDER_WIDTH_RATIO = 0.36;
-const IMAGE_PLACEHOLDER_HEIGHT_RATIO = 0.32;
-const IMAGE_PLACEHOLDER_MIN_SIZE = 140;
-const IMAGE_PLACEHOLDER_PULSE_DURATION_MS = 900;
-const IMAGE_PLACEHOLDER_PULSE_MIN_OPACITY = 0.34;
-const IMAGE_PLACEHOLDER_PULSE_MAX_OPACITY = 0.88;
 
-function createCustomId(prefix: string) {
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
-    return `${prefix}-${crypto.randomUUID()}`;
-  }
-
-  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+function isSvgFile(file: File) {
+  // Detect SVG uploads by MIME type or extension so we can parse vector data.
+  return (
+    file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg")
+  );
 }
 
-function createKeyframeMarkerId() {
+function getBoundsForObjects(objects: FabricObject[]) {
+  // Measure a combined bounding rectangle for all parsed SVG objects.
+  let minLeft = Number.POSITIVE_INFINITY;
+  let minTop = Number.POSITIVE_INFINITY;
+  let maxRight = Number.NEGATIVE_INFINITY;
+  let maxBottom = Number.NEGATIVE_INFINITY;
+
+  objects.forEach((object) => {
+    object.setCoords();
+    const rect = object.getBoundingRect();
+    minLeft = Math.min(minLeft, rect.left);
+    minTop = Math.min(minTop, rect.top);
+    maxRight = Math.max(maxRight, rect.left + rect.width);
+    maxBottom = Math.max(maxBottom, rect.top + rect.height);
+  });
+
   if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
+    !Number.isFinite(minLeft) ||
+    !Number.isFinite(minTop) ||
+    !Number.isFinite(maxRight) ||
+    !Number.isFinite(maxBottom)
   ) {
-    return `kf-${crypto.randomUUID()}`;
+    return null;
   }
-  return `kf-${Math.random().toString(36).slice(2, 10)}`;
+
+  return {
+    left: minLeft,
+    top: minTop,
+    width: Math.max(1, maxRight - minLeft),
+    height: Math.max(1, maxBottom - minTop),
+  };
 }
 
-async function validateImageUrl(url: string) {
-  await new Promise<void>((resolve, reject) => {
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => resolve();
-    image.onerror = () =>
-      reject(new Error("Image could not be loaded from the provided URL."));
-    image.src = url;
+function fitSvgObjectsToCanvas(
+  objects: FabricObject[],
+  canvas: Canvas,
+  maxWidthRatio = 0.6,
+  maxHeightRatio = 0.6,
+) {
+  // Scale and center all SVG layers while preserving their relative layout.
+  const bounds = getBoundsForObjects(objects);
+  if (!bounds) return;
+
+  const maxWidth = canvas.getWidth() * maxWidthRatio;
+  const maxHeight = canvas.getHeight() * maxHeightRatio;
+  const widthScale = maxWidth / bounds.width;
+  const heightScale = maxHeight / bounds.height;
+  const scale = Math.min(1, widthScale, heightScale);
+  const targetLeft = (canvas.getWidth() - bounds.width * scale) / 2;
+  const targetTop = (canvas.getHeight() - bounds.height * scale) / 2;
+
+  objects.forEach((object) => {
+    const center = object.getCenterPoint();
+    const nextCenterX = (center.x - bounds.left) * scale + targetLeft;
+    const nextCenterY = (center.y - bounds.top) * scale + targetTop;
+    object.set({
+      scaleX: (object.scaleX ?? 1) * scale,
+      scaleY: (object.scaleY ?? 1) * scale,
+    });
+    object.setPositionByOrigin(
+      new Point(nextCenterX, nextCenterY),
+      "center",
+      "center",
+    );
+    object.setCoords();
   });
 }
 
-function createRegularPolygonPoints(sides: number, radius: number) {
-  const safeSides = Math.max(3, Math.round(sides));
-  const step = (Math.PI * 2) / safeSides;
-  const startAngle = -Math.PI / 2;
+function getSvgLayerName(object: FabricObject, index: number) {
+  // Generate stable readable names for imported SVG layers in timeline/object list.
+  const typeName = object.type ? String(object.type).toLowerCase() : "layer";
+  return `svg-${typeName}-${index + 1}`;
+}
 
-  return Array.from({ length: safeSides }, (_, index) => {
-    const angle = startAngle + step * index;
-    return {
-      x: Math.cos(angle) * radius + radius,
-      y: Math.sin(angle) * radius + radius,
-    };
-  });
+function applyStrokeUniformRecursively(object: FabricObject) {
+  // Keep stroke width visually consistent when imported SVG elements are scaled.
+  object.set("strokeUniform", true);
+  if ("forEachObject" in object && typeof object.forEachObject === "function") {
+    object.forEachObject((child: FabricObject) => {
+      applyStrokeUniformRecursively(child);
+    });
+  }
 }
 
 export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
@@ -282,7 +337,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       height,
       fill: "#38bdf833",
       stroke: "#38bdf8",
-      strokeWidth: 2,
+      strokeWidth: 0,
       strokeDashArray: [10, 6],
       rx: 10,
       ry: 10,
@@ -366,7 +421,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       radius: 70,
       fill: options.color ?? "#ef4444",
       stroke: "#7f1d1d",
-      strokeWidth: 2,
+      strokeWidth: 0,
       strokeUniform: true,
     });
 
@@ -380,7 +435,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       top: 140,
       fill: options.color ?? "#6366f1",
       stroke: "#312e81",
-      strokeWidth: 2,
+      strokeWidth: 0,
       strokeUniform: true,
     });
 
@@ -392,7 +447,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       left: 220,
       top: 180,
       stroke: options.color ?? "#f97316",
-      strokeWidth: 6,
+      strokeWidth: 2,
       strokeLineCap: "round",
       strokeUniform: true,
     });
@@ -408,7 +463,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       height: 110,
       fill: options.color ?? "#22c55e",
       stroke: "#14532d",
-      strokeWidth: 2,
+      strokeWidth: 0,
       strokeUniform: true,
     });
 
@@ -443,11 +498,48 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
   };
 
   const addImageFromFile = async (file: File) => {
+    // Import bitmap files through object URL and revoke URL after load.
     const fileUrl = URL.createObjectURL(file);
     try {
       await addImageFromURL(fileUrl);
     } finally {
       URL.revokeObjectURL(fileUrl);
+    }
+  };
+
+  const addSvgFromFile = async (file: File) => {
+    // Attempt SVG parsing into editable Fabric objects instead of rasterizing.
+    if (!isSvgFile(file)) {
+      toast.error("Please select an SVG file.");
+      return;
+    }
+
+    const canvas = fabricCanvas.current;
+    if (!canvas) return;
+
+    try {
+      const svgText = await file.text();
+      const parsed = await loadSVGFromString(svgText);
+      if (parsed.objects.length === 0) {
+        throw new Error("No SVG shapes found.");
+      }
+
+      const svgObjects = parsed.objects as FabricObject[];
+      svgObjects.forEach((object) => {
+        applyStrokeUniformRecursively(object);
+      });
+      fitSvgObjectsToCanvas(svgObjects, canvas);
+
+      svgObjects.forEach((object, index) => {
+        addObjectToCanvas(new AnimatableObject(object), "svg", {
+          name: getSvgLayerName(object, index),
+          shouldSetSelected: index === svgObjects.length - 1,
+        });
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not parse SVG.";
+      toast.error(`SVG import failed: ${message}`);
     }
   };
 
@@ -473,6 +565,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     addRectangle,
     addImagePlaceholder,
     addImageFromFile,
+    addSvgFromFile,
     addImageFromURL,
     removeItemById,
     replaceItemWithImageFromURL,

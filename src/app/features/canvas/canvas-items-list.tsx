@@ -1,8 +1,18 @@
-import { Reorder } from 'framer-motion';
-import { useDispatch, useSelector } from 'react-redux';
-import type { AppDispatch, RootState } from '../../store';
-import { setCanvasItemIds, setSelectedId } from '../../store/editor-slice';
-import { useCanvasAppContext } from './use-canvas-app-context';
+import { Reorder } from "framer-motion";
+import { useDispatch, useSelector } from "react-redux";
+import type { AppDispatch, RootState } from "../../store";
+import { setCanvasItemIds, setSelectedId } from "../../store/editor-slice";
+import { useCanvasAppContext } from "./hooks/use-canvas-app-context";
+
+function toDisplayOrder(idsInStackOrder: string[]) {
+  // Render top-most canvas objects first in the list.
+  return [...idsInStackOrder].reverse();
+}
+
+function toStackOrder(idsInDisplayOrder: string[]) {
+  // Convert list order back to bottom-to-top stacking order for canvas operations.
+  return [...idsInDisplayOrder].reverse();
+}
 
 export default function CanvasItemsList() {
   const dispatch = useDispatch<AppDispatch>();
@@ -10,28 +20,34 @@ export default function CanvasItemsList() {
   const canvasItemIds = useSelector(
     (state: RootState) => state.editor.canvasItemIds,
   );
-  const itemsRecord = useSelector((state: RootState) => state.editor.itemsRecord);
+  const itemsRecord = useSelector(
+    (state: RootState) => state.editor.itemsRecord,
+  );
   const selectedId = useSelector((state: RootState) => state.editor.selectedId);
+  const displayItemIds = toDisplayOrder(canvasItemIds);
 
   const syncCanvasStackOrder = (idsInOrder: string[]) => {
+    // Apply bottom-to-top order to Fabric stacking indices.
     for (const [index, id] of idsInOrder.entries()) {
       const instance = getInstanceById(id);
       const object = instance?.fabricObject;
       const canvas = object?.canvas;
       if (!object || !canvas) continue;
 
-      if (typeof canvas.moveObjectTo === 'function') {
+      if (typeof canvas.moveObjectTo === "function") {
         canvas.moveObjectTo(object, index);
-      } else if (typeof object.moveTo === 'function') {
+      } else if ("moveTo" in object && typeof object.moveTo === "function") {
         object.moveTo(index);
       }
       canvas.requestRenderAll();
     }
   };
 
-  const onReorder = (nextIds: string[]) => {
-    dispatch(setCanvasItemIds(nextIds));
-    syncCanvasStackOrder(nextIds);
+  const onReorder = (nextDisplayIds: string[]) => {
+    // Reorder payload from UI (top-to-bottom) is converted back to stack order.
+    const nextStackIds = toStackOrder(nextDisplayIds);
+    dispatch(setCanvasItemIds(nextStackIds));
+    syncCanvasStackOrder(nextStackIds);
   };
 
   return (
@@ -44,12 +60,12 @@ export default function CanvasItemsList() {
         <p className="text-sm text-[#8f8f8f]">No items on canvas</p>
       ) : (
         <Reorder.Group
-          axis='y'
-          values={canvasItemIds}
+          axis="y"
+          values={displayItemIds}
           onReorder={onReorder}
-          className='space-y-1 rounded-lg border border-[var(--wise-border)] bg-[var(--wise-surface)] p-1'
+          className="space-y-1 rounded-lg border border-[var(--wise-border)] bg-[var(--wise-surface)] p-1"
         >
-          {canvasItemIds.map((id) => {
+          {displayItemIds.map((id) => {
             const item = itemsRecord[id];
             const name = item?.name ?? id;
             const isSelected = selectedId === id;
@@ -58,7 +74,7 @@ export default function CanvasItemsList() {
               <Reorder.Item
                 key={id}
                 value={id}
-                className='cursor-grab active:cursor-grabbing'
+                className="cursor-grab active:cursor-grabbing"
                 whileDrag={{ scale: 1.01 }}
               >
                 <button

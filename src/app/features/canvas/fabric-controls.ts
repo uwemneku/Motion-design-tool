@@ -1,9 +1,10 @@
 import { Canvas, FabricObject } from "fabric";
-
-const FIGMA_BLUE = "#2563eb";
-const FIGMA_BLUE_LIGHT = "rgba(37, 99, 235, 0.12)";
-const MIN_BORDER_SCALE_FACTOR = 0.5;
-const MAX_BORDER_SCALE_FACTOR = 4;
+import {
+  FIGMA_BLUE,
+  FIGMA_BLUE_LIGHT,
+  MAX_BORDER_SCALE_FACTOR,
+  MIN_BORDER_SCALE_FACTOR,
+} from "../../const";
 
 function styleObjectControls(object: FabricObject) {
   object.set({

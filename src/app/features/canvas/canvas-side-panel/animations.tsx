@@ -11,7 +11,6 @@ import {
   upsertItemRecord,
 } from "../../../store/editor-slice";
 import { TextObject } from "../../shapes/objects";
-import { useCanvasAppContext } from "../use-canvas-app-context";
 import {
   animationTemplates,
   KEYFRAME_EPSILON,
@@ -25,6 +24,7 @@ import {
   getPreviewShapeClass,
   getTextPreviewShapeClass,
 } from "../animations-utils";
+import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 
 type CanvasSidePanelAnimationsProps = {
   canApplyAnimation: boolean;
@@ -98,7 +98,10 @@ export default function CanvasSidePanelAnimations({
       const step2 = startTime + template.duration * 0.36;
       const step3 = startTime + template.duration * 0.54;
       const step4 = startTime + template.duration * 0.72;
-      instance.addSnapshotKeyframe(startTime, { ...baseSnapshot, opacity: 0.05 });
+      instance.addSnapshotKeyframe(startTime, {
+        ...baseSnapshot,
+        opacity: 0.05,
+      });
       instance.addSnapshotKeyframe(step1, { ...baseSnapshot, opacity: 0.9 });
       instance.addSnapshotKeyframe(step2, { ...baseSnapshot, opacity: 0.2 });
       instance.addSnapshotKeyframe(step3, { ...baseSnapshot, opacity: 1 });
@@ -301,7 +304,9 @@ export default function CanvasSidePanelAnimations({
             className="group rounded-md border border-slate-700 bg-slate-950 p-2 text-left transition hover:border-sky-500/60 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-200">{template.name}</p>
+              <p className="text-sm font-semibold text-slate-200">
+                {template.name}
+              </p>
               <span className="text-[10px] uppercase tracking-wide text-slate-500">
                 {template.duration.toFixed(1)}s
               </span>
@@ -339,7 +344,9 @@ export default function CanvasSidePanelAnimations({
               className="group rounded-md border border-slate-700 bg-slate-950 p-2 text-left transition hover:border-cyan-500/60 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-200">{template.name}</p>
+                <p className="text-sm font-semibold text-slate-200">
+                  {template.name}
+                </p>
                 <span className="text-[10px] uppercase tracking-wide text-slate-500">
                   {template.duration.toFixed(2)}s
                 </span>

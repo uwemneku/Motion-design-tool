@@ -2,13 +2,14 @@ import { useMemo, useState, type MouseEvent } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../../../store";
 import type { AppDispatch } from "../../../store";
+import { EASING_OPTIONS, TIME_EPSILON } from "../../../const";
 import { setPlayheadTime, setSelectedId } from "../../../store/editor-slice";
-import { useCanvasAppContext } from "../use-canvas-app-context";
 import type {
   ColorKeyframe,
   KeyframeEasing,
   Keyframe,
 } from "../../shapes/animatable-object/types";
+import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 
 type TimelineItemRowProps = {
   id: string;
@@ -26,16 +27,6 @@ type DetailRow = {
   entries: DetailEntry[];
 };
 
-const TIME_EPSILON = 0.0001;
-const EASING_OPTIONS: KeyframeEasing[] = [
-  "linear",
-  "easeIn",
-  "easeOut",
-  "easeInOut",
-  "elastic",
-  "bounce",
-];
-
 export default function TimelineItemRow({
   id,
   onSeekFromPointer,
@@ -44,9 +35,9 @@ export default function TimelineItemRow({
   const dispatch = useDispatch<AppDispatch>();
   const { getInstanceById } = useCanvasAppContext();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [selectedKeyframeTime, setSelectedKeyframeTime] = useState<number | null>(
-    null,
-  );
+  const [selectedKeyframeTime, setSelectedKeyframeTime] = useState<
+    number | null
+  >(null);
   const [easingRevision, setEasingRevision] = useState(0);
 
   const selectedId = useSelector((state: RootState) => state.editor.selectedId);

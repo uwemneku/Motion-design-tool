@@ -17,7 +17,7 @@ import {
 } from "./editor-ai-events";
 import type { RootState } from "../../store";
 import { generateOpenAIChatTurn } from "./openai-chat";
-import { useCanvasAppContext } from "../canvas/use-canvas-app-context";
+import { useCanvasAppContext } from "../canvas/hooks/use-canvas-app-context";
 
 type ChatMessage = {
   id: string;
@@ -324,6 +324,13 @@ function buildSceneItemContext(
   name: string,
   keyframeTimes: number[],
   instance?: {
+    fabricObject: {
+      get: (key: string) => unknown;
+      getScaledHeight: () => number;
+      getScaledWidth: () => number;
+      height?: number;
+      width?: number;
+    };
     keyframes: {
       left?: Keyframe[];
       top?: Keyframe[];
@@ -358,10 +365,50 @@ function buildSceneItemContext(
     id,
     name,
     keyframeTimes,
-    current: {
-      ...instance.getSnapshot(),
-      ...instance.getColorSnapshot(),
-    },
+    current: (() => {
+      const snapshot = instance.getSnapshot();
+      const width =
+        typeof instance.fabricObject.width === "number"
+          ? instance.fabricObject.width
+          : undefined;
+      const height =
+        typeof instance.fabricObject.height === "number"
+          ? instance.fabricObject.height
+          : undefined;
+      const scaledWidth = instance.fabricObject.getScaledWidth();
+      const scaledHeight = instance.fabricObject.getScaledHeight();
+      const halfWidth = scaledWidth / 2;
+      const halfHeight = scaledHeight / 2;
+
+      return {
+        ...snapshot,
+        centerX: snapshot.left,
+        centerY: snapshot.top,
+        width,
+        height,
+        scaledWidth,
+        scaledHeight,
+        bounds: {
+          left: snapshot.left - halfWidth,
+          top: snapshot.top - halfHeight,
+          right: snapshot.left + halfWidth,
+          bottom: snapshot.top + halfHeight,
+        },
+        ...instance.getColorSnapshot(),
+        text:
+          typeof instance.fabricObject.get("text") === "string"
+            ? String(instance.fabricObject.get("text"))
+            : undefined,
+        fontFamily:
+          typeof instance.fabricObject.get("fontFamily") === "string"
+            ? String(instance.fabricObject.get("fontFamily"))
+            : undefined,
+        fontSize:
+          typeof instance.fabricObject.get("fontSize") === "number"
+            ? Number(instance.fabricObject.get("fontSize"))
+            : undefined,
+      };
+    })(),
     keyframes: {
       left: mapNumericFrames(instance.keyframes.left),
       top: mapNumericFrames(instance.keyframes.top),

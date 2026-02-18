@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { CanvasAppContextValue } from "./canvas-app-context";
+import type { CanvasAppContextValue } from "../canvas-app-context";
 
 export const CanvasAppContext = createContext<CanvasAppContextValue | null>(
   null,

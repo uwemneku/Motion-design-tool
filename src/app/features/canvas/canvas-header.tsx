@@ -1,22 +1,33 @@
-import * as Tooltip from '@radix-ui/react-tooltip';
-import { FabricImage, StaticCanvas } from 'fabric';
-import type { Canvas, FabricObject } from 'fabric';
+import * as Tooltip from "@radix-ui/react-tooltip";
+import { FabricImage, StaticCanvas } from "fabric";
+import type { Canvas, FabricObject } from "fabric";
 import {
   useCallback,
   useState,
   type MouseEvent,
   type MutableRefObject,
-} from 'react';
-import { toast } from 'sonner';
-import { exportCanvasAsMp4 } from '../export/export-media';
-import { getVideoWorkAreaRect } from '../export/video-work-area';
-import { AnimatableObject } from '../shapes/animatable-object/object';
-import type { KeyframesByProperty } from '../shapes/animatable-object/types';
-import { useCanvasAppContext } from './use-canvas-app-context';
+} from "react";
+import { toast } from "sonner";
+import {
+  EXPORT_DURATION_SECONDS,
+  EXPORT_FPS,
+  EXPORT_PIXEL_DENSITY,
+} from "../../const";
+import { exportCanvasAsMp4 } from "../export/export-media";
+import { getVideoWorkAreaRect } from "../export/video-work-area";
+import { AnimatableObject } from "../shapes/animatable-object/object";
+import type { KeyframesByProperty } from "../shapes/animatable-object/types";
+import CanvasHistoryControls from "./canvas-history-controls";
+import { useCanvasAppContext } from "./hooks/use-canvas-app-context";
 
 type CanvasHeaderProps = {
   fabricCanvas: MutableRefObject<Canvas | null>;
   activeAspectRatio: number;
+};
+
+type ExportMaskTrackingObject = FabricObject & {
+  __maskProxyObject?: FabricObject;
+  __maskSourceObject?: FabricObject;
 };
 
 export default function CanvasHeader({
@@ -32,6 +43,8 @@ export default function CanvasHeader({
     async (quality: number) => {
       const liveCanvas = fabricCanvas.current;
       if (!liveCanvas) return;
+      liveCanvas.discardActiveObject();
+      liveCanvas.requestRenderAll();
 
       const exportScale =
         Math.max(0.5, Math.min(5, quality)) * EXPORT_PIXEL_DENSITY;
@@ -59,13 +72,13 @@ export default function CanvasHeader({
         const scaleX = exportWidth / videoArea.width;
         const scaleY = exportHeight / videoArea.height;
 
-        const exportElement = document.createElement('canvas');
+        const exportElement = document.createElement("canvas");
         exportElement.width = exportWidth;
         exportElement.height = exportHeight;
         exportCanvas = new StaticCanvas(exportElement, {
           width: exportWidth,
           height: exportHeight,
-          backgroundColor: '#f6f7fb',
+          backgroundColor: "#f6f7fb",
           renderOnAddRemove: false,
         });
 
@@ -78,7 +91,8 @@ export default function CanvasHeader({
             sourceObjectsById.set(sourceObject.customId, sourceObject);
           }
 
-          const clonedObject = await cloneFabricObjectWithCustomId(sourceObject);
+          const clonedObject =
+            await cloneFabricObjectWithCustomId(sourceObject);
           const sourceLeft = sourceObject.left ?? 0;
           const sourceTop = sourceObject.top ?? 0;
           const sourceScaleX = sourceObject.scaleX ?? 1;
@@ -95,7 +109,9 @@ export default function CanvasHeader({
 
           if (sourceObject.customId) {
             exportObjectsById.set(sourceObject.customId, clonedObject);
-            const sourceInstance = instancesRef.current.get(sourceObject.customId);
+            const sourceInstance = instancesRef.current.get(
+              sourceObject.customId,
+            );
             if (sourceInstance) {
               const exportKeyframes = cloneKeyframesForExport(
                 sourceInstance.keyframes,
@@ -108,9 +124,11 @@ export default function CanvasHeader({
                 fill: sourceInstance.colorKeyframes.fill?.map((keyframe) => ({
                   ...keyframe,
                 })),
-                stroke: sourceInstance.colorKeyframes.stroke?.map((keyframe) => ({
-                  ...keyframe,
-                })),
+                stroke: sourceInstance.colorKeyframes.stroke?.map(
+                  (keyframe) => ({
+                    ...keyframe,
+                  }),
+                ),
               };
               exportInstances.set(
                 sourceObject.customId,
@@ -124,7 +142,14 @@ export default function CanvasHeader({
           }
         }
 
-        remapExportClipPaths(sourceObjectsById, exportObjectsById);
+        await remapExportClipPaths(
+          sourceObjectsById,
+          exportObjectsById,
+          videoArea.left,
+          videoArea.top,
+          scaleX,
+          scaleY,
+        );
         exportCanvas.renderAll();
 
         const blob = await exportCanvasAsMp4({
@@ -137,6 +162,9 @@ export default function CanvasHeader({
             exportInstances.forEach((instance) => {
               instance.seek(timeInSeconds);
             });
+            exportObjectsById.forEach((exportObject) => {
+              syncExportMaskProxyForObject(exportObject);
+            });
             exportCanvas?.renderAll();
           },
           onProgress: (progress) => {
@@ -145,9 +173,9 @@ export default function CanvasHeader({
         });
 
         const url = URL.createObjectURL(blob);
-        window.open(url, '_blank', 'noopener,noreferrer');
-        const anchor = document.createElement('a');
-        const timestamp = new Date().toISOString().replaceAll(':', '-');
+        window.open(url, "_blank", "noopener,noreferrer");
+        const anchor = document.createElement("a");
+        const timestamp = new Date().toISOString().replaceAll(":", "-");
         anchor.href = url;
         anchor.download = `motion-export-${timestamp}.mp4`;
         anchor.click();
@@ -156,7 +184,7 @@ export default function CanvasHeader({
         }, 60_000);
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : 'Unknown export error';
+          error instanceof Error ? error.message : "Unknown export error";
         toast.error(`Export failed: ${message}`);
       } finally {
         setIsExporting(false);
@@ -174,29 +202,30 @@ export default function CanvasHeader({
   return (
     <Tooltip.Provider>
       <div
-        className='flex items-center border-b border-[var(--wise-border)] bg-[var(--wise-surface-raised)] px-2.5 py-2'
-        data-testId='header'
+        className="flex items-center border-b border-[var(--wise-border)] bg-[var(--wise-surface-raised)] px-2.5 py-2"
+        data-testId="header"
       >
-        <div className='text-xs font-semibold uppercase tracking-wide text-[#a7a7a7]'>
+        <div className="text-xs font-semibold uppercase tracking-wide text-[#a7a7a7]">
           Motion Editor
         </div>
 
-        <div className='ml-auto flex items-center gap-2'>
+        <div className="ml-auto flex items-center gap-2">
+          <CanvasHistoryControls disabled={isExporting} />
           {isExporting ? (
-            <span className='text-xs text-[#c6c6c6]'>
+            <span className="text-xs text-[#c6c6c6]">
               Exporting {Math.round(exportProgress * 100)}%
             </span>
           ) : null}
           <Tooltip.Root delayDuration={120}>
             <Tooltip.Trigger asChild>
               <button
-                type='button'
+                type="button"
                 onClick={() => {
                   void exportVideo(exportQuality);
                 }}
                 onMouseDown={onMouseDown}
                 disabled={isExporting}
-                className='rounded-md border border-[#0d99ff]/70 bg-[#0d99ff]/20 px-2.5 py-1.5 text-sm font-medium text-[#dcefff] hover:bg-[#0d99ff]/30 disabled:cursor-not-allowed disabled:opacity-60'
+                className="rounded-md border border-[#0d99ff]/70 bg-[#0d99ff]/20 px-2.5 py-1.5 text-sm font-medium text-[#dcefff] hover:bg-[#0d99ff]/30 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Export MP4
               </button>
@@ -204,14 +233,16 @@ export default function CanvasHeader({
             <Tooltip.Portal>
               <Tooltip.Content
                 sideOffset={8}
-                className='z-50 w-48 rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface-raised)] p-2 text-xs text-[#e6e6e6] shadow-lg'
+                className="z-50 w-48 rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface-raised)] p-2 text-xs text-[#e6e6e6] shadow-lg"
               >
-                <div className='mb-1.5 flex items-center justify-between'>
+                <div className="mb-1.5 flex items-center justify-between">
                   <span>Quality</span>
-                  <span className='text-[#8ac8ff]'>{exportQuality.toFixed(1)}x</span>
+                  <span className="text-[#8ac8ff]">
+                    {exportQuality.toFixed(1)}x
+                  </span>
                 </div>
                 <input
-                  type='range'
+                  type="range"
                   min={0.5}
                   max={5}
                   step={0.1}
@@ -219,9 +250,9 @@ export default function CanvasHeader({
                   onChange={(event) => {
                     setExportQuality(Number(event.target.value));
                   }}
-                  className='w-full accent-[#0d99ff]'
+                  className="w-full accent-[#0d99ff]"
                 />
-                <Tooltip.Arrow className='fill-[var(--wise-surface-raised)]' />
+                <Tooltip.Arrow className="fill-[var(--wise-surface-raised)]" />
               </Tooltip.Content>
             </Tooltip.Portal>
           </Tooltip.Root>
@@ -230,10 +261,6 @@ export default function CanvasHeader({
     </Tooltip.Provider>
   );
 }
-
-const EXPORT_FPS = 30;
-const EXPORT_DURATION_SECONDS = 10;
-const EXPORT_PIXEL_DENSITY = 1;
 
 function cloneKeyframesForExport(
   keyframes: KeyframesByProperty,
@@ -254,13 +281,13 @@ function cloneKeyframesForExport(
     next[property] = propertyKeyframes.map((keyframe) => {
       let value = keyframe.value;
 
-      if (keyframe.property === 'left') {
+      if (keyframe.property === "left") {
         value = (keyframe.value - offsetX) * scaleX;
-      } else if (keyframe.property === 'top') {
+      } else if (keyframe.property === "top") {
         value = (keyframe.value - offsetY) * scaleY;
-      } else if (keyframe.property === 'scaleX') {
+      } else if (keyframe.property === "scaleX") {
         value = keyframe.value * scaleX;
-      } else if (keyframe.property === 'scaleY') {
+      } else if (keyframe.property === "scaleY") {
         value = keyframe.value * scaleY;
       }
 
@@ -292,12 +319,12 @@ function cloneImageElementToCanvas(
       ? element.height
       : (sourceObject.height ?? 1);
 
-  const snapshotCanvas = document.createElement('canvas');
+  const snapshotCanvas = document.createElement("canvas");
   snapshotCanvas.width = Math.max(1, Math.round(width));
   snapshotCanvas.height = Math.max(1, Math.round(height));
-  const context = snapshotCanvas.getContext('2d');
+  const context = snapshotCanvas.getContext("2d");
   if (!context) {
-    throw new Error('Could not create 2d context for image export clone.');
+    throw new Error("Could not create 2d context for image export clone.");
   }
   context.drawImage(element as CanvasImageSource, 0, 0);
   return snapshotCanvas;
@@ -319,34 +346,118 @@ async function cloneFabricObjectWithCustomId(sourceObject: FabricObject) {
   const customId = sourceObject.customId;
   if (customId) {
     clonedObject.customId = customId;
-    clonedObject.set('customId', customId);
+    clonedObject.set("customId", customId);
   }
   return clonedObject;
 }
 
-function remapExportClipPaths(
+async function remapExportClipPaths(
   sourceObjectsById: Map<string, FabricObject>,
   exportObjectsById: Map<string, FabricObject>,
+  offsetX: number,
+  offsetY: number,
+  scaleX: number,
+  scaleY: number,
 ) {
-  sourceObjectsById.forEach((sourceObject, sourceId) => {
+  // Rebind clip paths on export clones so mask behavior matches the live canvas.
+  for (const [sourceId, sourceObject] of sourceObjectsById.entries()) {
     const sourceClipPath = sourceObject.clipPath;
-    if (!sourceClipPath) return;
+    if (!sourceClipPath) continue;
 
     const clipPathId =
+      'customId' in sourceClipPath &&
       typeof sourceClipPath.customId === 'string'
         ? sourceClipPath.customId
         : null;
-    if (!clipPathId) return;
-
     const exportObject = exportObjectsById.get(sourceId);
-    const exportClipPath = exportObjectsById.get(clipPathId);
-    if (!exportObject || !exportClipPath) return;
+    if (!exportObject) continue;
+
+    let exportClipPath: FabricObject | undefined;
+    let exportMaskSourceForSync: FabricObject | undefined;
+    if (clipPathId) {
+      const exportMaskSource = exportObjectsById.get(clipPathId);
+      if (exportMaskSource) {
+        // Use a dedicated clip-path clone so the visible source object is not reused as mask.
+        exportClipPath = await cloneFabricObjectWithCustomId(exportMaskSource);
+        exportMaskSourceForSync = exportMaskSource;
+        exportClipPath.set({
+          left: exportMaskSource.left,
+          top: exportMaskSource.top,
+          scaleX: exportMaskSource.scaleX,
+          scaleY: exportMaskSource.scaleY,
+          angle: exportMaskSource.angle,
+          skewX: exportMaskSource.skewX,
+          skewY: exportMaskSource.skewY,
+          flipX: exportMaskSource.flipX,
+          flipY: exportMaskSource.flipY,
+          originX: exportMaskSource.originX,
+          originY: exportMaskSource.originY,
+          visible: false,
+          evented: false,
+        });
+        exportClipPath.setCoords();
+      }
+    }
+    if (!exportClipPath) {
+      exportClipPath = await cloneFabricObjectWithCustomId(sourceClipPath);
+      const sourceLeft = sourceClipPath.left ?? 0;
+      const sourceTop = sourceClipPath.top ?? 0;
+      const sourceScaleX = sourceClipPath.scaleX ?? 1;
+      const sourceScaleY = sourceClipPath.scaleY ?? 1;
+      exportClipPath.set({
+        left: (sourceLeft - offsetX) * scaleX,
+        top: (sourceTop - offsetY) * scaleY,
+        scaleX: sourceScaleX * scaleX,
+        scaleY: sourceScaleY * scaleY,
+        visible: false,
+        evented: false,
+      });
+      exportClipPath.setCoords();
+    }
 
     exportClipPath.set(
       'absolutePositioned',
       Boolean(sourceClipPath.absolutePositioned),
     );
     exportObject.set('clipPath', exportClipPath);
+    setExportMaskTracking(exportObject, exportClipPath, exportMaskSourceForSync);
     exportObject.setCoords();
+  }
+}
+
+function setExportMaskTracking(
+  targetObject: FabricObject,
+  maskProxyObject: FabricObject,
+  maskSourceObject?: FabricObject,
+) {
+  // Store mask references so export frame rendering can sync animated mask transforms.
+  const trackingObject = targetObject as ExportMaskTrackingObject;
+  trackingObject.__maskProxyObject = maskProxyObject;
+  trackingObject.__maskSourceObject = maskSourceObject;
+}
+
+function syncExportMaskProxyForObject(targetObject: FabricObject) {
+  // Keep exported clip-path proxies aligned with their animated source objects.
+  const trackingObject = targetObject as ExportMaskTrackingObject;
+  const maskProxy = trackingObject.__maskProxyObject;
+  const maskSource = trackingObject.__maskSourceObject;
+  if (!maskProxy || !maskSource) return;
+
+  maskProxy.set({
+    left: maskSource.left,
+    top: maskSource.top,
+    scaleX: maskSource.scaleX,
+    scaleY: maskSource.scaleY,
+    angle: maskSource.angle,
+    skewX: maskSource.skewX,
+    skewY: maskSource.skewY,
+    flipX: maskSource.flipX,
+    flipY: maskSource.flipY,
+    originX: maskSource.originX,
+    originY: maskSource.originY,
   });
+  if (targetObject.clipPath !== maskProxy) {
+    targetObject.set('clipPath', maskProxy);
+  }
+  maskProxy.setCoords();
 }

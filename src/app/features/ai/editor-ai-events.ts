@@ -21,6 +21,7 @@ export type AIItemPatch = {
   top?: number;
   scaleX?: number;
   scaleY?: number;
+  width?: number;
   opacity?: number;
   angle?: number;
   text?: string;

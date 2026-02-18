@@ -5,7 +5,7 @@ import {
   type PropsWithChildren,
 } from "react";
 import type { AnimatableObject } from "../shapes/animatable-object/object";
-import { CanvasAppContext } from "./use-canvas-app-context";
+import { CanvasAppContext } from "./hooks/use-canvas-app-context";
 
 type CanvasInstanceStore = Map<string, AnimatableObject>;
 

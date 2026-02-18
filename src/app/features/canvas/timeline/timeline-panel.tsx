@@ -8,19 +8,20 @@ import {
 import * as ScrollArea from "@radix-ui/react-scroll-area";
 import { Resizable } from "re-resizable";
 import { useDispatch, useSelector, useStore } from "react-redux";
+import {
+  KEYFRAME_SECTION_HORIZONTAL_PADDING,
+  LABEL_COLUMN_WIDTH,
+  TIMELINE_DEFAULT_HEIGHT,
+  TIMELINE_DURATION,
+  TIMELINE_LABEL_STEP,
+  TIMELINE_MAX_HEIGHT,
+  TIMELINE_MIN_HEIGHT,
+  TRACK_MIN_WIDTH,
+} from "../../../const";
 import TimelineItemRow from "./timeline-item-row";
 import TimelinePlayhead from "./timeline-playhead";
 import type { AppDispatch, RootState } from "../../../store";
 import { setIsPaused, setPlayheadTime } from "../../../store/editor-slice";
-
-const TRACK_MIN_WIDTH = 1200;
-const LABEL_COLUMN_WIDTH = 180;
-const KEYFRAME_SECTION_HORIZONTAL_PADDING = 12; // Tailwind px-3
-const TIMELINE_DURATION = 10;
-const TIMELINE_LABEL_STEP = 1;
-const TIMELINE_MIN_HEIGHT = 120;
-const TIMELINE_MAX_HEIGHT = 420;
-const TIMELINE_DEFAULT_HEIGHT = 160;
 
 export default function TimelinePanel() {
   const dispatch = useDispatch<AppDispatch>();

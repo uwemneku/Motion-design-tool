@@ -1,6 +1,7 @@
 import { generateObject } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
+import { AGENT_SYSTEM_PROMPT, MAX_AGENT_STEPS } from '../../const';
 import type {
   AIEditorCommand,
   AIItemKeyframe,
@@ -35,12 +36,27 @@ export type OpenAISceneContext = {
     current?: {
       left: number;
       top: number;
+      centerX: number;
+      centerY: number;
       scaleX: number;
       scaleY: number;
+      width?: number;
+      height?: number;
+      scaledWidth?: number;
+      scaledHeight?: number;
+      bounds?: {
+        left: number;
+        top: number;
+        right: number;
+        bottom: number;
+      };
       opacity: number;
       angle: number;
       fill?: string;
       stroke?: string;
+      text?: string;
+      fontFamily?: string;
+      fontSize?: number;
     };
     keyframes?: {
       left?: Array<{ id: string; time: number; value: number }>;
@@ -67,20 +83,6 @@ type AgentStepLog = {
   result: string;
 };
 
-const MAX_AGENT_STEPS = 10;
-
-const AGENT_SYSTEM_PROMPT =
-  'You are a motion editor agent. Follow this fixed loop: ' +
-  '1) read project context, 2) decide exactly one action, 3) execute, ' +
-  '4) re-read context, 5) repeat until done or user input is needed. ' +
-  'You must output exactly one decision each step. Never output multiple ' +
-  'actions in one step. Prefer target.id from context for updates/deletes. ' +
-  'Respect video boundaries whenever possible. For text creation choose ' +
-  'accessible dark colors on light backgrounds. For images: if user gave no ' +
-  'URL, use prompt generation; generated images must be PNG and <=2MB. ' +
-  'When finished, use status=done with a concise markdown summary. If ' +
-  'blocked by missing details, use status=needs_user_input and ask one clear question.';
-
 const aiItemKeyframeSchema = z.object({
   time: z.number(),
   left: z.number().nullable(),
@@ -104,6 +106,7 @@ const updatePropsSchema = z
     top: z.number().nullable(),
     scaleX: z.number().nullable(),
     scaleY: z.number().nullable(),
+    width: z.number().nullable(),
     opacity: z.number().nullable(),
     angle: z.number().nullable(),
     text: z.string().nullable(),
@@ -288,6 +291,9 @@ function sanitizeProps(value: unknown): AIItemPatch | undefined {
   if (typeof candidate.scaleY === 'number' && Number.isFinite(candidate.scaleY)) {
     next.scaleY = candidate.scaleY;
   }
+  if (typeof candidate.width === 'number' && Number.isFinite(candidate.width)) {
+    next.width = candidate.width;
+  }
   if (typeof candidate.opacity === 'number' && Number.isFinite(candidate.opacity)) {
     next.opacity = candidate.opacity;
   }
@@ -424,8 +430,20 @@ function applyCommandToWorkingScene(
     item.current ??= {
       left: 0,
       top: 0,
+      centerX: 0,
+      centerY: 0,
       scaleX: 1,
       scaleY: 1,
+      width: 0,
+      height: 0,
+      scaledWidth: 0,
+      scaledHeight: 0,
+      bounds: {
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+      },
       opacity: 1,
       angle: 0,
     };
@@ -433,10 +451,24 @@ function applyCommandToWorkingScene(
     if (command.props) {
       if (typeof command.props.left === 'number') item.current.left = command.props.left;
       if (typeof command.props.top === 'number') item.current.top = command.props.top;
+      item.current.centerX = item.current.left;
+      item.current.centerY = item.current.top;
       if (typeof command.props.scaleX === 'number') item.current.scaleX = command.props.scaleX;
       if (typeof command.props.scaleY === 'number') item.current.scaleY = command.props.scaleY;
+      if (typeof command.props.width === 'number') item.current.width = command.props.width;
       if (typeof command.props.opacity === 'number') item.current.opacity = command.props.opacity;
       if (typeof command.props.angle === 'number') item.current.angle = command.props.angle;
+
+      const halfWidth =
+        ((item.current.scaledWidth ?? item.current.width ?? 0) || 0) / 2;
+      const halfHeight =
+        ((item.current.scaledHeight ?? item.current.height ?? 0) || 0) / 2;
+      item.current.bounds = {
+        left: item.current.centerX - halfWidth,
+        top: item.current.centerY - halfHeight,
+        right: item.current.centerX + halfWidth,
+        bottom: item.current.centerY + halfHeight,
+      };
     }
 
     const newTimes = (command.keyframes ?? []).map((keyframe) => keyframe.time);
@@ -574,6 +606,8 @@ function buildAgentPrompt(
         },
         outsideVideoAreaRule:
           'x < videoLeft || x > videoRight || y < videoTop || y > videoBottom',
+        itemBoundsRule:
+          'Objects are center-origin. bounds.left = centerX - scaledWidth/2, bounds.top = centerY - scaledHeight/2, bounds.right = centerX + scaledWidth/2, bounds.bottom = centerY + scaledHeight/2.',
         items: workingScene.items,
       },
       null,

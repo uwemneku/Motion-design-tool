@@ -8,6 +8,7 @@
 - Max line length: 100.
 - Use semicolons.
 - No default exports except React page/layout components.
+- Always comment functions with concise purpose/behavior notes.
 
 ## React
 
