@@ -7,10 +7,12 @@ import type {
   ColorKeyframesByProperty,
   ColorSnapshot,
   KeyframesByProperty,
+  KeyframeEasing,
   Keyframe,
   TimelineMarker,
 } from "./types";
 import {
+  applyEasing,
   byTimeAsc,
   clamp,
   createId,
@@ -48,6 +50,14 @@ export class AnimatableObject {
     this.fabricObject = fabricObject;
     this.keyframes = keyframes;
     this.colorKeyframes = colorKeyframes;
+
+    const centerPoint = this.fabricObject.getCenterPoint();
+    this.fabricObject.set({
+      centeredRotation: true,
+      originX: 'center',
+      originY: 'center',
+    });
+    this.fabricObject.setPositionByOrigin(centerPoint, 'center', 'center');
 
     if (
       Object.keys(this.keyframes).length === 0 &&
@@ -87,13 +97,19 @@ export class AnimatableObject {
     }
   }
 
-  addKeyframe<K extends keyof AnimatableProperties>(keyframe: Omit<Keyframe<K>, "id">) {
+  addKeyframe<K extends keyof AnimatableProperties>(
+    keyframe: Omit<Keyframe<K>, 'id' | 'easing'> & { easing?: KeyframeEasing },
+  ) {
     const propertyKeyframes = (this.keyframes[keyframe.property] ?? []) as Keyframe[];
     const [insertIndex, shouldReplace] = findInsertionIndex(
       propertyKeyframes,
       keyframe.time,
     );
-    const nextKeyframe: Keyframe = { ...keyframe, id: createId("kf") };
+    const nextKeyframe: Keyframe = {
+      ...keyframe,
+      easing: keyframe.easing ?? 'linear',
+      id: createId('kf'),
+    };
 
     propertyKeyframes.splice(insertIndex, shouldReplace ? 1 : 0, nextKeyframe);
     this.keyframes[keyframe.property] = propertyKeyframes;
@@ -125,7 +141,7 @@ export class AnimatableObject {
   }
 
   addColorKeyframe<K extends keyof ColorAnimatableProperties>(
-    keyframe: Omit<ColorKeyframe<K>, "id">,
+    keyframe: Omit<ColorKeyframe<K>, 'id' | 'easing'> & { easing?: KeyframeEasing },
   ) {
     const propertyKeyframes = (this.colorKeyframes[keyframe.property] ??
       []) as ColorKeyframe[];
@@ -133,7 +149,11 @@ export class AnimatableObject {
       propertyKeyframes,
       keyframe.time,
     );
-    const nextKeyframe: ColorKeyframe = { ...keyframe, id: createId("ckf") };
+    const nextKeyframe: ColorKeyframe = {
+      ...keyframe,
+      easing: keyframe.easing ?? 'linear',
+      id: createId('ckf'),
+    };
 
     propertyKeyframes.splice(insertIndex, shouldReplace ? 1 : 0, nextKeyframe);
     this.colorKeyframes[keyframe.property] = propertyKeyframes;
@@ -190,10 +210,11 @@ export class AnimatableObject {
         0,
         1,
       );
+      const easedProgress = applyEasing(progress, next.easing);
       const value = lerp(
         previous.value as number,
         next.value as number,
-        progress,
+        easedProgress,
       ) as AnimatableProperties[typeof property];
 
       this.updateProperty(property, value);
@@ -221,7 +242,11 @@ export class AnimatableObject {
       );
       this.updateColorProperty(
         property,
-        interpolateColor(previous.value, next.value, progress),
+        interpolateColor(
+          previous.value,
+          next.value,
+          applyEasing(progress, next.easing),
+        ),
       );
     }
 

@@ -8,23 +8,19 @@ import {
 import * as ScrollArea from "@radix-ui/react-scroll-area";
 import { Resizable } from "re-resizable";
 import { useDispatch, useSelector, useStore } from "react-redux";
-import type { RootState } from "../../store";
-import type { AppDispatch } from "../../store";
-import { setIsPaused, setPlayheadTime } from "../../store/editor-slice";
 import TimelineItemRow from "./timeline-item-row";
 import TimelinePlayhead from "./timeline-playhead";
+import type { AppDispatch, RootState } from "../../../store";
+import { setIsPaused, setPlayheadTime } from "../../../store/editor-slice";
 
 const TRACK_MIN_WIDTH = 1200;
 const LABEL_COLUMN_WIDTH = 180;
 const KEYFRAME_SECTION_HORIZONTAL_PADDING = 12; // Tailwind px-3
 const TIMELINE_DURATION = 10;
+const TIMELINE_LABEL_STEP = 1;
 const TIMELINE_MIN_HEIGHT = 120;
 const TIMELINE_MAX_HEIGHT = 420;
 const TIMELINE_DEFAULT_HEIGHT = 160;
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
 
 export default function TimelinePanel() {
   const dispatch = useDispatch<AppDispatch>();
@@ -100,7 +96,7 @@ export default function TimelinePanel() {
 
   return (
     <section
-      className="shrink-0 border-t border-slate-700 bg-slate-900 focus-visible:outline-none"
+      className="shrink-0 border-t border-[var(--wise-border)] bg-[var(--wise-surface)] focus-visible:outline-none"
       data-testid="timeline"
       tabIndex={0}
       onKeyDown={onKeyDown}
@@ -120,11 +116,15 @@ export default function TimelinePanel() {
           topLeft: false,
         }}
         handleClasses={{
-          top: "h-2 -top-1 cursor-row-resize bg-transparent hover:bg-sky-500/20",
+          top: "h-2 -top-1 cursor-row-resize bg-transparent hover:bg-[var(--wise-focus)]",
         }}
         onResizeStop={(_, __, ___, delta) => {
           setTimelineHeight((prev) =>
-            clamp(prev + delta.height, TIMELINE_MIN_HEIGHT, TIMELINE_MAX_HEIGHT),
+            clamp(
+              prev + delta.height,
+              TIMELINE_MIN_HEIGHT,
+              TIMELINE_MAX_HEIGHT,
+            ),
           );
         }}
       >
@@ -142,8 +142,8 @@ export default function TimelinePanel() {
                 keyframeSectionRightOffset={KEYFRAME_SECTION_HORIZONTAL_PADDING}
               />
 
-              <div className="sticky top-0 z-20 grid grid-cols-[180px_1fr] border-b border-slate-700 bg-slate-900 text-xs font-medium text-slate-300">
-                <div className="sticky left-0 z-30 border-r border-slate-700 bg-slate-900 px-3 py-2">
+              <div className="sticky top-0 z-20 grid grid-cols-[180px_1fr] border-b border-[var(--wise-border)] bg-[var(--wise-surface-raised)] text-xs font-medium text-slate-200">
+                <div className="sticky left-0 z-30 border-r border-[var(--wise-border)] bg-[var(--wise-surface-raised)] px-3 py-2">
                   Item
                 </div>
                 <div
@@ -151,7 +151,35 @@ export default function TimelinePanel() {
                   onClick={seekFromPointer}
                   title="Click to move playhead"
                 >
-                  Timeline
+                  <div className="relative h-4">
+                    {Array.from(
+                      {
+                        length:
+                          Math.floor(TIMELINE_DURATION / TIMELINE_LABEL_STEP) +
+                          1,
+                      },
+                      (_, index) => {
+                        const time = index * TIMELINE_LABEL_STEP;
+                        const left = clamp(
+                          (time / TIMELINE_DURATION) * 100,
+                          0,
+                          100,
+                        );
+                        return (
+                          <div
+                            key={`timeline-label-${time}`}
+                            className="pointer-events-none absolute top-0 -translate-x-1/2"
+                            style={{ left: `${left}%` }}
+                          >
+                            <div className="mx-auto h-1.5 w-px bg-slate-500" />
+                            <div className="pt-0.5 text-[10px] font-medium text-slate-400">
+                              {formatTimelineLabel(time)}
+                            </div>
+                          </div>
+                        );
+                      },
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -172,20 +200,31 @@ export default function TimelinePanel() {
             </div>
           </ScrollArea.Viewport>
           <ScrollArea.Scrollbar
-            className="flex h-2.5 touch-none select-none border-t border-slate-800 bg-slate-950 p-0.5"
+            className="flex h-2.5 touch-none select-none border-t border-[var(--wise-border)] bg-[var(--wise-surface-raised)] p-0.5"
             orientation="horizontal"
           >
-            <ScrollArea.Thumb className="relative flex-1 rounded-full bg-slate-700" />
+            <ScrollArea.Thumb className="relative flex-1 rounded-full bg-[var(--wise-surface-muted)]" />
           </ScrollArea.Scrollbar>
           <ScrollArea.Scrollbar
-            className="flex w-2.5 touch-none select-none border-l border-slate-800 bg-slate-950 p-0.5"
+            className="flex w-2.5 touch-none select-none border-l border-[var(--wise-border)] bg-[var(--wise-surface-raised)] p-0.5"
             orientation="vertical"
           >
-            <ScrollArea.Thumb className="relative flex-1 rounded-full bg-slate-700" />
+            <ScrollArea.Thumb className="relative flex-1 rounded-full bg-[var(--wise-surface-muted)]" />
           </ScrollArea.Scrollbar>
-          <ScrollArea.Corner className="bg-slate-950" />
+          <ScrollArea.Corner className="bg-[var(--wise-surface-raised)]" />
         </ScrollArea.Root>
       </Resizable>
     </section>
   );
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function formatTimelineLabel(seconds: number) {
+  const wholeSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(wholeSeconds / 60);
+  const remainingSeconds = wholeSeconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }

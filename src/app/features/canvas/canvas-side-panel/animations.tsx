@@ -1,56 +1,48 @@
-import { useMemo, useState } from "react";
 import { Textbox } from "fabric";
 import { useDispatch, useSelector } from "react-redux";
 import {
   dispatchableSelector,
   type AppDispatch,
   type RootState,
-} from "../../store";
+} from "../../../store";
 import {
   removeItemRecord,
   setSelectedId,
   upsertItemRecord,
-} from "../../store/editor-slice";
-import { TextObject } from "../shapes/objects";
-import { useCanvasAppContext } from "./use-canvas-app-context";
-import {
-  appendUniqueMarkerTimes,
-  createCustomId,
-  createKeyframeMarkerId,
-  getPreviewShapeClass,
-  getTextPreviewShapeClass,
-  measureCharAdvance,
-} from "./animations-utils";
+} from "../../../store/editor-slice";
+import { TextObject } from "../../shapes/objects";
+import { useCanvasAppContext } from "../use-canvas-app-context";
 import {
   animationTemplates,
   KEYFRAME_EPSILON,
   textAnimationTemplates,
-} from "./canvas-side-panel.const";
-import type { PanelTab } from "./canvas-side-panel.types";
+} from "./const";
+import {
+  appendUniqueMarkerTimes,
+  createCustomId,
+  createKeyframeMarkerId,
+  measureCharAdvance,
+  getPreviewShapeClass,
+  getTextPreviewShapeClass,
+} from "../animations-utils";
 
-export default function CanvasSidePanel() {
+type CanvasSidePanelAnimationsProps = {
+  canApplyAnimation: boolean;
+  keyframeTimesText: string | null;
+};
+
+export default function CanvasSidePanelAnimations({
+  canApplyAnimation,
+  keyframeTimesText,
+}: CanvasSidePanelAnimationsProps) {
   const dispatch = useDispatch<AppDispatch>();
-  const { getInstanceById, registerInstance, unregisterInstance } =
-    useCanvasAppContext();
-  const [activeTab, setActiveTab] = useState<PanelTab>("design");
-
-  const canvasItemIds = useSelector(
-    (state: RootState) => state.editor.canvasItemIds,
-  );
   const selectedId = useSelector((state: RootState) => state.editor.selectedId);
   const selectedItem = useSelector((state: RootState) =>
     selectedId ? state.editor.itemsRecord[selectedId] : null,
   );
-
-  const canApplyAnimation = Boolean(selectedId && selectedItem);
   const isTextSelected = selectedItem?.name.trim().toLowerCase() === "text";
-
-  const keyframeTimesText = useMemo(() => {
-    if (!selectedItem || selectedItem.keyframe.length === 0) return null;
-    return selectedItem.keyframe
-      .map((frame) => `t=${frame.timestamp.toFixed(2)}s`)
-      .join(" • ");
-  }, [selectedItem]);
+  const { getInstanceById, registerInstance, unregisterInstance } =
+    useCanvasAppContext();
 
   const applyAnimationTemplate = (
     template: (typeof animationTemplates)[number],
@@ -271,12 +263,11 @@ export default function CanvasSidePanel() {
         dispatch(setSelectedId(createdIds[0]));
       }
       sourceCanvas.requestRenderAll();
-      return;
     }
   };
 
   return (
-    <aside className="flex h-full w-72 shrink-0 flex-col overflow-hidden border-l border-slate-700 bg-slate-900/95">
+    <section className="flex max-h-full flex-col gap-3 overflow-hidden">
       <style>
         {`@keyframes preview-fade-in { from { opacity: 0.15; transform: translateY(8px) scale(0.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
           @keyframes preview-fade-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0.15; transform: translateY(-8px) scale(0.92); } }
@@ -288,152 +279,87 @@ export default function CanvasSidePanel() {
           @keyframes preview-text-char-rise { 0% { opacity: 0; transform: translateY(8px); letter-spacing: -0.08em; } 100% { opacity: 1; transform: translateY(0); letter-spacing: 0; } }`}
       </style>
 
-      <div className="sticky top-0 z-10 border-b border-slate-700 bg-slate-900/95 p-3">
-        <div className="flex rounded-md border border-slate-700 bg-slate-950 p-1">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        Animation Templates
+      </h3>
+
+      {canApplyAnimation ? null : (
+        <p className="rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-500">
+          Select an item in the canvas to apply templates.
+        </p>
+      )}
+
+      <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2 overflow-y-auto pr-1">
+        {animationTemplates.map((template) => (
           <button
+            key={template.id}
             type="button"
+            disabled={!canApplyAnimation}
             onClick={() => {
-              setActiveTab("design");
+              applyAnimationTemplate(template);
             }}
-            className={`flex-1 rounded px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide transition ${
-              activeTab === "design"
-                ? "bg-sky-500/20 text-sky-200"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
+            className="group rounded-md border border-slate-700 bg-slate-950 p-2 text-left transition hover:border-sky-500/60 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Design
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-200">{template.name}</p>
+              <span className="text-[10px] uppercase tracking-wide text-slate-500">
+                {template.duration.toFixed(1)}s
+              </span>
+            </div>
+
+            <div className="mb-2 h-14 rounded border border-slate-800 bg-slate-900/70 p-2">
+              <div
+                className={`h-full w-8 rounded bg-gradient-to-br from-sky-300/90 to-cyan-400/80 ${getPreviewShapeClass(template.id)}`}
+              />
+            </div>
+
+            <p className="text-xs text-slate-400">{template.description}</p>
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab("animations");
-            }}
-            className={`flex-1 rounded px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide transition ${
-              activeTab === "animations"
-                ? "bg-sky-500/20 text-sky-200"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            Animations
-          </button>
-        </div>
+        ))}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        <div className="space-y-4">
-          {activeTab === "design" ? (
-            <>
-              <section className="space-y-1">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Inspector
-                </h3>
-                <p className="text-sm text-slate-200">
-                  {selectedItem?.name ?? "No item selected"}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {selectedId ? `ID: ${selectedId}` : "Select an item on canvas"}
-                </p>
-              </section>
-
-              <section className="space-y-1">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Scene
-                </h3>
-                <p className="text-sm text-slate-200">
-                  {canvasItemIds.length} {canvasItemIds.length === 1 ? "item" : "items"}
-                </p>
-                <p className="text-xs text-slate-500">
-                  Keyframes: {selectedItem?.keyframe.length ?? 0}
-                </p>
-              </section>
-            </>
-          ) : (
-            <section className="flex max-h-full flex-col gap-3 overflow-hidden">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Animation Templates
-              </h3>
-
-              {canApplyAnimation ? null : (
-                <p className="rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-500">
-                  Select an item in the canvas to apply templates.
-                </p>
-              )}
-
-              <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2 overflow-y-auto pr-1">
-                {animationTemplates.map((template) => (
-                  <button
-                    key={template.id}
-                    type="button"
-                    disabled={!canApplyAnimation}
-                    onClick={() => {
-                      applyAnimationTemplate(template);
-                    }}
-                    className="group rounded-md border border-slate-700 bg-slate-950 p-2 text-left transition hover:border-sky-500/60 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="text-sm font-semibold text-slate-200">{template.name}</p>
-                      <span className="text-[10px] uppercase tracking-wide text-slate-500">
-                        {template.duration.toFixed(1)}s
-                      </span>
-                    </div>
-
-                    <div className="mb-2 h-14 rounded border border-slate-800 bg-slate-900/70 p-2">
-                      <div
-                        className={`h-full w-8 rounded bg-gradient-to-br from-sky-300/90 to-cyan-400/80 ${getPreviewShapeClass(template.id)}`}
-                      />
-                    </div>
-
-                    <p className="text-xs text-slate-400">{template.description}</p>
-                  </button>
-                ))}
+      <div className="pt-1">
+        <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          Text Effects
+        </h4>
+        {!isTextSelected ? (
+          <p className="rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-500">
+            Select a text item to enable special text effects.
+          </p>
+        ) : null}
+        <div className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2">
+          {textAnimationTemplates.map((template) => (
+            <button
+              key={template.id}
+              type="button"
+              disabled={!isTextSelected}
+              onClick={() => {
+                applyTextAnimationTemplate(template);
+              }}
+              className="group rounded-md border border-slate-700 bg-slate-950 p-2 text-left transition hover:border-cyan-500/60 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-semibold text-slate-200">{template.name}</p>
+                <span className="text-[10px] uppercase tracking-wide text-slate-500">
+                  {template.duration.toFixed(2)}s
+                </span>
               </div>
-
-              <div className="pt-1">
-                <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                  Text Effects
-                </h4>
-                {!isTextSelected ? (
-                  <p className="rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-500">
-                    Select a text item to enable special text effects.
-                  </p>
-                ) : null}
-                <div className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2">
-                  {textAnimationTemplates.map((template) => (
-                    <button
-                      key={template.id}
-                      type="button"
-                      disabled={!isTextSelected}
-                      onClick={() => {
-                        applyTextAnimationTemplate(template);
-                      }}
-                      className="group rounded-md border border-slate-700 bg-slate-950 p-2 text-left transition hover:border-cyan-500/60 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <p className="text-sm font-semibold text-slate-200">{template.name}</p>
-                        <span className="text-[10px] uppercase tracking-wide text-slate-500">
-                          {template.duration.toFixed(2)}s
-                        </span>
-                      </div>
-                      <div className="mb-2 h-14 rounded border border-slate-800 bg-slate-900/70 p-2">
-                        <div
-                          className={`grid h-full place-items-center rounded border border-cyan-300/30 bg-cyan-400/10 text-xs font-bold uppercase tracking-wide text-cyan-200 ${getTextPreviewShapeClass(template.id)}`}
-                        >
-                          Ab
-                        </div>
-                      </div>
-                      <p className="text-xs text-slate-400">{template.description}</p>
-                    </button>
-                  ))}
+              <div className="mb-2 h-14 rounded border border-slate-800 bg-slate-900/70 p-2">
+                <div
+                  className={`grid h-full place-items-center rounded border border-cyan-300/30 bg-cyan-400/10 text-xs font-bold uppercase tracking-wide text-cyan-200 ${getTextPreviewShapeClass(template.id)}`}
+                >
+                  Ab
                 </div>
               </div>
-
-              {keyframeTimesText ? (
-                <p className="text-xs text-slate-500">{keyframeTimesText}</p>
-              ) : null}
-            </section>
-          )}
+              <p className="text-xs text-slate-400">{template.description}</p>
+            </button>
+          ))}
         </div>
       </div>
-    </aside>
+
+      {keyframeTimesText ? (
+        <p className="text-xs text-slate-500">{keyframeTimesText}</p>
+      ) : null}
+    </section>
   );
 }

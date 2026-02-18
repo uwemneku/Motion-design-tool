@@ -14,11 +14,30 @@ import {
 } from "./fabric-controls";
 import { initAligningGuidelines } from "fabric/extensions";
 import { useCanvasAppContext } from "./use-canvas-app-context";
+import type { AnimatableProperties } from "../shapes/animatable-object/types";
 
 const KEYFRAME_EPSILON = 0.001;
 const MIN_CANVAS_ZOOM = 0.25;
 const MAX_CANVAS_ZOOM = 4;
 const CANVAS_ZOOM_SENSITIVITY = 0.05;
+const NUMERIC_ANIMATABLE_PROPERTIES: (keyof AnimatableProperties)[] = [
+  "left",
+  "top",
+  "scaleX",
+  "scaleY",
+  "opacity",
+  "angle",
+];
+
+function getPropertiesForTransformAction(action?: string) {
+  if (!action) return NUMERIC_ANIMATABLE_PROPERTIES;
+  if (action === "drag") return ["left", "top"] as (keyof AnimatableProperties)[];
+  if (action === "rotate") return ["angle"] as (keyof AnimatableProperties)[];
+  if (action === "scale" || action === "scaleX" || action === "scaleY") {
+    return ["scaleX", "scaleY"] as (keyof AnimatableProperties)[];
+  }
+  return NUMERIC_ANIMATABLE_PROPERTIES;
+}
 
 function createKeyframeMarkerId() {
   if (
@@ -46,11 +65,12 @@ function useFabricEditor() {
       let isPanning = false;
       let lastPanX = 0;
       let lastPanY = 0;
+      const transformActionById = new Map<string, string>();
 
       fabricRef.current = new Canvas(node, {
         width: node.clientWidth,
         height: node.clientHeight,
-        backgroundColor: "#f6f7fb",
+        backgroundColor: "#2c2c2c",
         preserveObjectStacking: true,
         selection: true,
       });
@@ -82,7 +102,18 @@ function useFabricEditor() {
         const timestamp = dispatch(
           dispatchableSelector((state) => state.editor.playheadTime),
         );
-        instance.addSnapshotKeyframe(timestamp, instance.getSnapshot());
+        const snapshot = instance.getSnapshot();
+        const action = transformActionById.get(customId);
+        const changedProperties = getPropertiesForTransformAction(action);
+        changedProperties.forEach((property) => {
+          instance.addKeyframe({
+            property,
+            value: snapshot[property],
+            time: timestamp,
+            easing: "linear",
+          });
+        });
+        transformActionById.delete(customId);
 
         const existing = dispatch(
           dispatchableSelector((state) => state.editor.itemsRecord[customId]),
@@ -109,6 +140,13 @@ function useFabricEditor() {
             },
           }),
         );
+      });
+
+      fabricRef.current.on("before:transform", ({ transform }) => {
+        const customId = transform?.target?.customId;
+        const action = transform?.action;
+        if (!customId || !action) return;
+        transformActionById.set(customId, action);
       });
 
       fabricRef.current.on("mouse:wheel", (event) => {

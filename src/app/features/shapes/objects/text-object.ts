@@ -10,7 +10,10 @@ export class TextObject extends AnimatableObject {
     options: ConstructorParameters<typeof Textbox>[1] = {},
     keyframes: KeyframesByProperty = {},
   ) {
-    const fabricObject = new Textbox(text, options);
+    const fabricObject = new Textbox(text, {
+      textAlign: 'center',
+      ...options,
+    });
     super(fabricObject, keyframes);
   }
 }

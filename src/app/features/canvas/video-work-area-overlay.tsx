@@ -70,7 +70,7 @@ export default function VideoWorkAreaOverlay({
         }}
       >
         <div
-          className="absolute rounded-sm border-2 border-sky-400/90 shadow-[0_0_0_9999px_rgba(30,58,138,0.35)]"
+          className="absolute rounded-sm border-2 border-[#0d99ff] shadow-[0_0_0_9999px_rgba(0,0,0,0.42)]"
           style={{
             left: rect.left,
             top: rect.top,
@@ -79,7 +79,7 @@ export default function VideoWorkAreaOverlay({
           }}
         >
           <div className="pointer-events-auto absolute -top-6 left-0 flex items-center gap-1 opacity-45 transition-opacity hover:opacity-100">
-            <div className="rounded bg-sky-600/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+            <div className="rounded bg-[#0d99ff]/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
               Video Area
             </div>
             <select
@@ -92,7 +92,7 @@ export default function VideoWorkAreaOverlay({
                   onSelectAspectRatio(selected.ratio);
                 }
               }}
-              className="appearance-none rounded bg-slate-900/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-200 outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 hover:bg-slate-800"
+              className="appearance-none rounded border border-[var(--wise-border)] bg-[var(--wise-surface-raised)]/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#d4d4d4] outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 hover:bg-[var(--wise-surface-muted)]"
               style={{
                 WebkitAppearance: "none",
                 MozAppearance: "none",

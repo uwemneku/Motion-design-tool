@@ -1,4 +1,4 @@
-import type { Keyframe } from "./types";
+import type { Keyframe, KeyframeEasing } from './types';
 
 export function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -6,6 +6,43 @@ export function clamp(value: number, min: number, max: number) {
 
 export function lerp(start: number, end: number, progress: number) {
   return start + (end - start) * progress;
+}
+
+function easeOutBounce(progress: number) {
+  const n1 = 7.5625;
+  const d1 = 2.75;
+  if (progress < 1 / d1) {
+    return n1 * progress * progress;
+  }
+  if (progress < 2 / d1) {
+    const shifted = progress - 1.5 / d1;
+    return n1 * shifted * shifted + 0.75;
+  }
+  if (progress < 2.5 / d1) {
+    const shifted = progress - 2.25 / d1;
+    return n1 * shifted * shifted + 0.9375;
+  }
+  const shifted = progress - 2.625 / d1;
+  return n1 * shifted * shifted + 0.984375;
+}
+
+function easeOutElastic(progress: number) {
+  if (progress === 0) return 0;
+  if (progress === 1) return 1;
+  const c4 = (2 * Math.PI) / 3;
+  return Math.pow(2, -10 * progress) * Math.sin((progress * 10 - 0.75) * c4) + 1;
+}
+
+export function applyEasing(progress: number, easing: KeyframeEasing) {
+  const t = clamp(progress, 0, 1);
+  if (easing === 'easeIn') return t * t * t;
+  if (easing === 'easeOut') return 1 - Math.pow(1 - t, 3);
+  if (easing === 'easeInOut') {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+  if (easing === 'elastic') return easeOutElastic(t);
+  if (easing === 'bounce') return easeOutBounce(t);
+  return t;
 }
 
 export function createId(prefix: string) {

@@ -8,12 +8,26 @@ export type EditorItemRecord = {
   }>;
 };
 
+export type EditorProjectInfo = {
+  canvasWidth: number;
+  canvasHeight: number;
+  videoWidth: number;
+  videoHeight: number;
+  videoLeft: number;
+  videoTop: number;
+  videoRight: number;
+  videoBottom: number;
+  videoAspectRatio: number;
+  videoAspectLabel: string;
+};
+
 export type EditorState = {
   playheadTime: number;
   isPaused: boolean;
   canvasItemIds: string[];
   itemsRecord: Record<string, EditorItemRecord>;
   selectedId: string | null;
+  projectInfo: EditorProjectInfo;
 };
 
 const initialState: EditorState = {
@@ -22,6 +36,18 @@ const initialState: EditorState = {
   canvasItemIds: [],
   itemsRecord: {},
   selectedId: null,
+  projectInfo: {
+    canvasWidth: 0,
+    canvasHeight: 0,
+    videoWidth: 0,
+    videoHeight: 0,
+    videoLeft: 0,
+    videoTop: 0,
+    videoRight: 0,
+    videoBottom: 0,
+    videoAspectRatio: 16 / 9,
+    videoAspectLabel: "16:9",
+  },
 };
 
 const editorSlice = createSlice({
@@ -83,6 +109,9 @@ const editorSlice = createSlice({
     setSelectedId(state, action: PayloadAction<string | null>) {
       state.selectedId = action.payload;
     },
+    setProjectInfo(state, action: PayloadAction<EditorProjectInfo>) {
+      state.projectInfo = action.payload;
+    },
   },
 });
 
@@ -97,6 +126,7 @@ export const {
   upsertItemRecord,
   removeItemRecord,
   setSelectedId,
+  setProjectInfo,
 } = editorSlice.actions;
 
 export default editorSlice.reducer;

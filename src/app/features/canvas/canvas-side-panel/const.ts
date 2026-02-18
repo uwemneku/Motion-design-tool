@@ -1,7 +1,7 @@
 import type {
   AnimationTemplate,
   TextAnimationTemplate,
-} from "./canvas-side-panel.types";
+} from "./types";
 
 export const KEYFRAME_EPSILON = 0.001;
 

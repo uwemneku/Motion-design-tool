@@ -1,5 +1,8 @@
+import type { KeyframeEasing } from '../shapes/animatable-object/types';
+
 export type AIItemKeyframe = {
   time: number;
+  easing?: KeyframeEasing;
   left?: number;
   top?: number;
   scaleX?: number;
@@ -69,10 +72,16 @@ export type AIEditorCommand =
 
 export const AI_EDITOR_COMMAND_EVENT = "ai-editor-command";
 export const AI_IMAGE_STATUS_EVENT = "ai-image-status";
+export const AI_ACTION_STATUS_EVENT = "ai-action-status";
 
 export type AIImageStatusPayload = {
   status: "start" | "end";
   prompt?: string;
+};
+
+export type AIActionStatusPayload = {
+  status: "start" | "end";
+  actionType?: AIEditorCommand["type"];
 };
 
 export function emitAIEditorCommand(command: AIEditorCommand) {
@@ -86,6 +95,14 @@ export function emitAIEditorCommand(command: AIEditorCommand) {
 export function emitAIImageStatus(status: AIImageStatusPayload) {
   window.dispatchEvent(
     new CustomEvent<AIImageStatusPayload>(AI_IMAGE_STATUS_EVENT, {
+      detail: status,
+    }),
+  );
+}
+
+export function emitAIActionStatus(status: AIActionStatusPayload) {
+  window.dispatchEvent(
+    new CustomEvent<AIActionStatusPayload>(AI_ACTION_STATUS_EVENT, {
       detail: status,
     }),
   );

@@ -2,7 +2,7 @@ import type { Textbox } from "fabric";
 import type {
   AnimationTemplateId,
   TextAnimationTemplateId,
-} from "./canvas-side-panel.types";
+} from "./canvas-side-panel/types";
 
 const textMeasureCanvas =
   typeof document !== "undefined" ? document.createElement("canvas") : null;

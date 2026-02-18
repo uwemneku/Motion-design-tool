@@ -1,14 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PaperPlaneIcon, ReloadIcon } from "@radix-ui/react-icons";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
+import ReactMarkdown from "react-markdown";
 import { useSelector } from "react-redux";
+import remarkGfm from "remark-gfm";
+import type {
+  ColorKeyframe,
+  Keyframe,
+} from "../shapes/animatable-object/types";
 import {
+  AI_ACTION_STATUS_EVENT,
   AI_IMAGE_STATUS_EVENT,
   emitAIEditorCommand,
+  type AIActionStatusPayload,
   type AIImageStatusPayload,
 } from "./editor-ai-events";
 import type { RootState } from "../../store";
 import { generateOpenAIChatTurn } from "./openai-chat";
+import { useCanvasAppContext } from "../canvas/use-canvas-app-context";
 
 type ChatMessage = {
   id: string;
@@ -16,28 +25,25 @@ type ChatMessage = {
   text: string;
 };
 
-function shouldApplyEditorCommands(prompt: string) {
-  return /\b(add|create|insert|draw|place|make|update|edit|change|move|rotate|scale|delete|remove)\b/i.test(prompt);
-}
-
-function createId(prefix: string) {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return `${prefix}-${crypto.randomUUID()}`;
-  }
-  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
 export default function AIChatPanel() {
+  const { getInstanceById } = useCanvasAppContext();
   const [input, setInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [agentSteps, setAgentSteps] = useState<string[]>([]);
+  const [pendingActionOps, setPendingActionOps] = useState(0);
   const [pendingImageOps, setPendingImageOps] = useState(0);
   const [lastResponseId, setLastResponseId] = useState<string | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const canvasItemIds = useSelector(
     (state: RootState) => state.editor.canvasItemIds,
   );
-  const itemsRecord = useSelector((state: RootState) => state.editor.itemsRecord);
+  const itemsRecord = useSelector(
+    (state: RootState) => state.editor.itemsRecord,
+  );
   const selectedId = useSelector((state: RootState) => state.editor.selectedId);
+  const projectInfo = useSelector(
+    (state: RootState) => state.editor.projectInfo,
+  );
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: createId("m"),
@@ -51,6 +57,7 @@ export default function AIChatPanel() {
     [input, isGenerating],
   );
   const isGeneratingImage = pendingImageOps > 0;
+  const isApplyingActions = pendingActionOps > 0;
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -62,6 +69,15 @@ export default function AIChatPanel() {
   }, [isGenerating, messages]);
 
   useEffect(() => {
+    const onActionStatus = (event: Event) => {
+      const customEvent = event as CustomEvent<AIActionStatusPayload>;
+      if (customEvent.detail.status === "start") {
+        setPendingActionOps((prev) => prev + 1);
+      } else {
+        setPendingActionOps((prev) => Math.max(0, prev - 1));
+      }
+    };
+
     const onImageStatus = (event: Event) => {
       const customEvent = event as CustomEvent<AIImageStatusPayload>;
       if (customEvent.detail.status === "start") {
@@ -71,8 +87,19 @@ export default function AIChatPanel() {
       }
     };
 
-    window.addEventListener(AI_IMAGE_STATUS_EVENT, onImageStatus as EventListener);
+    window.addEventListener(
+      AI_ACTION_STATUS_EVENT,
+      onActionStatus as EventListener,
+    );
+    window.addEventListener(
+      AI_IMAGE_STATUS_EVENT,
+      onImageStatus as EventListener,
+    );
     return () => {
+      window.removeEventListener(
+        AI_ACTION_STATUS_EVENT,
+        onActionStatus as EventListener,
+      );
       window.removeEventListener(
         AI_IMAGE_STATUS_EVENT,
         onImageStatus as EventListener,
@@ -91,27 +118,37 @@ export default function AIChatPanel() {
       { id: createId("m"), role: "user", text: prompt },
     ]);
     setIsGenerating(true);
+    setAgentSteps([]);
 
     try {
       const sceneContext = {
         selectedId,
+        project: projectInfo,
         items: canvasItemIds.map((id) => ({
-          id,
-          name: itemsRecord[id]?.name ?? id,
-          keyframeTimes: (itemsRecord[id]?.keyframe ?? []).map((keyframe) => keyframe.timestamp),
+          ...buildSceneItemContext(
+            id,
+            itemsRecord[id]?.name ?? id,
+            (itemsRecord[id]?.keyframe ?? []).map(
+              (keyframe) => keyframe.timestamp,
+            ),
+            getInstanceById(id),
+          ),
         })),
       };
       const turn = await generateOpenAIChatTurn(
         prompt,
         sceneContext,
         lastResponseId,
+        (stepMessage) => {
+          setAgentSteps((prev) => [...prev, stepMessage]);
+        },
       );
       setMessages((prev) => [
         ...prev,
         { id: createId("m"), role: "assistant", text: turn.reply },
       ]);
       setLastResponseId(turn.responseId);
-      if (shouldApplyEditorCommands(prompt)) {
+      if (turn.commands.length > 0) {
         turn.commands.forEach((command) => emitAIEditorCommand(command));
       }
     } catch (error) {
@@ -130,15 +167,15 @@ export default function AIChatPanel() {
   };
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col border-t border-slate-700 pt-3">
+    <section className="flex min-h-0 max-h-[50dvh] flex-1 flex-col border-t border-[var(--wise-border)] pt-3">
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-200">AI Scene Chat</h3>
-        <span className="rounded-full border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] text-slate-400">
-          GPT-style draft
+        <h3 className="text-sm font-semibold text-slate-100">AI Scene Chat</h3>
+        <span className="rounded-full border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-0.5 text-[10px] text-slate-400">
+          Agent loop
         </span>
       </div>
 
-      <ScrollArea.Root className="min-h-0 flex-1 overflow-hidden rounded-md border border-slate-700 bg-slate-900">
+      <ScrollArea.Root className="min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--wise-border)] bg-[var(--wise-surface-raised)]">
         <ScrollArea.Viewport ref={viewportRef} className="h-full w-full p-2">
           <div className="space-y-2">
             {messages.map((message) => (
@@ -146,21 +183,36 @@ export default function AIChatPanel() {
                 key={message.id}
                 className={`rounded px-2 py-1.5 text-xs ${
                   message.role === "assistant"
-                    ? "bg-slate-800 text-slate-200"
-                    : "bg-sky-500/15 text-sky-100"
+                    ? "bg-[var(--wise-surface-muted)] text-slate-100"
+                    : "bg-[var(--wise-accent)]/15 text-[#dbe5ff]"
                 }`}
               >
-                {message.text}
+                <ChatMarkdown content={message.text} />
               </div>
             ))}
             {isGenerating ? (
-              <div className="inline-flex items-center gap-2 rounded px-2 py-1.5 text-xs text-slate-300">
+              <div className="space-y-1 rounded px-2 py-1.5 text-xs text-slate-300">
+                <div className="inline-flex items-center gap-2">
+                  <ReloadIcon className="size-3.5 animate-spin" />
+                  <span>Agent running…</span>
+                </div>
+                {agentSteps.length > 0 ? (
+                  <div className="space-y-0.5 text-[11px] text-slate-400">
+                    {agentSteps.slice(-6).map((step, index) => (
+                      <div key={`${step}-${index}`}>{step}</div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            {isApplyingActions ? (
+              <div className="inline-flex items-center gap-2 rounded px-2 py-1.5 text-xs text-[#c8d8ff]">
                 <ReloadIcon className="size-3.5 animate-spin" />
-                <span>Thinking…</span>
+                <span>Applying actions…</span>
               </div>
             ) : null}
             {isGeneratingImage ? (
-              <div className="inline-flex items-center gap-2 rounded px-2 py-1.5 text-xs text-sky-200">
+              <div className="inline-flex items-center gap-2 rounded px-2 py-1.5 text-xs text-[#c8d8ff]">
                 <ReloadIcon className="size-3.5 animate-spin" />
                 <span>Generating image…</span>
               </div>
@@ -168,14 +220,14 @@ export default function AIChatPanel() {
           </div>
         </ScrollArea.Viewport>
         <ScrollArea.Scrollbar
-          className="flex w-2.5 touch-none select-none bg-slate-900 p-0.5"
+          className="flex w-2.5 touch-none select-none bg-[var(--wise-surface-raised)] p-0.5"
           orientation="vertical"
         >
-          <ScrollArea.Thumb className="relative flex-1 rounded-full bg-slate-700" />
+          <ScrollArea.Thumb className="relative flex-1 rounded-full bg-[var(--wise-surface-muted)]" />
         </ScrollArea.Scrollbar>
       </ScrollArea.Root>
 
-      <div className="mt-2 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-[0_6px_22px_rgba(2,6,23,0.35)]">
+      <div className="mt-2 rounded-2xl border border-[var(--wise-border)] bg-[var(--wise-surface-raised)] p-2 shadow-[0_6px_22px_rgba(2,6,23,0.35)]">
         <div className="flex items-end gap-2">
           <textarea
             disabled={isGenerating}
@@ -197,7 +249,7 @@ export default function AIChatPanel() {
             onClick={() => {
               void send();
             }}
-            className="mb-0.5 inline-flex size-9 items-center justify-center rounded-full border border-sky-500/60 bg-sky-500/15 text-sky-200 transition-colors hover:bg-sky-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mb-0.5 inline-flex size-9 items-center justify-center rounded-full border border-[var(--wise-accent)]/60 bg-[var(--wise-accent)]/20 text-[#dbe5ff] transition-colors hover:bg-[var(--wise-accent)]/30 disabled:cursor-not-allowed disabled:opacity-50"
             aria-label="Send message"
           >
             <PaperPlaneIcon className="size-4" />
@@ -209,4 +261,126 @@ export default function AIChatPanel() {
       </div>
     </section>
   );
+}
+
+type ChatMarkdownProps = {
+  content: string;
+};
+
+function ChatMarkdown({ content }: ChatMarkdownProps) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+        ul: ({ children }) => (
+          <ul className="mb-1 list-disc pl-5">{children}</ul>
+        ),
+        ol: ({ children }) => (
+          <ol className="mb-1 list-decimal pl-5">{children}</ol>
+        ),
+        code: ({ children, className }) => (
+          <code
+            className={`rounded bg-[var(--wise-surface)]/70 px-1 py-0.5 ${className ?? ""}`}
+          >
+            {children}
+          </code>
+        ),
+        a: ({ children, href }) => (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[#afc6ff] underline underline-offset-2"
+          >
+            {children}
+          </a>
+        ),
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  );
+}
+
+function mapNumericFrames(frames: Keyframe[] | undefined) {
+  return (frames ?? []).map((frame) => ({
+    id: frame.id,
+    time: frame.time,
+    value: frame.value,
+  }));
+}
+
+function mapColorFrames(frames: ColorKeyframe[] | undefined) {
+  return (frames ?? []).map((frame) => ({
+    id: frame.id,
+    time: frame.time,
+    value: frame.value,
+  }));
+}
+
+function buildSceneItemContext(
+  id: string,
+  name: string,
+  keyframeTimes: number[],
+  instance?: {
+    keyframes: {
+      left?: Keyframe[];
+      top?: Keyframe[];
+      scaleX?: Keyframe[];
+      scaleY?: Keyframe[];
+      opacity?: Keyframe[];
+      angle?: Keyframe[];
+    };
+    colorKeyframes: {
+      fill?: ColorKeyframe[];
+      stroke?: ColorKeyframe[];
+    };
+    getSnapshot: () => {
+      left: number;
+      top: number;
+      scaleX: number;
+      scaleY: number;
+      opacity: number;
+      angle: number;
+    };
+    getColorSnapshot: () => {
+      fill?: string;
+      stroke?: string;
+    };
+  },
+) {
+  if (!instance) {
+    return { id, name, keyframeTimes };
+  }
+
+  return {
+    id,
+    name,
+    keyframeTimes,
+    current: {
+      ...instance.getSnapshot(),
+      ...instance.getColorSnapshot(),
+    },
+    keyframes: {
+      left: mapNumericFrames(instance.keyframes.left),
+      top: mapNumericFrames(instance.keyframes.top),
+      scaleX: mapNumericFrames(instance.keyframes.scaleX),
+      scaleY: mapNumericFrames(instance.keyframes.scaleY),
+      opacity: mapNumericFrames(instance.keyframes.opacity),
+      angle: mapNumericFrames(instance.keyframes.angle),
+      fill: mapColorFrames(instance.colorKeyframes.fill),
+      stroke: mapColorFrames(instance.colorKeyframes.stroke),
+    },
+  };
+}
+
+function createId(prefix: string) {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
