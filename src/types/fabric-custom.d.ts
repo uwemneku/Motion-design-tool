@@ -1,14 +1,23 @@
-// import "fabric";
-// import type { FabricObject } from "fabric";
+import 'fabric';
+import type {
+  FabricObjectProps,
+  ObjectEvents,
+  SerializedObjectProps,
+  TFabricObjectProps,
+} from 'fabric';
 
-// declare module "fabric" {
-//   interface FabricObject {
-//     customId?: string;
-//   }
-//   interface SerializedObjectProps {
-//     customId?: string;
-//   }
-// }
-// FabricObject.customProperties = ["customId"];
+declare module 'fabric' {
+  interface FabricObject<
+    Props extends TFabricObjectProps = Partial<FabricObjectProps>,
+    SProps extends SerializedObjectProps = SerializedObjectProps,
+    EventSpec extends ObjectEvents = ObjectEvents,
+  > {
+    customId?: string;
+  }
 
-// export {};
+  interface SerializedObjectProps {
+    customId?: string;
+  }
+}
+
+export {};

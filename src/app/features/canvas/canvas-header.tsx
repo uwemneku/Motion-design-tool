@@ -1,6 +1,11 @@
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { FabricImage, StaticCanvas } from "fabric";
 import type { Canvas, FabricObject } from "fabric";
+import type {
+  ObjectEvents,
+  SerializedObjectProps,
+  TFabricObjectProps,
+} from "fabric";
 import {
   useCallback,
   useState,
@@ -12,7 +17,8 @@ import {
   EXPORT_DURATION_SECONDS,
   EXPORT_FPS,
   EXPORT_PIXEL_DENSITY,
-} from "../../const";
+} from "../../../const";
+import { SliderPanelControl } from "../../components/slider-panel-control";
 import { exportCanvasAsMp4 } from "../export/export-media";
 import { getVideoWorkAreaRect } from "../export/video-work-area";
 import { AnimatableObject } from "../shapes/animatable-object/object";
@@ -78,7 +84,7 @@ export default function CanvasHeader({
         exportCanvas = new StaticCanvas(exportElement, {
           width: exportWidth,
           height: exportHeight,
-          backgroundColor: "#f6f7fb",
+          backgroundColor: "transparent",
           renderOnAddRemove: false,
         });
 
@@ -233,26 +239,20 @@ export default function CanvasHeader({
             <Tooltip.Portal>
               <Tooltip.Content
                 sideOffset={8}
-                className="z-50 w-48 rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface-raised)] p-2 text-xs text-[#e6e6e6] shadow-lg"
+                className="z-50 w-56 rounded-lg border border-[#2f3745] bg-[#121923] p-2.5 text-xs text-[#e6e6e6] shadow-[0_10px_30px_rgba(0,0,0,0.45)]"
               >
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span>Quality</span>
-                  <span className="text-[#8ac8ff]">
-                    {exportQuality.toFixed(1)}x
-                  </span>
-                </div>
-                <input
-                  type="range"
+                <SliderPanelControl
+                  label="Export quality"
                   min={0.5}
                   max={5}
+                  minLabel="Draft"
+                  maxLabel="Ultra"
                   step={0.1}
                   value={exportQuality}
-                  onChange={(event) => {
-                    setExportQuality(Number(event.target.value));
-                  }}
-                  className="w-full accent-[#0d99ff]"
+                  valueText={`${exportQuality.toFixed(1)}x`}
+                  onChange={setExportQuality}
                 />
-                <Tooltip.Arrow className="fill-[var(--wise-surface-raised)]" />
+                <Tooltip.Arrow className="fill-[#121923]" />
               </Tooltip.Content>
             </Tooltip.Portal>
           </Tooltip.Root>
@@ -330,8 +330,12 @@ function cloneImageElementToCanvas(
   return snapshotCanvas;
 }
 
-async function cloneFabricObjectWithCustomId(sourceObject: FabricObject) {
-  let clonedObject: FabricObject;
+async function cloneFabricObjectWithCustomId<
+  Props extends TFabricObjectProps = TFabricObjectProps,
+  SProps extends SerializedObjectProps = SerializedObjectProps,
+  EventSpec extends ObjectEvents = ObjectEvents,
+>(sourceObject: FabricObject<Props, SProps, EventSpec>) {
+  let clonedObject: FabricObject<Props, SProps, EventSpec>;
   try {
     clonedObject = await sourceObject.clone();
   } catch (error) {
@@ -340,7 +344,10 @@ async function cloneFabricObjectWithCustomId(sourceObject: FabricObject) {
     }
 
     const snapshotCanvas = cloneImageElementToCanvas(sourceObject);
-    clonedObject = new FabricImage(snapshotCanvas, sourceObject.toObject());
+    clonedObject = new FabricImage(
+      snapshotCanvas,
+      sourceObject.toObject(),
+    ) as FabricObject<Props, SProps, EventSpec>;
   }
 
   const customId = sourceObject.customId;
@@ -365,8 +372,8 @@ async function remapExportClipPaths(
     if (!sourceClipPath) continue;
 
     const clipPathId =
-      'customId' in sourceClipPath &&
-      typeof sourceClipPath.customId === 'string'
+      "customId" in sourceClipPath &&
+      typeof sourceClipPath.customId === "string"
         ? sourceClipPath.customId
         : null;
     const exportObject = exportObjectsById.get(sourceId);
@@ -399,7 +406,9 @@ async function remapExportClipPaths(
       }
     }
     if (!exportClipPath) {
-      exportClipPath = await cloneFabricObjectWithCustomId(sourceClipPath);
+      exportClipPath = await cloneFabricObjectWithCustomId(
+        sourceClipPath as unknown as FabricObject,
+      );
       const sourceLeft = sourceClipPath.left ?? 0;
       const sourceTop = sourceClipPath.top ?? 0;
       const sourceScaleX = sourceClipPath.scaleX ?? 1;
@@ -416,11 +425,15 @@ async function remapExportClipPaths(
     }
 
     exportClipPath.set(
-      'absolutePositioned',
+      "absolutePositioned",
       Boolean(sourceClipPath.absolutePositioned),
     );
-    exportObject.set('clipPath', exportClipPath);
-    setExportMaskTracking(exportObject, exportClipPath, exportMaskSourceForSync);
+    exportObject.set("clipPath", exportClipPath);
+    setExportMaskTracking(
+      exportObject,
+      exportClipPath,
+      exportMaskSourceForSync,
+    );
     exportObject.setCoords();
   }
 }
@@ -457,7 +470,7 @@ function syncExportMaskProxyForObject(targetObject: FabricObject) {
     originY: maskSource.originY,
   });
   if (targetObject.clipPath !== maskProxy) {
-    targetObject.set('clipPath', maskProxy);
+    targetObject.set("clipPath", maskProxy);
   }
   maskProxy.setCoords();
 }

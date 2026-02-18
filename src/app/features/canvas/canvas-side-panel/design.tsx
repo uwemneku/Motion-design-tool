@@ -7,24 +7,26 @@ import {
   type RootState,
 } from "../../../store";
 import { upsertItemRecord } from "../../../store/editor-slice";
-import type { AnimatableObject } from "../../shapes/animatable-object/object";
 import { appendUniqueMarkerTimes } from "../animations-utils";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 import {
-  cardClass,
   EMPTY_FORM,
-  fieldClass,
   FONT_FAMILY_PRESETS,
-  GOOGLE_FONT_FAMILY_QUERY,
   FONT_STYLE_OPTIONS,
   FONT_WEIGHT_OPTIONS,
-  HEX_COLOR_PATTERN,
-  KEYFRAME_EPSILON,
-  labelClass,
-  sectionTitleClass,
-} from "./const";
+  CANVAS_KEYFRAME_EPSILON,
+} from "../../../../const";
 import { MaskSourceControl } from "./mask-source-control";
-import type { DesignFormState } from "./types";
+import type { DesignFormState } from "../../../../types";
+import {
+  cardClass,
+  ensureGoogleFontsLoaded,
+  fieldClass,
+  labelClass,
+  normalizeHexColor,
+  readDesignForm,
+  sectionTitleClass,
+} from "./util";
 
 type ColorFieldKey = "fill" | "stroke";
 type KeyframeField = keyof Omit<DesignFormState, "text">;
@@ -55,8 +57,10 @@ export default function CanvasSidePanelDesign() {
   const supportsFill = typeof selectedObject?.get("fill") === "string";
   const supportsStroke = typeof selectedObject?.get("stroke") === "string";
 
+  // eslint-disable-next-line react-hooks/refs
   if (prevSelectedId.current !== selectedId) {
     setActiveColorField(null);
+    // eslint-disable-next-line react-hooks/refs
     prevSelectedId.current = selectedId;
   }
 
@@ -74,7 +78,6 @@ export default function CanvasSidePanelDesign() {
     object.on("rotating", syncFromCanvas);
     object.on("skewing", syncFromCanvas);
     object.on("modified", syncFromCanvas);
-    object.on("changed", syncFromCanvas);
 
     return () => {
       object.off("moving", syncFromCanvas);
@@ -82,7 +85,6 @@ export default function CanvasSidePanelDesign() {
       object.off("rotating", syncFromCanvas);
       object.off("skewing", syncFromCanvas);
       object.off("modified", syncFromCanvas);
-      object.off("changed", syncFromCanvas);
     };
   }, [selectedInstance]);
 
@@ -221,7 +223,7 @@ export default function CanvasSidePanelDesign() {
     const nextMarkers = appendUniqueMarkerTimes(
       selectedItem.keyframe,
       [playheadTime],
-      KEYFRAME_EPSILON,
+      CANVAS_KEYFRAME_EPSILON,
     );
 
     dispatch(
@@ -601,91 +603,4 @@ export default function CanvasSidePanelDesign() {
       ) : null}
     </>
   );
-}
-
-function toNumberInput(value: unknown, fallback: number) {
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  return String(fallback);
-}
-
-function readDesignForm(instance?: AnimatableObject): DesignFormState {
-  if (!instance) return EMPTY_FORM;
-  const object = instance.fabricObject;
-
-  return {
-    left: toNumberInput(object.left, 0),
-    top: toNumberInput(object.top, 0),
-    scaleX: toNumberInput(object.scaleX, 1),
-    scaleY: toNumberInput(object.scaleY, 1),
-    opacity: toNumberInput(object.opacity, 1),
-    angle: toNumberInput(object.angle, 0),
-    fill:
-      typeof object.get("fill") === "string" ? String(object.get("fill")) : "",
-    stroke:
-      typeof object.get("stroke") === "string"
-        ? String(object.get("stroke"))
-        : "",
-    text:
-      typeof object.get("text") === "string" ? String(object.get("text")) : "",
-    fontFamily:
-      typeof object.get("fontFamily") === "string"
-        ? String(object.get("fontFamily"))
-        : EMPTY_FORM.fontFamily,
-    fontSize: toNumberInput(
-      object.get("fontSize"),
-      Number(EMPTY_FORM.fontSize),
-    ),
-    fontStyle:
-      typeof object.get("fontStyle") === "string"
-        ? String(object.get("fontStyle"))
-        : EMPTY_FORM.fontStyle,
-    fontWeight:
-      typeof object.get("fontWeight") === "string" ||
-      typeof object.get("fontWeight") === "number"
-        ? String(object.get("fontWeight"))
-        : EMPTY_FORM.fontWeight,
-  };
-}
-
-function normalizeHexColor(value: string, fallback = "#0d99ff") {
-  // Normalize to long-form lowercase hex and preserve alpha channels when provided.
-  const trimmed = value.trim();
-  if (!HEX_COLOR_PATTERN.test(trimmed)) return fallback;
-  if (trimmed.length === 4) {
-    const r = trimmed[1];
-    const g = trimmed[2];
-    const b = trimmed[3];
-    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
-  }
-  if (trimmed.length === 5) {
-    const r = trimmed[1];
-    const g = trimmed[2];
-    const b = trimmed[3];
-    const a = trimmed[4];
-    return `#${r}${r}${g}${g}${b}${b}${a}${a}`.toLowerCase();
-  }
-  return trimmed.toLowerCase();
-}
-
-function ensureGoogleFontsLoaded() {
-  if (typeof document === "undefined") return;
-  const existingLink = document.getElementById("editor-google-fonts");
-  if (existingLink) return;
-
-  const preconnectApi = document.createElement("link");
-  preconnectApi.rel = "preconnect";
-  preconnectApi.href = "https://fonts.googleapis.com";
-  document.head.appendChild(preconnectApi);
-
-  const preconnectStatic = document.createElement("link");
-  preconnectStatic.rel = "preconnect";
-  preconnectStatic.href = "https://fonts.gstatic.com";
-  preconnectStatic.crossOrigin = "anonymous";
-  document.head.appendChild(preconnectStatic);
-
-  const fontLink = document.createElement("link");
-  fontLink.id = "editor-google-fonts";
-  fontLink.rel = "stylesheet";
-  fontLink.href = `https://fonts.googleapis.com/css2?${GOOGLE_FONT_FAMILY_QUERY}&display=swap`;
-  document.head.appendChild(fontLink);
 }

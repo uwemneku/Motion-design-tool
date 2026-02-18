@@ -1,13 +1,13 @@
-import { generateObject } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
-import { z } from 'zod';
-import { AGENT_SYSTEM_PROMPT, MAX_AGENT_STEPS } from '../../const';
+import { generateObject } from "ai";
+import { createOpenAI } from "@ai-sdk/openai";
+import { z } from "zod";
 import type {
   AIEditorCommand,
   AIItemKeyframe,
   AIItemPatch,
   AIItemTarget,
-} from './editor-ai-events';
+} from "./editor-ai-events";
+import { AGENT_SYSTEM_PROMPT, MAX_AGENT_STEPS } from "../../../const";
 
 type OpenAIChatResult = {
   reply: string;
@@ -71,8 +71,8 @@ export type OpenAISceneContext = {
   }>;
 };
 
-type SceneItem = OpenAISceneContext['items'][number];
-type ProjectContextPayload = NonNullable<OpenAISceneContext['project']>;
+type SceneItem = OpenAISceneContext["items"][number];
+type ProjectContextPayload = NonNullable<OpenAISceneContext["project"]>;
 
 type ToolExecutionState = {
   hasAddedItem: boolean;
@@ -83,15 +83,17 @@ type AgentStepLog = {
   result: string;
 };
 
-const aiItemKeyframeSchema = z.object({
-  time: z.number(),
-  left: z.number().nullable(),
-  top: z.number().nullable(),
-  scaleX: z.number().nullable(),
-  scaleY: z.number().nullable(),
-  opacity: z.number().nullable(),
-  angle: z.number().nullable(),
-}).strict();
+const aiItemKeyframeSchema = z
+  .object({
+    time: z.number(),
+    left: z.number().nullable(),
+    top: z.number().nullable(),
+    scaleX: z.number().nullable(),
+    scaleY: z.number().nullable(),
+    opacity: z.number().nullable(),
+    angle: z.number().nullable(),
+  })
+  .strict();
 
 const aiItemTargetSchema = z
   .object({
@@ -116,14 +118,14 @@ const updatePropsSchema = z
 const commandSchema = z
   .object({
     type: z.enum([
-      'add_circle',
-      'add_polygon',
-      'add_line',
-      'add_rectangle',
-      'add_text',
-      'add_image',
-      'update_item',
-      'delete_item',
+      "add_circle",
+      "add_polygon",
+      "add_line",
+      "add_rectangle",
+      "add_text",
+      "add_image",
+      "update_item",
+      "delete_item",
     ]),
     color: z.string().nullable(),
     text: z.string().nullable(),
@@ -137,13 +139,15 @@ const commandSchema = z
 
 const decisionSchema = z
   .object({
-    status: z.enum(['action', 'done', 'needs_user_input']),
+    status: z.enum(["action", "done", "needs_user_input"]),
     message: z.string().min(1),
     action: commandSchema.nullable(),
   })
   .strict();
 
-function cloneSceneContext(sceneContext: OpenAISceneContext): OpenAISceneContext {
+function cloneSceneContext(
+  sceneContext: OpenAISceneContext,
+): OpenAISceneContext {
   return JSON.parse(JSON.stringify(sceneContext)) as OpenAISceneContext;
 }
 
@@ -151,40 +155,46 @@ function sanitizeKeyframes(keyframes: unknown): AIItemKeyframe[] {
   if (!Array.isArray(keyframes)) return [];
   return keyframes
     .map((value) => {
-      if (!value || typeof value !== 'object') return null;
+      if (!value || typeof value !== "object") return null;
       const candidate = value as Partial<AIItemKeyframe>;
       const next: AIItemKeyframe = {
         time:
-          typeof candidate.time === 'number' && Number.isFinite(candidate.time)
+          typeof candidate.time === "number" && Number.isFinite(candidate.time)
             ? candidate.time
             : Number.NaN,
       };
 
-      if (typeof candidate.left === 'number' && Number.isFinite(candidate.left)) {
+      if (
+        typeof candidate.left === "number" &&
+        Number.isFinite(candidate.left)
+      ) {
         next.left = candidate.left;
       }
-      if (typeof candidate.top === 'number' && Number.isFinite(candidate.top)) {
+      if (typeof candidate.top === "number" && Number.isFinite(candidate.top)) {
         next.top = candidate.top;
       }
       if (
-        typeof candidate.scaleX === 'number' &&
+        typeof candidate.scaleX === "number" &&
         Number.isFinite(candidate.scaleX)
       ) {
         next.scaleX = candidate.scaleX;
       }
       if (
-        typeof candidate.scaleY === 'number' &&
+        typeof candidate.scaleY === "number" &&
         Number.isFinite(candidate.scaleY)
       ) {
         next.scaleY = candidate.scaleY;
       }
       if (
-        typeof candidate.opacity === 'number' &&
+        typeof candidate.opacity === "number" &&
         Number.isFinite(candidate.opacity)
       ) {
         next.opacity = candidate.opacity;
       }
-      if (typeof candidate.angle === 'number' && Number.isFinite(candidate.angle)) {
+      if (
+        typeof candidate.angle === "number" &&
+        Number.isFinite(candidate.angle)
+      ) {
         next.angle = candidate.angle;
       }
 
@@ -194,13 +204,13 @@ function sanitizeKeyframes(keyframes: unknown): AIItemKeyframe[] {
 }
 
 function sanitizeColor(value: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined;
+  if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function parseHexColor(color: string) {
-  const value = color.trim().replace(/^#/, '');
+  const value = color.trim().replace(/^#/, "");
   if (![3, 6].includes(value.length) || !/^[0-9a-f]+$/i.test(value)) {
     return null;
   }
@@ -251,7 +261,7 @@ function relativeLuminance(rgb: { r: number; g: number; b: number }) {
 }
 
 function sanitizeAccessibleTextColor(color: string | undefined) {
-  const fallback = '#0f172a';
+  const fallback = "#0f172a";
   if (!color) return fallback;
 
   const parsed = parseHexColor(color) ?? parseRgbColor(color);
@@ -261,10 +271,10 @@ function sanitizeAccessibleTextColor(color: string | undefined) {
 }
 
 function sanitizeTarget(value: unknown): AIItemTarget | null {
-  if (!value || typeof value !== 'object') return null;
+  if (!value || typeof value !== "object") return null;
   const candidate = value as { id?: unknown; name?: unknown };
-  const id = typeof candidate.id === 'string' ? candidate.id.trim() : '';
-  const name = typeof candidate.name === 'string' ? candidate.name.trim() : '';
+  const id = typeof candidate.id === "string" ? candidate.id.trim() : "";
+  const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
 
   if (!id && !name) return null;
 
@@ -275,32 +285,41 @@ function sanitizeTarget(value: unknown): AIItemTarget | null {
 }
 
 function sanitizeProps(value: unknown): AIItemPatch | undefined {
-  if (!value || typeof value !== 'object') return undefined;
+  if (!value || typeof value !== "object") return undefined;
   const candidate = value as Partial<AIItemPatch>;
   const next: AIItemPatch = {};
 
-  if (typeof candidate.left === 'number' && Number.isFinite(candidate.left)) {
+  if (typeof candidate.left === "number" && Number.isFinite(candidate.left)) {
     next.left = candidate.left;
   }
-  if (typeof candidate.top === 'number' && Number.isFinite(candidate.top)) {
+  if (typeof candidate.top === "number" && Number.isFinite(candidate.top)) {
     next.top = candidate.top;
   }
-  if (typeof candidate.scaleX === 'number' && Number.isFinite(candidate.scaleX)) {
+  if (
+    typeof candidate.scaleX === "number" &&
+    Number.isFinite(candidate.scaleX)
+  ) {
     next.scaleX = candidate.scaleX;
   }
-  if (typeof candidate.scaleY === 'number' && Number.isFinite(candidate.scaleY)) {
+  if (
+    typeof candidate.scaleY === "number" &&
+    Number.isFinite(candidate.scaleY)
+  ) {
     next.scaleY = candidate.scaleY;
   }
-  if (typeof candidate.width === 'number' && Number.isFinite(candidate.width)) {
+  if (typeof candidate.width === "number" && Number.isFinite(candidate.width)) {
     next.width = candidate.width;
   }
-  if (typeof candidate.opacity === 'number' && Number.isFinite(candidate.opacity)) {
+  if (
+    typeof candidate.opacity === "number" &&
+    Number.isFinite(candidate.opacity)
+  ) {
     next.opacity = candidate.opacity;
   }
-  if (typeof candidate.angle === 'number' && Number.isFinite(candidate.angle)) {
+  if (typeof candidate.angle === "number" && Number.isFinite(candidate.angle)) {
     next.angle = candidate.angle;
   }
-  if (typeof candidate.text === 'string' && candidate.text.trim().length > 0) {
+  if (typeof candidate.text === "string" && candidate.text.trim().length > 0) {
     next.text = candidate.text.trim();
   }
 
@@ -344,23 +363,23 @@ function getProjectContextPayload(
       videoRight: 0,
       videoBottom: 0,
       videoAspectRatio: 16 / 9,
-      videoAspectLabel: '16:9',
+      videoAspectLabel: "16:9",
     }
   );
 }
 
 function getOpenAIResponseId(providerMetadata: unknown): string | null {
-  if (!providerMetadata || typeof providerMetadata !== 'object') {
+  if (!providerMetadata || typeof providerMetadata !== "object") {
     return null;
   }
 
   const openaiValue = (providerMetadata as Record<string, unknown>).openai;
-  if (!openaiValue || typeof openaiValue !== 'object') {
+  if (!openaiValue || typeof openaiValue !== "object") {
     return null;
   }
 
   const responseId = (openaiValue as Record<string, unknown>).responseId;
-  return typeof responseId === 'string' && responseId.trim().length > 0
+  return typeof responseId === "string" && responseId.trim().length > 0
     ? responseId
     : null;
 }
@@ -371,34 +390,36 @@ function applyCommandToWorkingScene(
   nextGeneratedId: () => string,
 ): void {
   if (
-    command.type === 'add_circle' ||
-    command.type === 'add_polygon' ||
-    command.type === 'add_line' ||
-    command.type === 'add_rectangle' ||
-    command.type === 'add_text' ||
-    command.type === 'add_image'
+    command.type === "add_circle" ||
+    command.type === "add_polygon" ||
+    command.type === "add_line" ||
+    command.type === "add_rectangle" ||
+    command.type === "add_text" ||
+    command.type === "add_image"
   ) {
     const id = nextGeneratedId();
     const nameByType: Record<string, string> = {
-      add_circle: 'circle',
-      add_polygon: 'polygon',
-      add_line: 'line',
-      add_rectangle: 'rectangle',
-      add_text: 'text',
-      add_image: 'image',
+      add_circle: "circle",
+      add_polygon: "polygon",
+      add_line: "line",
+      add_rectangle: "rectangle",
+      add_text: "text",
+      add_image: "image",
     };
 
-    const keyframeTimes =
-      command.keyframes?.map((keyframe) => keyframe.time).filter(Number.isFinite) ??
-      [0];
+    const keyframeTimes = command.keyframes
+      ?.map((keyframe) => keyframe.time)
+      .filter(Number.isFinite) ?? [0];
 
     const item: SceneItem = {
       id,
-      name: nameByType[command.type] ?? 'item',
+      name: nameByType[command.type] ?? "item",
       keyframeTimes,
       current: {
         left: 0,
         top: 0,
+        centerX: 0,
+        centerY: 0,
         scaleX: 1,
         scaleY: 1,
         opacity: 1,
@@ -412,7 +433,7 @@ function applyCommandToWorkingScene(
     return;
   }
 
-  if (command.type === 'delete_item') {
+  if (command.type === "delete_item") {
     const index = resolveItemIndex(sceneContext, command.target);
     if (index < 0) return;
     const [removed] = sceneContext.items.splice(index, 1);
@@ -422,7 +443,7 @@ function applyCommandToWorkingScene(
     return;
   }
 
-  if (command.type === 'update_item') {
+  if (command.type === "update_item") {
     const index = resolveItemIndex(sceneContext, command.target);
     if (index < 0) return;
     const item = sceneContext.items[index];
@@ -449,15 +470,22 @@ function applyCommandToWorkingScene(
     };
 
     if (command.props) {
-      if (typeof command.props.left === 'number') item.current.left = command.props.left;
-      if (typeof command.props.top === 'number') item.current.top = command.props.top;
+      if (typeof command.props.left === "number")
+        item.current.left = command.props.left;
+      if (typeof command.props.top === "number")
+        item.current.top = command.props.top;
       item.current.centerX = item.current.left;
       item.current.centerY = item.current.top;
-      if (typeof command.props.scaleX === 'number') item.current.scaleX = command.props.scaleX;
-      if (typeof command.props.scaleY === 'number') item.current.scaleY = command.props.scaleY;
-      if (typeof command.props.width === 'number') item.current.width = command.props.width;
-      if (typeof command.props.opacity === 'number') item.current.opacity = command.props.opacity;
-      if (typeof command.props.angle === 'number') item.current.angle = command.props.angle;
+      if (typeof command.props.scaleX === "number")
+        item.current.scaleX = command.props.scaleX;
+      if (typeof command.props.scaleY === "number")
+        item.current.scaleY = command.props.scaleY;
+      if (typeof command.props.width === "number")
+        item.current.width = command.props.width;
+      if (typeof command.props.opacity === "number")
+        item.current.opacity = command.props.opacity;
+      if (typeof command.props.angle === "number")
+        item.current.angle = command.props.angle;
 
       const halfWidth =
         ((item.current.scaledWidth ?? item.current.width ?? 0) || 0) / 2;
@@ -483,72 +511,75 @@ function applyCommandToWorkingScene(
 
 function isAddCommand(command: AIEditorCommand): boolean {
   return (
-    command.type === 'add_circle' ||
-    command.type === 'add_polygon' ||
-    command.type === 'add_line' ||
-    command.type === 'add_rectangle' ||
-    command.type === 'add_text' ||
-    command.type === 'add_image'
+    command.type === "add_circle" ||
+    command.type === "add_polygon" ||
+    command.type === "add_line" ||
+    command.type === "add_rectangle" ||
+    command.type === "add_text" ||
+    command.type === "add_image"
   );
 }
 
-function sanitizeCommand(command: z.infer<typeof commandSchema>): AIEditorCommand | null {
-  if (command.type === 'add_circle') {
+function sanitizeCommand(
+  command: z.infer<typeof commandSchema>,
+): AIEditorCommand | null {
+  if (command.type === "add_circle") {
     return {
-      type: 'add_circle',
+      type: "add_circle",
       color: sanitizeColor(command.color),
       keyframes: sanitizeKeyframes(command.keyframes),
     };
   }
 
-  if (command.type === 'add_polygon') {
+  if (command.type === "add_polygon") {
     return {
-      type: 'add_polygon',
+      type: "add_polygon",
       color: sanitizeColor(command.color),
       keyframes: sanitizeKeyframes(command.keyframes),
     };
   }
 
-  if (command.type === 'add_line') {
+  if (command.type === "add_line") {
     return {
-      type: 'add_line',
+      type: "add_line",
       color: sanitizeColor(command.color),
       keyframes: sanitizeKeyframes(command.keyframes),
     };
   }
 
-  if (command.type === 'add_rectangle') {
+  if (command.type === "add_rectangle") {
     return {
-      type: 'add_rectangle',
+      type: "add_rectangle",
       color: sanitizeColor(command.color),
       keyframes: sanitizeKeyframes(command.keyframes),
     };
   }
 
-  if (command.type === 'add_text') {
+  if (command.type === "add_text") {
     return {
-      type: 'add_text',
-      text: (command.text ?? '').trim() || 'AI text',
+      type: "add_text",
+      text: (command.text ?? "").trim() || "AI text",
       color: sanitizeAccessibleTextColor(sanitizeColor(command.color)),
       keyframes: sanitizeKeyframes(command.keyframes),
     };
   }
 
-  if (command.type === 'add_image') {
-    const url = typeof command.url === 'string' ? command.url.trim() : '';
-    const prompt = typeof command.prompt === 'string' ? command.prompt.trim() : '';
+  if (command.type === "add_image") {
+    const url = typeof command.url === "string" ? command.url.trim() : "";
+    const prompt =
+      typeof command.prompt === "string" ? command.prompt.trim() : "";
 
     if (!url && !prompt) return null;
 
     return {
-      type: 'add_image',
+      type: "add_image",
       ...(url ? { url } : {}),
       ...(prompt ? { prompt } : {}),
       keyframes: sanitizeKeyframes(command.keyframes),
     };
   }
 
-  if (command.type === 'update_item') {
+  if (command.type === "update_item") {
     const target = sanitizeTarget(command.target);
     if (!target) return null;
 
@@ -556,19 +587,19 @@ function sanitizeCommand(command: z.infer<typeof commandSchema>): AIEditorComman
     const keyframes = sanitizeKeyframes(command.keyframes);
 
     return {
-      type: 'update_item',
+      type: "update_item",
       target,
       ...(props ? { props } : {}),
       ...(keyframes.length > 0 ? { keyframes } : {}),
     };
   }
 
-  if (command.type === 'delete_item') {
+  if (command.type === "delete_item") {
     const target = sanitizeTarget(command.target);
     if (!target) return null;
 
     return {
-      type: 'delete_item',
+      type: "delete_item",
       target,
     };
   }
@@ -584,14 +615,14 @@ function buildAgentPrompt(
 ): string {
   const project = getProjectContextPayload(workingScene);
   const previousSteps = logs.length
-    ? logs.map((entry) => `- Step ${entry.step}: ${entry.result}`).join('\n')
-    : '- none';
+    ? logs.map((entry) => `- Step ${entry.step}: ${entry.result}`).join("\n")
+    : "- none";
 
   return [
     `User request:\n${userPrompt}`,
     `Current step: ${step}/${MAX_AGENT_STEPS}`,
-    'Project context JSON:',
-    '```json',
+    "Project context JSON:",
+    "```json",
     JSON.stringify(
       {
         selectedId: workingScene.selectedId,
@@ -605,22 +636,22 @@ function buildAgentPrompt(
           height: project.videoHeight,
         },
         outsideVideoAreaRule:
-          'x < videoLeft || x > videoRight || y < videoTop || y > videoBottom',
+          "x < videoLeft || x > videoRight || y < videoTop || y > videoBottom",
         itemBoundsRule:
-          'Objects are center-origin. bounds.left = centerX - scaledWidth/2, bounds.top = centerY - scaledHeight/2, bounds.right = centerX + scaledWidth/2, bounds.bottom = centerY + scaledHeight/2.',
+          "Objects are center-origin. bounds.left = centerX - scaledWidth/2, bounds.top = centerY - scaledHeight/2, bounds.right = centerX + scaledWidth/2, bounds.bottom = centerY + scaledHeight/2.",
         items: workingScene.items,
       },
       null,
       2,
     ),
-    '```',
-    'Execution log so far:',
+    "```",
+    "Execution log so far:",
     previousSteps,
-    'Decide next step using decision schema.',
-    'If an action is needed, return exactly one action.',
+    "Decide next step using decision schema.",
+    "If an action is needed, return exactly one action.",
     'If complete, return status="done".',
     'If blocked, return status="needs_user_input" with one question.',
-  ].join('\n\n');
+  ].join("\n\n");
 }
 
 export async function generateOpenAIChatTurn(
@@ -631,13 +662,13 @@ export async function generateOpenAIChatTurn(
 ): Promise<OpenAIChatResult> {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error('Missing VITE_OPENAI_API_KEY in environment.');
+    throw new Error("Missing VITE_OPENAI_API_KEY in environment.");
   }
 
   const baseUrl =
-    import.meta.env.VITE_OPENAI_BASE_URL ?? 'https://api.openai.com/v1';
-  const model = import.meta.env.VITE_OPENAI_MODEL ?? 'gpt-5';
-  const isGpt5Model = model.toLowerCase().startsWith('gpt-5');
+    import.meta.env.VITE_OPENAI_BASE_URL ?? "https://api.openai.com/v1";
+  const model = import.meta.env.VITE_OPENAI_MODEL ?? "gpt-5";
+  const isGpt5Model = model.toLowerCase().startsWith("gpt-5");
 
   const openai = createOpenAI({
     apiKey,
@@ -663,18 +694,18 @@ export async function generateOpenAIChatTurn(
     onStep?.(`Step ${step}: reading context and deciding next action...`);
     const openaiOptions: {
       previousResponseId?: string;
-      reasoningEffort?: 'minimal';
-      textVerbosity?: 'medium';
-      systemMessageMode?: 'developer';
+      reasoningEffort?: "minimal";
+      textVerbosity?: "medium";
+      systemMessageMode?: "developer";
     } = {};
 
     if (responseId) {
       openaiOptions.previousResponseId = responseId;
     }
     if (isGpt5Model) {
-      openaiOptions.reasoningEffort = 'minimal';
-      openaiOptions.textVerbosity = 'medium';
-      openaiOptions.systemMessageMode = 'developer';
+      openaiOptions.reasoningEffort = "minimal";
+      openaiOptions.textVerbosity = "medium";
+      openaiOptions.systemMessageMode = "developer";
     }
 
     const result = await generateObject({
@@ -690,7 +721,7 @@ export async function generateOpenAIChatTurn(
     responseId = getOpenAIResponseId(result.providerMetadata) ?? responseId;
     const decision = result.object;
 
-    if (decision.status === 'done') {
+    if (decision.status === "done") {
       onStep?.(`Step ${step}: done.`);
       return {
         reply: decision.message,
@@ -699,7 +730,7 @@ export async function generateOpenAIChatTurn(
       };
     }
 
-    if (decision.status === 'needs_user_input') {
+    if (decision.status === "needs_user_input") {
       onStep?.(`Step ${step}: waiting for user input.`);
       return {
         reply: decision.message,
@@ -712,7 +743,7 @@ export async function generateOpenAIChatTurn(
       onStep?.(`Step ${step}: no action returned.`);
       logs.push({
         step,
-        result: 'No action payload returned by model.',
+        result: "No action payload returned by model.",
       });
       continue;
     }
@@ -722,7 +753,7 @@ export async function generateOpenAIChatTurn(
       onStep?.(`Step ${step}: invalid action payload.`);
       logs.push({
         step,
-        result: 'Invalid action payload.',
+        result: "Invalid action payload.",
       });
       continue;
     }
@@ -731,7 +762,7 @@ export async function generateOpenAIChatTurn(
       onStep?.(`Step ${step}: blocked by one-add-item-per-run rule.`);
       logs.push({
         step,
-        result: 'Blocked: one add-item action is allowed per run.',
+        result: "Blocked: one add-item action is allowed per run.",
       });
       continue;
     }
@@ -753,7 +784,7 @@ export async function generateOpenAIChatTurn(
   return {
     reply:
       commands.length > 0
-        ? `Reached step limit (${MAX_AGENT_STEPS}). Executed ${commands.length} action${commands.length === 1 ? '' : 's'}.`
+        ? `Reached step limit (${MAX_AGENT_STEPS}). Executed ${commands.length} action${commands.length === 1 ? "" : "s"}.`
         : `Reached step limit (${MAX_AGENT_STEPS}) without executable action.`,
     commands,
     responseId,
@@ -765,22 +796,22 @@ export async function generateOpenAIImageDataUrl(
 ): Promise<string> {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error('Missing VITE_OPENAI_API_KEY in environment.');
+    throw new Error("Missing VITE_OPENAI_API_KEY in environment.");
   }
 
   const baseUrl =
-    import.meta.env.VITE_OPENAI_BASE_URL ?? 'https://api.openai.com/v1';
+    import.meta.env.VITE_OPENAI_BASE_URL ?? "https://api.openai.com/v1";
 
   const response = await fetch(`${baseUrl}/images/generations`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'gpt-image-1',
+      model: "gpt-image-1",
       prompt,
-      size: '1024x1024',
+      size: "1024x1024",
     }),
   });
 
@@ -797,7 +828,7 @@ export async function generateOpenAIImageDataUrl(
 
   const first = data.data?.[0];
   if (!first) {
-    throw new Error('OpenAI image generation returned no data.');
+    throw new Error("OpenAI image generation returned no data.");
   }
 
   if (first.b64_json) {
@@ -806,5 +837,5 @@ export async function generateOpenAIImageDataUrl(
 
   if (first.url) return first.url;
 
-  throw new Error('OpenAI image generation payload missing image output.');
+  throw new Error("OpenAI image generation payload missing image output.");
 }

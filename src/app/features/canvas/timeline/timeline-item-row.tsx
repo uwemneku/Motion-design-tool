@@ -2,7 +2,6 @@ import { useMemo, useState, type MouseEvent } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../../../store";
 import type { AppDispatch } from "../../../store";
-import { EASING_OPTIONS, TIME_EPSILON } from "../../../const";
 import { setPlayheadTime, setSelectedId } from "../../../store/editor-slice";
 import type {
   ColorKeyframe,
@@ -10,6 +9,7 @@ import type {
   Keyframe,
 } from "../../shapes/animatable-object/types";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
+import { EASING_OPTIONS, TIME_EPSILON } from "../../../../const";
 
 type TimelineItemRowProps = {
   id: string;

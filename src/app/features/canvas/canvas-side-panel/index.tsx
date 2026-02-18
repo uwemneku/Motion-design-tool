@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { type RootState } from "../../../store";
-import type { PanelTab } from "./types";
 import CanvasSidePanelDesign from "./design";
 import CanvasSidePanelAnimations from "./animations";
+export type PanelTab = "design" | "animations";
 
 export default function CanvasSidePanel() {
   const [activeTab, setActiveTab] = useState<PanelTab>("design");

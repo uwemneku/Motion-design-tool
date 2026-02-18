@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PaperPlaneIcon, ReloadIcon } from "@radix-ui/react-icons";
-import * as ScrollArea from "@radix-ui/react-scroll-area";
+import { PaperPlaneIcon } from "@radix-ui/react-icons";
 import ReactMarkdown from "react-markdown";
 import { useSelector } from "react-redux";
 import remarkGfm from "remark-gfm";
+import { AppScrollArea } from "../../components/app-scroll-area";
+import { SpinnerStatusRow } from "../../components/spinner-status-row";
 import type {
   ColorKeyframe,
   Keyframe,
@@ -175,8 +176,12 @@ export default function AIChatPanel() {
         </span>
       </div>
 
-      <ScrollArea.Root className="min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--wise-border)] bg-[var(--wise-surface-raised)]">
-        <ScrollArea.Viewport ref={viewportRef} className="h-full w-full p-2">
+      <AppScrollArea
+        rootClassName="min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--wise-border)] bg-[var(--wise-surface-raised)]"
+        viewportClassName="h-full w-full p-2"
+        verticalScrollbarClassName="flex w-2.5 touch-none select-none bg-[var(--wise-surface-raised)] p-0.5"
+      >
+        <div ref={viewportRef} className="h-full w-full">
           <div className="space-y-2">
             {messages.map((message) => (
               <div
@@ -192,10 +197,7 @@ export default function AIChatPanel() {
             ))}
             {isGenerating ? (
               <div className="space-y-1 rounded px-2 py-1.5 text-xs text-slate-300">
-                <div className="inline-flex items-center gap-2">
-                  <ReloadIcon className="size-3.5 animate-spin" />
-                  <span>Agent running…</span>
-                </div>
+                <SpinnerStatusRow text="Agent running…" />
                 {agentSteps.length > 0 ? (
                   <div className="space-y-0.5 text-[11px] text-slate-400">
                     {agentSteps.slice(-6).map((step, index) => (
@@ -206,26 +208,14 @@ export default function AIChatPanel() {
               </div>
             ) : null}
             {isApplyingActions ? (
-              <div className="inline-flex items-center gap-2 rounded px-2 py-1.5 text-xs text-[#c8d8ff]">
-                <ReloadIcon className="size-3.5 animate-spin" />
-                <span>Applying actions…</span>
-              </div>
+              <SpinnerStatusRow text="Applying actions…" />
             ) : null}
             {isGeneratingImage ? (
-              <div className="inline-flex items-center gap-2 rounded px-2 py-1.5 text-xs text-[#c8d8ff]">
-                <ReloadIcon className="size-3.5 animate-spin" />
-                <span>Generating image…</span>
-              </div>
+              <SpinnerStatusRow text="Generating image…" />
             ) : null}
           </div>
-        </ScrollArea.Viewport>
-        <ScrollArea.Scrollbar
-          className="flex w-2.5 touch-none select-none bg-[var(--wise-surface-raised)] p-0.5"
-          orientation="vertical"
-        >
-          <ScrollArea.Thumb className="relative flex-1 rounded-full bg-[var(--wise-surface-muted)]" />
-        </ScrollArea.Scrollbar>
-      </ScrollArea.Root>
+        </div>
+      </AppScrollArea>
 
       <div className="mt-2 rounded-2xl border border-[var(--wise-border)] bg-[var(--wise-surface-raised)] p-2 shadow-[0_6px_22px_rgba(2,6,23,0.35)]">
         <div className="flex items-end gap-2">

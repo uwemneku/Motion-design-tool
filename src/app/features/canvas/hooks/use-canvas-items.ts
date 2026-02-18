@@ -24,18 +24,19 @@ import {
   TextObject,
 } from "../../shapes/objects";
 import type { AIItemKeyframe } from "../../ai/editor-ai-events";
+
+import { useCanvasAppContext } from "./use-canvas-app-context";
+import { createRegularPolygonPoints, validateImageUrl } from "./util";
+import { createCustomId, createKeyframeMarkerId } from "../animations-utils";
 import {
-  CANVAS_KEYFRAME_EPSILON as KEYFRAME_EPSILON,
+  CANVAS_KEYFRAME_EPSILON,
   IMAGE_PLACEHOLDER_HEIGHT_RATIO,
   IMAGE_PLACEHOLDER_MIN_SIZE,
   IMAGE_PLACEHOLDER_PULSE_DURATION_MS,
   IMAGE_PLACEHOLDER_PULSE_MAX_OPACITY,
   IMAGE_PLACEHOLDER_PULSE_MIN_OPACITY,
   IMAGE_PLACEHOLDER_WIDTH_RATIO,
-} from "../../../const";
-import { useCanvasAppContext } from "./use-canvas-app-context";
-import { createRegularPolygonPoints, validateImageUrl } from "./util";
-import { createCustomId, createKeyframeMarkerId } from "../animations-utils";
+} from "../../../../const";
 
 type UseCanvasItemsParams = {
   fabricCanvas: MutableRefObject<Canvas | null>;
@@ -167,7 +168,8 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
 
     const timelineMarkers = [...(options.markers ?? [])];
     const hasPlayheadMarker = timelineMarkers.some(
-      (marker) => Math.abs(marker.timestamp - playheadTime) <= KEYFRAME_EPSILON,
+      (marker) =>
+        Math.abs(marker.timestamp - playheadTime) <= CANVAS_KEYFRAME_EPSILON,
     );
     if (!hasPlayheadMarker) {
       timelineMarkers.push({
@@ -231,7 +233,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
 
       const hasMarker = timelineMarkers.some(
         (marker) =>
-          Math.abs(marker.timestamp - keyframe.time) <= KEYFRAME_EPSILON,
+          Math.abs(marker.timestamp - keyframe.time) <= CANVAS_KEYFRAME_EPSILON,
       );
       if (!hasMarker) {
         timelineMarkers.push({
@@ -292,19 +294,22 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     let stopped = false;
     const run = (nextOpacity: number) => {
       if (stopped) return;
-      instance.fabricObject.animate("opacity", nextOpacity, {
-        duration: IMAGE_PLACEHOLDER_PULSE_DURATION_MS,
-        onChange: () => {
-          canvas.requestRenderAll();
+      instance.fabricObject.animate(
+        { opacity: nextOpacity },
+        {
+          duration: IMAGE_PLACEHOLDER_PULSE_DURATION_MS,
+          onChange: () => {
+            canvas.requestRenderAll();
+          },
+          onComplete: () => {
+            run(
+              nextOpacity === IMAGE_PLACEHOLDER_PULSE_MAX_OPACITY
+                ? IMAGE_PLACEHOLDER_PULSE_MIN_OPACITY
+                : IMAGE_PLACEHOLDER_PULSE_MAX_OPACITY,
+            );
+          },
         },
-        onComplete: () => {
-          run(
-            nextOpacity === IMAGE_PLACEHOLDER_PULSE_MAX_OPACITY
-              ? IMAGE_PLACEHOLDER_PULSE_MIN_OPACITY
-              : IMAGE_PLACEHOLDER_PULSE_MAX_OPACITY,
-          );
-        },
-      });
+      );
     };
 
     run(IMAGE_PLACEHOLDER_PULSE_MIN_OPACITY);

@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "typecheck:watch": "tsc -b --watch --preserveWatchOutput",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -31,6 +33,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/vite": "^4.1.4",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",

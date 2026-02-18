@@ -12,11 +12,6 @@ import {
 } from "../../../store/editor-slice";
 import { TextObject } from "../../shapes/objects";
 import {
-  animationTemplates,
-  KEYFRAME_EPSILON,
-  textAnimationTemplates,
-} from "./const";
-import {
   appendUniqueMarkerTimes,
   createCustomId,
   createKeyframeMarkerId,
@@ -25,6 +20,8 @@ import {
   getTextPreviewShapeClass,
 } from "../animations-utils";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
+import { CANVAS_KEYFRAME_EPSILON } from "../../../../const";
+import { animationTemplates, textAnimationTemplates } from "./util";
 
 type CanvasSidePanelAnimationsProps = {
   canApplyAnimation: boolean;
@@ -128,7 +125,7 @@ export default function CanvasSidePanelAnimations({
     const nextMarkers = appendUniqueMarkerTimes(
       selectedItem.keyframe,
       keyframeTimes,
-      KEYFRAME_EPSILON,
+      CANVAS_KEYFRAME_EPSILON,
     );
 
     dispatch(

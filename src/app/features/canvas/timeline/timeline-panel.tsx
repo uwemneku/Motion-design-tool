@@ -5,9 +5,9 @@ import {
   useRef,
   useState,
 } from "react";
-import * as ScrollArea from "@radix-ui/react-scroll-area";
 import { Resizable } from "re-resizable";
 import { useDispatch, useSelector, useStore } from "react-redux";
+import { AppScrollArea } from "../../../components/app-scroll-area";
 import {
   KEYFRAME_SECTION_HORIZONTAL_PADDING,
   LABEL_COLUMN_WIDTH,
@@ -17,7 +17,7 @@ import {
   TIMELINE_MAX_HEIGHT,
   TIMELINE_MIN_HEIGHT,
   TRACK_MIN_WIDTH,
-} from "../../../const";
+} from "../../../../const";
 import TimelineItemRow from "./timeline-item-row";
 import TimelinePlayhead from "./timeline-playhead";
 import type { AppDispatch, RootState } from "../../../store";
@@ -129,8 +129,16 @@ export default function TimelinePanel() {
           );
         }}
       >
-        <ScrollArea.Root className="h-full overflow-hidden">
-          <ScrollArea.Viewport className="h-full w-full">
+        <AppScrollArea
+          rootClassName="h-full overflow-hidden"
+          viewportClassName="h-full w-full"
+          showHorizontalScrollbar
+          showCorner
+          horizontalScrollbarClassName="flex h-2.5 touch-none select-none border-t border-[var(--wise-border)] bg-[var(--wise-surface-raised)] p-0.5"
+          verticalScrollbarClassName="flex w-2.5 touch-none select-none border-l border-[var(--wise-border)] bg-[var(--wise-surface-raised)] p-0.5"
+          cornerClassName="bg-[var(--wise-surface-raised)]"
+        >
+          <div className="h-full w-full">
             <div
               className="relative min-w-[1200px]"
               style={{ minWidth: TRACK_MIN_WIDTH }}
@@ -199,21 +207,8 @@ export default function TimelinePanel() {
                 ))
               )}
             </div>
-          </ScrollArea.Viewport>
-          <ScrollArea.Scrollbar
-            className="flex h-2.5 touch-none select-none border-t border-[var(--wise-border)] bg-[var(--wise-surface-raised)] p-0.5"
-            orientation="horizontal"
-          >
-            <ScrollArea.Thumb className="relative flex-1 rounded-full bg-[var(--wise-surface-muted)]" />
-          </ScrollArea.Scrollbar>
-          <ScrollArea.Scrollbar
-            className="flex w-2.5 touch-none select-none border-l border-[var(--wise-border)] bg-[var(--wise-surface-raised)] p-0.5"
-            orientation="vertical"
-          >
-            <ScrollArea.Thumb className="relative flex-1 rounded-full bg-[var(--wise-surface-muted)]" />
-          </ScrollArea.Scrollbar>
-          <ScrollArea.Corner className="bg-[var(--wise-surface-raised)]" />
-        </ScrollArea.Root>
+          </div>
+        </AppScrollArea>
       </Resizable>
     </section>
   );

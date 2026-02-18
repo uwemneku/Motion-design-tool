@@ -26,12 +26,18 @@ import type {
   KeyframesByProperty,
 } from "../../shapes/animatable-object/types";
 import {
-  CANVAS_KEYFRAME_EPSILON as KEYFRAME_EPSILON,
+  CANVAS_KEYFRAME_EPSILON,
   CANVAS_ZOOM_SENSITIVITY,
   MAX_CANVAS_ZOOM,
   MIN_CANVAS_ZOOM,
+  NONE_MASK_SOURCE_ID,
   NUMERIC_ANIMATABLE_PROPERTIES,
-} from "../../../const";
+} from "../../../../const";
+import {
+  MASK_HISTORY_EVENT_NAME,
+  type MaskHistoryEventDetail,
+} from "../mask-history-events";
+import { setMaskSourceForInstance } from "../masking-util";
 
 function getPropertiesForTransformAction(action?: string) {
   if (!action) return NUMERIC_ANIMATABLE_PROPERTIES;
@@ -317,6 +323,48 @@ function useFabricEditor() {
     redo();
   }, [redoRequestVersion]);
 
+  useEffect(() => {
+    // Capture mask changes as history actions so undo/redo can restore mask state.
+    const onMaskHistoryEvent = (event: Event) => {
+      if (isHistoryReplayRef.current) return;
+
+      const customEvent = event as CustomEvent<MaskHistoryEventDetail>;
+      const { nextSourceId, previousSourceId, targetId } = customEvent.detail;
+      if (!targetId || previousSourceId === nextSourceId) return;
+
+      const applyMaskState = (sourceId: string) => {
+        const targetInstance = getInstanceById(targetId);
+        if (!targetInstance) return;
+
+        const run = async () => {
+          // Always clear first so undo/remove-mask deletes any existing proxy object.
+          await setMaskSourceForInstance(targetInstance);
+          if (sourceId === NONE_MASK_SOURCE_ID) return;
+
+          const sourceInstance = getInstanceById(sourceId);
+          if (!sourceInstance || sourceInstance === targetInstance) return;
+          await setMaskSourceForInstance(targetInstance, sourceInstance);
+        };
+
+        void run();
+      };
+
+      pushHistoryAction({
+        undo: () => {
+          applyMaskState(previousSourceId);
+        },
+        redo: () => {
+          applyMaskState(nextSourceId);
+        },
+      });
+    };
+
+    window.addEventListener(MASK_HISTORY_EVENT_NAME, onMaskHistoryEvent);
+    return () => {
+      window.removeEventListener(MASK_HISTORY_EVENT_NAME, onMaskHistoryEvent);
+    };
+  }, [getInstanceById]);
+
   const bindHost = useCallback(
     (node: HTMLCanvasElement | null) => {
       if (!node || fabricRef.current) return;
@@ -328,7 +376,7 @@ function useFabricEditor() {
       fabricRef.current = new Canvas(node, {
         width: node.clientWidth,
         height: node.clientHeight,
-        backgroundColor: "#2c2c2c",
+        backgroundColor: "transparent",
         preserveObjectStacking: true,
         selection: true,
       });
@@ -380,7 +428,7 @@ function useFabricEditor() {
 
         const hasAtTimestamp = existing.keyframe.some(
           (keyframe) =>
-            Math.abs(keyframe.timestamp - timestamp) <= KEYFRAME_EPSILON,
+            Math.abs(keyframe.timestamp - timestamp) <= CANVAS_KEYFRAME_EPSILON,
         );
         const nextKeyframes = hasAtTimestamp
           ? existing.keyframe

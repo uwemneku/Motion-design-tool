@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { VIDEO_ASPECT_PRESETS } from "../../const";
 import { setProjectInfo } from "../../store/editor-slice";
 import { getVideoWorkAreaRect } from "../export/video-work-area";
 import CanvasHeader from "./canvas-header";
@@ -11,6 +10,7 @@ import TimelinePanel from "./timeline/timeline-panel";
 import { useListForAiComand } from "./hooks/use-list-for-ai-comand";
 import useFabricEditor from "./hooks/use-fabric-editor";
 import VideoWorkAreaOverlay from "./video-work-area-overlay";
+import { VIDEO_ASPECT_PRESETS } from "../../../const";
 
 export default function EditorCanvas() {
   const { bindHost, fabricCanvas } = useFabricEditor();
@@ -63,7 +63,7 @@ export default function EditorCanvas() {
   ]);
 
   return (
-    <section className="flex h-full min-h-0 flex-col overflow-hidden border border-[var(--wise-border)] bg-[var(--wise-surface-raised)] shadow-[0_10px_35px_rgba(2,6,23,0.5)]">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden border border-[var(--wise-border)] bg-[var(--wise-surface-raised)] ">
       <CanvasHeader
         fabricCanvas={fabricCanvas}
         activeAspectRatio={activeAspectPreset.ratio}

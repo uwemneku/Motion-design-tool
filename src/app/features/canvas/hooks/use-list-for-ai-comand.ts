@@ -17,7 +17,7 @@ import {
 } from "../../../store/editor-slice";
 import { useCanvasAppContext } from "./use-canvas-app-context";
 import { useCanvasItems } from "./use-canvas-items";
-import { CANVAS_KEYFRAME_EPSILON as KEYFRAME_EPSILON } from "../../../const";
+import { CANVAS_KEYFRAME_EPSILON as KEYFRAME_EPSILON } from "../../../../const";
 
 export const useListForAiComand = (fabricCanvas: RefObject<Canvas | null>) => {
   const { instancesRef, unregisterInstance } = useCanvasAppContext();

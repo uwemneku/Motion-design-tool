@@ -1,5 +1,3 @@
-export type PanelTab = "design" | "animations";
-
 export type AnimationTemplateId =
   | "fade_in"
   | "fade_out"
