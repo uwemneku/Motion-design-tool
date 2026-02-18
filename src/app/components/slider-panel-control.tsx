@@ -1,3 +1,4 @@
+/** Slider Panel Control.Tsx reusable UI component. */
 import { TOOL_SLIDER_CLASS } from "../../const";
 
 type SliderPanelControlProps = {
@@ -12,6 +13,9 @@ type SliderPanelControlProps = {
   valueText: string;
 };
 
+/**
+ * Reusable labeled range control used inside dark tooltip panels.
+ */
 export function SliderPanelControl({
   label,
   max,
@@ -29,7 +33,7 @@ export function SliderPanelControl({
     <>
       <div className="mb-2 flex items-center justify-between">
         <span className="font-medium text-[#9ca9bb]">{label}</span>
-        <span className="rounded border border-[#2f5c80] bg-[#0d99ff]/20 px-1.5 py-0.5 text-[11px] font-semibold text-[#9fd7ff]">
+        <span className="rounded border border-[#2f5c80] bg-[#38bdf8]/20 px-1.5 py-0.5 text-[11px] font-semibold text-[#9fd7ff]">
           {valueText}
         </span>
       </div>
@@ -44,7 +48,7 @@ export function SliderPanelControl({
             onChange(Number(event.target.value));
           }}
           style={{
-            background: `linear-gradient(90deg, #0d99ff 0%, #0d99ff ${percent}%, #1a2638 ${percent}%, #1a2638 100%)`,
+            background: `linear-gradient(90deg, #38bdf8 0%, #38bdf8 ${percent}%, #1a2638 ${percent}%, #1a2638 100%)`,
           }}
           className={TOOL_SLIDER_CLASS}
         />
@@ -57,6 +61,9 @@ export function SliderPanelControl({
   );
 }
 
+/**
+ * Converts a value to a 0-100 percentage for progress-track rendering.
+ */
 function toRangePercent(value: number, min: number, max: number) {
   if (max <= min) return 0;
   const clamped = Math.min(max, Math.max(min, value));

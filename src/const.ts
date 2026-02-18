@@ -1,3 +1,4 @@
+/** Const.Ts module implementation. */
 import type {
   AnimatableProperties,
   KeyframeEasing,
@@ -36,8 +37,8 @@ export const EXPORT_DURATION_SECONDS = 10;
 export const EXPORT_FPS = 30;
 export const EXPORT_PIXEL_DENSITY = 1;
 export const FAB_EDGE_PADDING = 12;
-export const FIGMA_BLUE = "#2563eb";
-export const FIGMA_BLUE_LIGHT = "rgba(37, 99, 235, 0.12)";
+export const FIGMA_BLUE = "#38bdf8";
+export const FIGMA_BLUE_LIGHT = "rgba(56, 189, 248, 0.12)";
 export const IMAGE_PLACEHOLDER_HEIGHT_RATIO = 0.32;
 export const IMAGE_PLACEHOLDER_MIN_SIZE = 140;
 export const IMAGE_PLACEHOLDER_PULSE_DURATION_MS = 900;
@@ -45,7 +46,7 @@ export const IMAGE_PLACEHOLDER_PULSE_MAX_OPACITY = 0.88;
 export const IMAGE_PLACEHOLDER_PULSE_MIN_OPACITY = 0.34;
 export const IMAGE_PLACEHOLDER_WIDTH_RATIO = 0.36;
 export const KEYFRAME_SECTION_HORIZONTAL_PADDING = 12; // Tailwind px-3
-export const LABEL_COLUMN_WIDTH = 180;
+export const LABEL_COLUMN_WIDTH = 210;
 export const MAX_AGENT_STEPS = 10;
 export const MAX_BORDER_SCALE_FACTOR = 4;
 export const MAX_CANVAS_ZOOM = 4;
@@ -80,11 +81,11 @@ export const TOOL_SLIDER_CLASS =
   "[&::-webkit-slider-thumb]:appearance-none " +
   "[&::-webkit-slider-thumb]:rounded-[4px] " +
   "[&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-[#9fd7ff] " +
-  "[&::-webkit-slider-thumb]:bg-[#0d99ff] " +
-  "[&::-webkit-slider-thumb]:shadow-[0_0_0_3px_rgba(13,153,255,0.24)] " +
+  "[&::-webkit-slider-thumb]:bg-[#38bdf8] " +
+  "[&::-webkit-slider-thumb]:shadow-[0_0_0_3px_rgba(56,189,248,0.24)] " +
   "[&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 " +
   "[&::-moz-range-thumb]:rounded-[4px] [&::-moz-range-thumb]:border " +
-  "[&::-moz-range-thumb]:border-[#9fd7ff] [&::-moz-range-thumb]:bg-[#0d99ff]";
+  "[&::-moz-range-thumb]:border-[#9fd7ff] [&::-moz-range-thumb]:bg-[#38bdf8]";
 export const TRACK_MIN_WIDTH = 1200;
 export const VIDEO_ASPECT_PRESETS = [
   { label: "16:9", ratio: 16 / 9 },
@@ -104,6 +105,7 @@ export const EMPTY_FORM: DesignFormState = {
   angle: "0",
   fill: "",
   stroke: "",
+  strokeWidth: "1",
   text: "",
   fontFamily: "ui-sans-serif, system-ui, sans-serif",
   fontSize: "44",

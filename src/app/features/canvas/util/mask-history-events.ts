@@ -1,3 +1,4 @@
+/** Mask History Events.Ts module implementation. */
 export const MASK_HISTORY_EVENT_NAME = "canvas-mask-history";
 
 export type MaskHistoryEventDetail = {

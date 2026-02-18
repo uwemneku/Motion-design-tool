@@ -1,3 +1,4 @@
+/** Index.Ts module implementation. */
 export type AnimationTemplateId =
   | "fade_in"
   | "fade_out"
@@ -32,6 +33,7 @@ export type DesignFormState = {
   angle: string;
   fill: string;
   stroke: string;
+  strokeWidth: string;
   text: string;
   fontFamily: string;
   fontSize: string;

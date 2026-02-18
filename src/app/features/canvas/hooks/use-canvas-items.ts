@@ -1,3 +1,4 @@
+/** Use Canvas Items.Ts hook logic. */
 import {
   loadSVGFromString,
   Point,
@@ -27,7 +28,10 @@ import type { AIItemKeyframe } from "../../ai/editor-ai-events";
 
 import { useCanvasAppContext } from "./use-canvas-app-context";
 import { createRegularPolygonPoints, validateImageUrl } from "./util";
-import { createCustomId, createKeyframeMarkerId } from "../animations-utils";
+import {
+  createUniqueId,
+  createKeyframeMarkerId,
+} from "../util/animations-utils";
 import {
   CANVAS_KEYFRAME_EPSILON,
   IMAGE_PLACEHOLDER_HEIGHT_RATIO,
@@ -159,7 +163,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       dispatchableSelector((state) => state.editor.playheadTime),
     );
 
-    const customId = options.customId ?? createCustomId(typeName);
+    const customId = options.customId ?? createUniqueId(typeName);
     const object: FabricObject = instance.fabricObject;
     object.customId = customId;
     object.set("customId", customId);
@@ -351,7 +355,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     });
 
     const id = addObjectToCanvas(placeholder, "image", {
-      customId: createCustomId("image-placeholder"),
+      customId: createUniqueId("image-placeholder"),
       name: "image-loading",
       shouldSetSelected: false,
     });
@@ -424,7 +428,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       left: 180,
       top: 160,
       radius: 70,
-      fill: options.color ?? "#ef4444",
+      fill: options.color ?? "#ffffff",
       stroke: "#7f1d1d",
       strokeWidth: 0,
       strokeUniform: true,
@@ -438,7 +442,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     const polygon = new PolygonObject(createRegularPolygonPoints(sides, 70), {
       left: 360,
       top: 140,
-      fill: options.color ?? "#6366f1",
+      fill: options.color ?? "#ffffff",
       stroke: "#312e81",
       strokeWidth: 0,
       strokeUniform: true,
@@ -451,7 +455,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     const line = new LineObject([0, 0, 180, 0], {
       left: 220,
       top: 180,
-      stroke: options.color ?? "#f97316",
+      stroke: options.color ?? "#ffffff",
       strokeWidth: 2,
       strokeLineCap: "round",
       strokeUniform: true,
@@ -466,7 +470,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       top: 180,
       width: 180,
       height: 110,
-      fill: options.color ?? "#22c55e",
+      fill: options.color ?? "#ffffff",
       stroke: "#14532d",
       strokeWidth: 0,
       strokeUniform: true,
@@ -554,8 +558,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       top: 260,
       width: 260,
       fontSize: 44,
-      fill: options.color ?? "#0f172a",
-      fontFamily: "ui-sans-serif, system-ui, sans-serif",
+      fill: options.color ?? "#ffffff",
       fontWeight: 700,
       editable: true,
     });

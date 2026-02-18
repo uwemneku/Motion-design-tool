@@ -1,5 +1,6 @@
+/** Use Canvas App Context.Ts hook logic. */
 import { createContext, useContext } from "react";
-import type { CanvasAppContextValue } from "../canvas-app-context";
+import type { CanvasAppContextValue } from "../canvas-context/canvas-app-context";
 
 export const CanvasAppContext = createContext<CanvasAppContextValue | null>(
   null,

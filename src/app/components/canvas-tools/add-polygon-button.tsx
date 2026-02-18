@@ -1,3 +1,4 @@
+/** Add Polygon Button.Tsx reusable UI component. */
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { useState, type MouseEvent } from "react";
 import { SliderPanelControl } from "../slider-panel-control";
@@ -8,6 +9,9 @@ type AddPolygonButtonProps = {
   onMouseDown: (event: MouseEvent<HTMLButtonElement>) => void;
 };
 
+/**
+ * Adds a polygon and keeps polygon-sides state local to this control.
+ */
 export function AddPolygonButton({
   onAddPolygon,
   onMouseDown,

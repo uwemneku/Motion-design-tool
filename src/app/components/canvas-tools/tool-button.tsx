@@ -1,3 +1,4 @@
+/** Tool Button.Tsx reusable UI component. */
 import * as Tooltip from "@radix-ui/react-tooltip";
 import type { MouseEvent, ReactNode } from "react";
 import { TOOL_BUTTON_CLASS } from "../../../const";
@@ -9,6 +10,7 @@ type ToolButtonProps = {
   onMouseDown: (event: MouseEvent<HTMLButtonElement>) => void;
 };
 
+/** Shared icon button with tooltip for canvas tool actions. */
 export function ToolButton({
   children,
   label,

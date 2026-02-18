@@ -1,3 +1,4 @@
+/** App Scroll Area.Tsx reusable UI component. */
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import type { ReactNode } from 'react';
 
@@ -17,6 +18,9 @@ type AppScrollAreaProps = {
 const DEFAULT_THUMB_CLASS_NAME =
   'relative flex-1 rounded-full bg-[var(--wise-surface-muted)]';
 
+/**
+ * Shared Radix ScrollArea wrapper with optional horizontal/vertical rails.
+ */
 export function AppScrollArea({
   children,
   cornerClassName,

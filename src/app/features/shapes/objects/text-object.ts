@@ -1,3 +1,4 @@
+/** Text Object.Ts shape model and behavior. */
 import { Textbox } from "fabric";
 import { AnimatableObject } from "../animatable-object/object";
 import type { KeyframesByProperty } from "../animatable-object/types";
@@ -12,6 +13,7 @@ export class TextObject extends AnimatableObject {
   ) {
     const fabricObject = new Textbox(text, {
       textAlign: 'center',
+      fontFamily: 'Inter',
       ...options,
     });
     super(fabricObject, keyframes);

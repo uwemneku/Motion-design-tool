@@ -1,3 +1,4 @@
+/** Timeline Playhead.Tsx timeline UI and behavior. */
 import {
   useCallback,
   useEffect,
@@ -15,6 +16,7 @@ type TimelinePlayheadProps = {
   keyframeSectionRightOffset?: number;
 };
 
+/** Draggable timeline playhead constrained to the keyframe section. */
 export default function TimelinePlayhead({
   duration,
   keyframeSectionOffset,
@@ -69,7 +71,7 @@ export default function TimelinePlayhead({
   return (
     <div
       ref={containerRef}
-      className="pointer-events-none absolute top-0 bottom-0 z-40"
+      className="pointer-events-none absolute top-0 bottom-0 h-full min-h-[160px] z-40"
       style={{ left: keyframeSectionOffset, right: keyframeSectionRightOffset }}
       aria-hidden
     >

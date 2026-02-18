@@ -1,3 +1,4 @@
+/** Editor Ai Events.Ts module implementation. */
 import type { KeyframeEasing } from '../shapes/animatable-object/types';
 
 export type AIItemKeyframe = {

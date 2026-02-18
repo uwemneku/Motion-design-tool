@@ -1,3 +1,4 @@
+/** Canvas Tools Fab.Tsx module implementation. */
 import type { Canvas } from "fabric";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import {
@@ -30,6 +31,7 @@ type Position = {
   y: number;
 };
 
+/** Draggable floating tool dock for adding canvas items. */
 export default function CanvasToolsFab({ fabricCanvas }: CanvasToolsFabProps) {
   const {
     addCircle,

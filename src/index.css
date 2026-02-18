@@ -2,9 +2,14 @@
 
 @layer base {
   :root {
-    font-family: "Söhne", "Inter", "Avenir Next", "Segoe UI", sans-serif;
+    font-family:
+      'Inter',
+      'Segoe UI',
+      'Helvetica Neue',
+      'Arial',
+      sans-serif;
     color-scheme: dark;
-    --wise-accent: #0d99ff;
+    --wise-accent: #38bdf8;
     --wise-primary: #1e1e1e;
     --wise-content-primary: #f5f5f5;
     --wise-content-secondary: #b3b3b3;
@@ -12,7 +17,7 @@
     --wise-surface: #1f1f1f;
     --wise-surface-raised: #252526;
     --wise-surface-muted: #2c2c2c;
-    --wise-focus: rgba(13, 153, 255, 0.34);
+    --wise-focus: rgba(56, 189, 248, 0.34);
   }
 
   html,

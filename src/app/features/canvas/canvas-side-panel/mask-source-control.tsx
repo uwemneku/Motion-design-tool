@@ -1,8 +1,12 @@
+/** Mask Source Control.Tsx canvas side panel UI logic. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import type { RootState } from "../../../store";
-import { emitMaskHistoryEvent } from "../mask-history-events";
-import { readMaskSourceId, setMaskSourceForInstance } from "../masking-util";
+import { emitMaskHistoryEvent } from "../util/mask-history-events";
+import {
+  readMaskSourceId,
+  setMaskSourceForInstance,
+} from "../util/masking-util";
 import type { AnimatableObject } from "../../shapes/animatable-object/object";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 import { NONE_MASK_SOURCE_ID } from "../../../../const";
@@ -13,6 +17,7 @@ type MaskSourceControlProps = {
   selectedInstance?: AnimatableObject;
 };
 
+/** Select control for assigning another canvas item as a mask source. */
 export function MaskSourceControl({
   selectedId,
   selectedInstance,

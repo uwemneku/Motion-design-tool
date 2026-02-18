@@ -1,3 +1,4 @@
+/** Fabric Custom module implementation. */
 import 'fabric';
 import type {
   FabricObjectProps,

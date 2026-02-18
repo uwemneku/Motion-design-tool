@@ -1,11 +1,12 @@
+/** Canvas App Context.Tsx module implementation. */
 import {
   useMemo,
   useRef,
   type MutableRefObject,
   type PropsWithChildren,
 } from "react";
-import type { AnimatableObject } from "../shapes/animatable-object/object";
-import { CanvasAppContext } from "./hooks/use-canvas-app-context";
+import type { AnimatableObject } from "../../shapes/animatable-object/object";
+import { CanvasAppContext } from "../hooks/use-canvas-app-context";
 
 type CanvasInstanceStore = Map<string, AnimatableObject>;
 
@@ -17,6 +18,7 @@ export type CanvasAppContextValue = {
   getInstanceById: (id: string) => AnimatableObject | undefined;
 };
 
+/** Provides a shared registry of live canvas object instances. */
 export function CanvasAppProvider({ children }: PropsWithChildren) {
   const instancesRef = useRef<CanvasInstanceStore>(new Map());
 

@@ -1,3 +1,4 @@
+/** History Slice.Ts store state and reducers. */
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
 export type HistoryState = {

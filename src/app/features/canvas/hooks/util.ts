@@ -1,3 +1,4 @@
+/** Util.Ts hook logic. */
 export async function validateImageUrl(url: string) {
   await new Promise<void>((resolve, reject) => {
     const image = new Image();

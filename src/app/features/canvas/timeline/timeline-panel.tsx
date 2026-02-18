@@ -1,10 +1,5 @@
-import {
-  type KeyboardEvent as ReactKeyboardEvent,
-  type MouseEvent,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+/** Timeline Panel.Tsx timeline UI and behavior. */
+import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { Resizable } from "re-resizable";
 import { useDispatch, useSelector, useStore } from "react-redux";
 import { AppScrollArea } from "../../../components/app-scroll-area";
@@ -23,6 +18,7 @@ import TimelinePlayhead from "./timeline-playhead";
 import type { AppDispatch, RootState } from "../../../store";
 import { setIsPaused, setPlayheadTime } from "../../../store/editor-slice";
 
+/** Timeline container with playback loop, labels, and item rows. */
 export default function TimelinePanel() {
   const dispatch = useDispatch<AppDispatch>();
   const store = useStore<RootState>();
@@ -30,6 +26,9 @@ export default function TimelinePanel() {
     (state: RootState) => state.editor.canvasItemIds,
   );
   const isPaused = useSelector((state: RootState) => state.editor.isPaused);
+  const playheadTime = useSelector(
+    (state: RootState) => state.editor.playheadTime,
+  );
   const frameRef = useRef<number | null>(null);
   const lastTickRef = useRef<number | null>(null);
   const playheadRef = useRef(store.getState().editor.playheadTime);
@@ -52,11 +51,30 @@ export default function TimelinePanel() {
     dispatch(setPlayheadTime(Number(nextTime.toFixed(3))));
   };
 
-  const onKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
-    if (event.code !== "Space") return;
-    event.preventDefault();
-    dispatch(setIsPaused(!isPaused));
-  };
+  useEffect(() => {
+    const onWindowKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      dispatch(setIsPaused(!isPaused));
+    };
+
+    window.addEventListener("keydown", onWindowKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onWindowKeyDown);
+    };
+  }, [dispatch, isPaused]);
 
   useEffect(() => {
     if (isPaused) {
@@ -99,8 +117,6 @@ export default function TimelinePanel() {
     <section
       className="shrink-0 border-t border-[var(--wise-border)] bg-[var(--wise-surface)] focus-visible:outline-none"
       data-testid="timeline"
-      tabIndex={0}
-      onKeyDown={onKeyDown}
     >
       <Resizable
         size={{ width: "100%", height: timelineHeight }}
@@ -140,7 +156,7 @@ export default function TimelinePanel() {
         >
           <div className="h-full w-full">
             <div
-              className="relative min-w-[1200px]"
+              className="relative h-full min-w-[1200px]"
               style={{ minWidth: TRACK_MIN_WIDTH }}
             >
               <TimelinePlayhead
@@ -151,9 +167,48 @@ export default function TimelinePanel() {
                 keyframeSectionRightOffset={KEYFRAME_SECTION_HORIZONTAL_PADDING}
               />
 
-              <div className="sticky top-0 z-20 grid grid-cols-[180px_1fr] border-b border-[var(--wise-border)] bg-[var(--wise-surface-raised)] text-xs font-medium text-slate-200">
-                <div className="sticky left-0 z-30 border-r border-[var(--wise-border)] bg-[var(--wise-surface-raised)] px-3 py-2">
-                  Item
+              <div className="sticky top-0 z-20 grid grid-cols-[210px_1fr] border-b border-[var(--wise-border)] bg-[var(--wise-surface-raised)] text-xs font-medium text-slate-200">
+                <div
+                  data-item
+                  className="sticky left-0 z-30 border-r border-[var(--wise-border)] bg-[var(--wise-surface-raised)] px-3 py-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        dispatch(setIsPaused(!isPaused));
+                      }}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] text-slate-200 hover:bg-[var(--wise-surface-muted)]"
+                      title={isPaused ? "Play timeline" : "Pause timeline"}
+                      aria-label={isPaused ? "Play timeline" : "Pause timeline"}
+                    >
+                      {isPaused ? (
+                        <svg
+                          viewBox="0 0 12 12"
+                          className="h-4 w-4 fill-current"
+                        >
+                          <path d="M3 2.2l6 3.8-6 3.8z" />
+                        </svg>
+                      ) : (
+                        <svg
+                          viewBox="0 0 12 12"
+                          className="h-4 w-4 fill-current"
+                        >
+                          <path d="M2.5 2h2v8h-2zM7.5 2h2v8h-2z" />
+                        </svg>
+                      )}
+                    </button>
+
+                    <div className="flex items-center gap-1.5 text-sm text-slate-100">
+                      <span className="rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-1 font-mono text-[12px] tabular-nums">
+                        {formatPreciseTimelineTime(playheadTime)}
+                      </span>
+                      <span className="text-slate-400">/</span>
+                      <span className="rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-1 font-mono text-[12px] tabular-nums">
+                        {formatPreciseTimelineTime(TIMELINE_DURATION, true)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 <div
                   className="relative cursor-pointer px-3 py-2"
@@ -223,4 +278,10 @@ function formatTimelineLabel(seconds: number) {
   const minutes = Math.floor(wholeSeconds / 60);
   const remainingSeconds = wholeSeconds % 60;
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+}
+
+function formatPreciseTimelineTime(seconds: number, includeUnit = false) {
+  const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+  const formatted = safeSeconds.toFixed(2);
+  return includeUnit ? `${formatted} s` : formatted;
 }

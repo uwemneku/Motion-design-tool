@@ -1,4 +1,5 @@
-import { Canvas, Point, type FabricObject } from "fabric";
+/** Use Fabric Editor.Ts hook logic. */
+import { Canvas, Point, util, type FabricObject } from "fabric";
 import { useCallback, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { dispatchableSelector, type RootState } from "../../../store";
@@ -16,7 +17,7 @@ import {
 import {
   applyFigmaLikeControls,
   syncObjectControlBorderScale,
-} from "../fabric-controls";
+} from "../util/fabric-controls";
 import { initAligningGuidelines } from "fabric/extensions";
 import { useCanvasAppContext } from "./use-canvas-app-context";
 import { AnimatableObject } from "../../shapes/animatable-object/object";
@@ -36,8 +37,8 @@ import {
 import {
   MASK_HISTORY_EVENT_NAME,
   type MaskHistoryEventDetail,
-} from "../mask-history-events";
-import { setMaskSourceForInstance } from "../masking-util";
+} from "../util/mask-history-events";
+import { setMaskSourceForInstance } from "../util/masking-util";
 
 function getPropertiesForTransformAction(action?: string) {
   if (!action) return NUMERIC_ANIMATABLE_PROPERTIES;
@@ -380,7 +381,7 @@ function useFabricEditor() {
         preserveObjectStacking: true,
         selection: true,
       });
-      initAligningGuidelines(fabricRef.current, { color: "rgb(81 162 255)" });
+      initAligningGuidelines(fabricRef.current, { color: 'rgb(56 189 248)' });
 
       applyFigmaLikeControls(fabricRef.current);
 
@@ -652,17 +653,24 @@ function useFabricEditor() {
         if (canvas.getActiveObjects().includes(hoveredObject)) return;
 
         const context = canvas.getSelectionContext();
-        const bounds = hoveredObject.getBoundingRect();
+        const viewportTransform = canvas.viewportTransform ?? [1, 0, 0, 1, 0, 0];
+        const viewportCoords = hoveredObject
+          .getCoords()
+          .map((point) => util.transformPoint(point, viewportTransform));
+        if (viewportCoords.length < 4) return;
+
         context.save();
-        context.strokeStyle = "rgba(81, 162, 255, 0.9)";
+        context.strokeStyle = 'rgba(56, 189, 248, 0.9)';
         context.lineWidth = 1.25;
         context.setLineDash([6, 4]);
-        context.strokeRect(
-          bounds.left,
-          bounds.top,
-          bounds.width,
-          bounds.height,
-        );
+        context.beginPath();
+        context.moveTo(viewportCoords[0].x, viewportCoords[0].y);
+        for (let index = 1; index < viewportCoords.length; index += 1) {
+          const point = viewportCoords[index];
+          context.lineTo(point.x, point.y);
+        }
+        context.closePath();
+        context.stroke();
         context.restore();
       });
     },

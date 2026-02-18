@@ -1,8 +1,10 @@
+/** Layout.Tsx application layout. */
 import { AppScrollArea } from "../components/app-scroll-area";
 import EditorCanvas from "../features/canvas/editor-canvas";
-import CanvasItemsList from "../features/canvas/canvas-items-list";
+import CanvasItemsList from "../features/canvas/items-list/canvas-items-list";
 import AIChatPanel from "../features/ai/ai-chat-panel";
 
+/** Root app layout with left utility rail and main editor workspace. */
 export default function AppLayout() {
   return (
     <div className="grid min-h-screen w-full grid-cols-1 md:grid-cols-[280px_1fr]">

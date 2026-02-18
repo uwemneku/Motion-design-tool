@@ -1,3 +1,4 @@
+/** Util.Ts shape model and behavior. */
 import type { Keyframe, KeyframeEasing } from './types';
 
 export function clamp(value: number, min: number, max: number) {

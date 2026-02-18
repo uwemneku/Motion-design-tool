@@ -1,3 +1,4 @@
+/** Ai Chat Panel.Tsx module implementation. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PaperPlaneIcon } from "@radix-ui/react-icons";
 import ReactMarkdown from "react-markdown";
@@ -26,6 +27,7 @@ type ChatMessage = {
   text: string;
 };
 
+/** Chat panel for AI-assisted scene authoring and status feedback. */
 export default function AIChatPanel() {
   const { getInstanceById } = useCanvasAppContext();
   const [input, setInput] = useState("");
@@ -257,6 +259,7 @@ type ChatMarkdownProps = {
   content: string;
 };
 
+/** Markdown renderer for AI/user chat message bodies. */
 function ChatMarkdown({ content }: ChatMarkdownProps) {
   return (
     <ReactMarkdown

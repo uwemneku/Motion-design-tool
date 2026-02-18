@@ -1,13 +1,17 @@
+/** Canvas Zoom Control.Tsx module implementation. */
 import { useEffect, useState } from "react";
 import type { MutableRefObject } from "react";
 import type { Canvas } from "fabric";
-import { syncObjectControlBorderScale } from "./fabric-controls";
+import { syncObjectControlBorderScale } from "./util/fabric-controls";
 
 type CanvasZoomControlProps = {
   fabricCanvas: MutableRefObject<Canvas | null>;
 };
 
-export default function CanvasZoomControl({ fabricCanvas }: CanvasZoomControlProps) {
+/** Floating zoom badge that also resets canvas zoom on click. */
+export default function CanvasZoomControl({
+  fabricCanvas,
+}: CanvasZoomControlProps) {
   const [canvasZoom, setCanvasZoom] = useState(1);
 
   useEffect(() => {

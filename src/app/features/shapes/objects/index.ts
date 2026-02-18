@@ -1,3 +1,4 @@
+/** Index.Ts shape model and behavior. */
 export { CircleObject } from "./circle-object";
 export { ImageObject } from "./image-object";
 export { LineObject } from "./line-object";

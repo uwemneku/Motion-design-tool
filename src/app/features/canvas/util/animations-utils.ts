@@ -1,14 +1,15 @@
+/** Animations Utils.Ts module implementation. */
 import type { Textbox } from "fabric";
 import type {
   AnimationTemplateId,
   TextAnimationTemplateId,
-} from "../../../types";
+} from "../../../../types";
 
 const textMeasureCanvas =
   typeof document !== "undefined" ? document.createElement("canvas") : null;
 const textMeasureContext = textMeasureCanvas?.getContext("2d") ?? null;
 
-export function createCustomId(prefix: string) {
+export function createUniqueId(prefix: string) {
   if (
     typeof crypto !== "undefined" &&
     typeof crypto.randomUUID === "function"
@@ -19,13 +20,7 @@ export function createCustomId(prefix: string) {
 }
 
 export function createKeyframeMarkerId() {
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
-    return `kf-${crypto.randomUUID()}`;
-  }
-  return `kf-${Math.random().toString(36).slice(2, 10)}`;
+  return createUniqueId("kf");
 }
 
 function getTextFontString(text: Textbox) {

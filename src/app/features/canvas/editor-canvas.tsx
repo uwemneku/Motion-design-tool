@@ -1,8 +1,9 @@
+/** Editor Canvas.Tsx module implementation. */
 import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 import { setProjectInfo } from "../../store/editor-slice";
 import { getVideoWorkAreaRect } from "../export/video-work-area";
-import CanvasHeader from "./canvas-header";
+import CanvasHeader from "./canvas-header/canvas-header";
 import CanvasSidePanel from "./canvas-side-panel";
 import CanvasToolsFab from "./canvas-tools-fab";
 import CanvasZoomControl from "./canvas-zoom-control";
@@ -12,6 +13,7 @@ import useFabricEditor from "./hooks/use-fabric-editor";
 import VideoWorkAreaOverlay from "./video-work-area-overlay";
 import { VIDEO_ASPECT_PRESETS } from "../../../const";
 
+/** Main editor surface that composes canvas, side panel, and timeline. */
 export default function EditorCanvas() {
   const { bindHost, fabricCanvas } = useFabricEditor();
   const [aspectPresetIndex, setAspectPresetIndex] = useState(0);

@@ -1,3 +1,4 @@
+/** Export Media.Ts media export utilities. */
 import {
   BufferTarget,
   CanvasSource,

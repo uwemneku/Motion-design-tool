@@ -1,3 +1,4 @@
+/** Polygon Object.Ts shape model and behavior. */
 import { Polygon, type XY } from "fabric";
 import { AnimatableObject } from "../animatable-object/object";
 import type { KeyframesByProperty } from "../animatable-object/types";

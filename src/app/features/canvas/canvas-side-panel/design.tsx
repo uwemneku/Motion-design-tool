@@ -1,4 +1,6 @@
+/** Design.Tsx canvas side panel UI logic. */
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -7,7 +9,7 @@ import {
   type RootState,
 } from "../../../store";
 import { upsertItemRecord } from "../../../store/editor-slice";
-import { appendUniqueMarkerTimes } from "../animations-utils";
+import { appendUniqueMarkerTimes } from "../util/animations-utils";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 import {
   EMPTY_FORM,
@@ -30,7 +32,9 @@ import {
 
 type ColorFieldKey = "fill" | "stroke";
 type KeyframeField = keyof Omit<DesignFormState, "text">;
+const INPUT_PRECISION = 3;
 
+/** Design form for editing transform, style, text, and mask settings. */
 export default function CanvasSidePanelDesign() {
   const dispatch = useDispatch<AppDispatch>();
   const { getInstanceById } = useCanvasAppContext();
@@ -122,28 +126,35 @@ export default function CanvasSidePanelDesign() {
     if (!selectedId || !selectedItem || !selectedInstance) return;
 
     const object = selectedInstance.fabricObject;
-    const left = Number(nextForm.left);
-    const top = Number(nextForm.top);
-    const scaleX = Number(nextForm.scaleX);
-    const scaleY = Number(nextForm.scaleY);
-    const opacity = Number(nextForm.opacity);
-    const angle = Number(nextForm.angle);
+    const left = toPrecisionNumber(Number(nextForm.left));
+    const top = toPrecisionNumber(Number(nextForm.top));
+    const scaleX = toPrecisionNumber(Number(nextForm.scaleX));
+    const scaleY = toPrecisionNumber(Number(nextForm.scaleY));
+    const opacity = clamp(
+      toPrecisionNumber(Number(nextForm.opacity)),
+      0,
+      1,
+    );
+    const angle = toPrecisionNumber(Number(nextForm.angle));
+    const strokeWidth = clampMin(
+      toPrecisionNumber(Number(nextForm.strokeWidth)),
+      0,
+    );
 
     if (Number.isFinite(left)) object.set("left", left);
     if (Number.isFinite(top)) object.set("top", top);
     if (Number.isFinite(scaleX)) object.set("scaleX", scaleX);
     if (Number.isFinite(scaleY)) object.set("scaleY", scaleY);
-    if (Number.isFinite(opacity)) {
-      object.set("opacity", Math.min(1, Math.max(0, opacity)));
-    }
+    if (Number.isFinite(opacity)) object.set("opacity", opacity);
     if (Number.isFinite(angle)) object.set("angle", angle);
+    if (Number.isFinite(strokeWidth)) object.set("strokeWidth", strokeWidth);
 
     if (supportsFill) object.set("fill", nextForm.fill.trim());
     if (supportsStroke) object.set("stroke", nextForm.stroke.trim());
     if (supportsText) {
       object.set("text", nextForm.text);
       object.set("fontFamily", nextForm.fontFamily.trim());
-      const fontSize = Number(nextForm.fontSize);
+      const fontSize = toPrecisionNumber(Number(nextForm.fontSize));
       if (Number.isFinite(fontSize) && fontSize > 0) {
         object.set("fontSize", fontSize);
       }
@@ -159,6 +170,26 @@ export default function CanvasSidePanelDesign() {
 
     object.setCoords();
     object.canvas?.requestRenderAll();
+    setDesignForm((prev) => ({
+      ...prev,
+      left: Number.isFinite(left) ? formatNumberInput(left) : prev.left,
+      top: Number.isFinite(top) ? formatNumberInput(top) : prev.top,
+      scaleX: Number.isFinite(scaleX) ? formatNumberInput(scaleX) : prev.scaleX,
+      scaleY: Number.isFinite(scaleY) ? formatNumberInput(scaleY) : prev.scaleY,
+      opacity: Number.isFinite(opacity)
+        ? formatNumberInput(opacity)
+        : prev.opacity,
+      angle: Number.isFinite(angle) ? formatNumberInput(angle) : prev.angle,
+      strokeWidth: Number.isFinite(strokeWidth)
+        ? formatNumberInput(strokeWidth)
+        : prev.strokeWidth,
+      fontSize:
+        supportsText &&
+        Number.isFinite(toPrecisionNumber(Number(nextForm.fontSize))) &&
+        Number(nextForm.fontSize) > 0
+          ? formatNumberInput(toPrecisionNumber(Number(nextForm.fontSize)))
+          : prev.fontSize,
+    }));
 
     if (changedFields.length === 0) return;
 
@@ -251,6 +282,15 @@ export default function CanvasSidePanelDesign() {
     });
   };
 
+  const onInputKeyDown = (
+    event: ReactKeyboardEvent<HTMLInputElement>,
+    changedFields: KeyframeField[] = [],
+  ) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    commitDesignForm(designForm, changedFields);
+  };
+
   return (
     <>
       <section className={cardClass}>
@@ -265,6 +305,7 @@ export default function CanvasSidePanelDesign() {
                 <span>Position X</span>
                 <input
                   type="number"
+                  step={0.001}
                   value={designForm.left}
                   onChange={(event) => {
                     setDesignForm((prev) => ({
@@ -273,6 +314,7 @@ export default function CanvasSidePanelDesign() {
                     }));
                   }}
                   onBlur={() => commitDesignForm(designForm, ["left"])}
+                  onKeyDown={(event) => onInputKeyDown(event, ["left"])}
                   className={fieldClass}
                 />
               </label>
@@ -280,6 +322,7 @@ export default function CanvasSidePanelDesign() {
                 <span>Position Y</span>
                 <input
                   type="number"
+                  step={0.001}
                   value={designForm.top}
                   onChange={(event) => {
                     setDesignForm((prev) => ({
@@ -288,6 +331,7 @@ export default function CanvasSidePanelDesign() {
                     }));
                   }}
                   onBlur={() => commitDesignForm(designForm, ["top"])}
+                  onKeyDown={(event) => onInputKeyDown(event, ["top"])}
                   className={fieldClass}
                 />
               </label>
@@ -298,7 +342,7 @@ export default function CanvasSidePanelDesign() {
                 <span>Scale X</span>
                 <input
                   type="number"
-                  step={0.01}
+                  step={0.001}
                   value={designForm.scaleX}
                   onChange={(event) => {
                     setDesignForm((prev) => ({
@@ -307,6 +351,7 @@ export default function CanvasSidePanelDesign() {
                     }));
                   }}
                   onBlur={() => commitDesignForm(designForm, ["scaleX"])}
+                  onKeyDown={(event) => onInputKeyDown(event, ["scaleX"])}
                   className={fieldClass}
                 />
               </label>
@@ -314,7 +359,7 @@ export default function CanvasSidePanelDesign() {
                 <span>Scale Y</span>
                 <input
                   type="number"
-                  step={0.01}
+                  step={0.001}
                   value={designForm.scaleY}
                   onChange={(event) => {
                     setDesignForm((prev) => ({
@@ -323,6 +368,7 @@ export default function CanvasSidePanelDesign() {
                     }));
                   }}
                   onBlur={() => commitDesignForm(designForm, ["scaleY"])}
+                  onKeyDown={(event) => onInputKeyDown(event, ["scaleY"])}
                   className={fieldClass}
                 />
               </label>
@@ -335,7 +381,7 @@ export default function CanvasSidePanelDesign() {
                   type="number"
                   min={0}
                   max={1}
-                  step={0.01}
+                  step={0.001}
                   value={designForm.opacity}
                   onChange={(event) => {
                     setDesignForm((prev) => ({
@@ -344,6 +390,7 @@ export default function CanvasSidePanelDesign() {
                     }));
                   }}
                   onBlur={() => commitDesignForm(designForm, ["opacity"])}
+                  onKeyDown={(event) => onInputKeyDown(event, ["opacity"])}
                   className={fieldClass}
                 />
               </label>
@@ -351,7 +398,7 @@ export default function CanvasSidePanelDesign() {
                 <span>Rotation</span>
                 <input
                   type="number"
-                  step={0.1}
+                  step={0.001}
                   value={designForm.angle}
                   onChange={(event) => {
                     setDesignForm((prev) => ({
@@ -360,6 +407,7 @@ export default function CanvasSidePanelDesign() {
                     }));
                   }}
                   onBlur={() => commitDesignForm(designForm, ["angle"])}
+                  onKeyDown={(event) => onInputKeyDown(event, ["angle"])}
                   className={fieldClass}
                 />
               </label>
@@ -480,6 +528,26 @@ export default function CanvasSidePanelDesign() {
               </div>
             </label>
           ) : null}
+          {supportsStroke ? (
+            <label className={labelClass}>
+              <span>Width</span>
+              <input
+                type="number"
+                min={0}
+                step={0.001}
+                value={designForm.strokeWidth}
+                onChange={(event) => {
+                  setDesignForm((prev) => ({
+                    ...prev,
+                    strokeWidth: event.target.value,
+                  }));
+                }}
+                onBlur={() => commitDesignForm(designForm, ["strokeWidth"])}
+                onKeyDown={(event) => onInputKeyDown(event, ["strokeWidth"])}
+                className={fieldClass}
+              />
+            </label>
+          ) : null}
         </section>
       ) : null}
 
@@ -512,6 +580,11 @@ export default function CanvasSidePanelDesign() {
                   }));
                 }}
                 onBlur={() => commitDesignForm(designForm)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  commitDesignForm(designForm);
+                }}
                 className={fieldClass}
               />
               <datalist id="text-font-family-presets">
@@ -527,7 +600,7 @@ export default function CanvasSidePanelDesign() {
                 <input
                   type="number"
                   min={1}
-                  step={1}
+                  step={0.001}
                   value={designForm.fontSize}
                   onChange={(event) => {
                     setDesignForm((prev) => ({
@@ -536,6 +609,7 @@ export default function CanvasSidePanelDesign() {
                     }));
                   }}
                   onBlur={() => commitDesignForm(designForm)}
+                  onKeyDown={(event) => onInputKeyDown(event)}
                   className={fieldClass}
                 />
               </label>
@@ -595,7 +669,7 @@ export default function CanvasSidePanelDesign() {
                 }}
                 onBlur={() => commitDesignForm(designForm)}
                 rows={3}
-                className="w-full resize-y rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-1.5 text-[11px] text-[#efefef] outline-none focus:border-[#0d99ff] focus:ring-1 focus:ring-[#0d99ff]/45"
+                className="w-full resize-y rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-1.5 text-[11px] text-[#efefef] outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8]/45"
               />
             </label>
           </div>
@@ -603,4 +677,21 @@ export default function CanvasSidePanelDesign() {
       ) : null}
     </>
   );
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function clampMin(value: number, min: number) {
+  return Math.max(min, value);
+}
+
+function toPrecisionNumber(value: number) {
+  if (!Number.isFinite(value)) return Number.NaN;
+  return Number(value.toFixed(INPUT_PRECISION));
+}
+
+function formatNumberInput(value: number) {
+  return Number(value.toFixed(INPUT_PRECISION)).toString();
 }

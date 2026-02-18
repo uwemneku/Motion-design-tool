@@ -1,3 +1,4 @@
+/** Video Work Area.Ts media export utilities. */
 export const VIDEO_WORK_AREA_DEFAULT_ASPECT_RATIO = 16 / 9;
 export const VIDEO_WORK_AREA_MAX_WIDTH_RATIO = 0.92;
 export const VIDEO_WORK_AREA_MAX_HEIGHT_RATIO = 0.8;

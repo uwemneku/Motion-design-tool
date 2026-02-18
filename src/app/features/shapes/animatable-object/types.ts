@@ -1,3 +1,4 @@
+/** Types.Ts shape model and behavior. */
 export type AnimatableProperties = {
   left: number;
   top: number;

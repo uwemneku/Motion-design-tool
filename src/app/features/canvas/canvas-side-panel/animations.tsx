@@ -1,3 +1,4 @@
+/** Animations.Tsx canvas side panel UI logic. */
 import { Textbox } from "fabric";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -13,12 +14,12 @@ import {
 import { TextObject } from "../../shapes/objects";
 import {
   appendUniqueMarkerTimes,
-  createCustomId,
+  createUniqueId,
   createKeyframeMarkerId,
   measureCharAdvance,
   getPreviewShapeClass,
   getTextPreviewShapeClass,
-} from "../animations-utils";
+} from "../util/animations-utils";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 import { CANVAS_KEYFRAME_EPSILON } from "../../../../const";
 import { animationTemplates, textAnimationTemplates } from "./util";
@@ -28,6 +29,7 @@ type CanvasSidePanelAnimationsProps = {
   keyframeTimesText: string | null;
 };
 
+/** Animation template browser and applier for the selected canvas item. */
 export default function CanvasSidePanelAnimations({
   canApplyAnimation,
   keyframeTimesText,
@@ -210,7 +212,7 @@ export default function CanvasSidePanelAnimations({
           scaleY: baseScaleY,
         });
 
-        const charCustomId = createCustomId("text-char");
+        const charCustomId = createUniqueId("text-char");
         charObject.fabricObject.customId = charCustomId;
         charObject.fabricObject.set("customId", charCustomId);
         registerInstance(charCustomId, charObject);
@@ -298,24 +300,18 @@ export default function CanvasSidePanelAnimations({
             onClick={() => {
               applyAnimationTemplate(template);
             }}
-            className="group rounded-md border border-slate-700 bg-slate-950 p-2 text-left transition hover:border-sky-500/60 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+            className="group aspect-square flex flex-col rounded-md  bg-(--wise-surface) p-2 text-left transition   disabled:cursor-not-allowed disabled:opacity-50"
           >
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-200">
-                {template.name}
-              </p>
+              <p className="text-xs  text-slate-200">{template.name}</p>
               <span className="text-[10px] uppercase tracking-wide text-slate-500">
                 {template.duration.toFixed(1)}s
               </span>
             </div>
 
-            <div className="mb-2 h-14 rounded border border-slate-800 bg-slate-900/70 p-2">
-              <div
-                className={`h-full w-8 rounded bg-gradient-to-br from-sky-300/90 to-cyan-400/80 ${getPreviewShapeClass(template.id)}`}
-              />
-            </div>
-
-            <p className="text-xs text-slate-400">{template.description}</p>
+            <div
+              className={`h-20 w-full  bg-gradient-to-br from-sky-300/90 to-cyan-400/80 ${getPreviewShapeClass(template.id)}`}
+            />
           </button>
         ))}
       </div>
@@ -338,7 +334,7 @@ export default function CanvasSidePanelAnimations({
               onClick={() => {
                 applyTextAnimationTemplate(template);
               }}
-              className="group rounded-md border border-slate-700 bg-slate-950 p-2 text-left transition hover:border-cyan-500/60 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+              className="group rounded-md border border-slate-700 bg-slate-950 p-2 text-left transition hover:border-sky-500/60 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-sm font-semibold text-slate-200">
@@ -350,12 +346,9 @@ export default function CanvasSidePanelAnimations({
               </div>
               <div className="mb-2 h-14 rounded border border-slate-800 bg-slate-900/70 p-2">
                 <div
-                  className={`grid h-full place-items-center rounded border border-cyan-300/30 bg-cyan-400/10 text-xs font-bold uppercase tracking-wide text-cyan-200 ${getTextPreviewShapeClass(template.id)}`}
-                >
-                  Ab
-                </div>
+                  className={`h-full bg-(--wise-raised) ${getTextPreviewShapeClass(template.id)}`}
+                ></div>
               </div>
-              <p className="text-xs text-slate-400">{template.description}</p>
             </button>
           ))}
         </div>

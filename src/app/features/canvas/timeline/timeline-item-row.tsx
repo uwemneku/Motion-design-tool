@@ -1,3 +1,4 @@
+/** Timeline Item Row.Tsx timeline UI and behavior. */
 import { useMemo, useState, type MouseEvent } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../../../store";
@@ -27,6 +28,7 @@ type DetailRow = {
   entries: DetailEntry[];
 };
 
+/** Timeline row for one canvas item, including keyframe details and easing. */
 export default function TimelineItemRow({
   id,
   onSeekFromPointer,
@@ -84,7 +86,7 @@ export default function TimelineItemRow({
 
   return (
     <div className="border-b border-[var(--wise-border)] text-sm">
-      <div className="grid grid-cols-[180px_1fr]">
+      <div className="grid grid-cols-[210px_1fr]">
         <div
           className={`sticky left-0 z-10 border-r border-[var(--wise-border)] px-3 py-2 text-slate-100 ${
             selectedId === id
@@ -127,7 +129,7 @@ export default function TimelineItemRow({
           <div
             className={`relative h-6 rounded-md border ${
               selectedId === id
-                ? "border-[var(--wise-accent)] shadow-[inset_0_0_0_1px_rgba(91,140,255,0.42)]"
+                ? "border-[var(--wise-accent)] shadow-[inset_0_0_0_1px_rgba(56,189,248,0.42)]"
                 : "border-[var(--wise-border)]"
             }`}
             onClick={onSeekFromPointer}
@@ -196,7 +198,7 @@ export default function TimelineItemRow({
       {isExpanded ? (
         <div className="border-t border-[var(--wise-border)] bg-[var(--wise-surface)]/60">
           {detailRows.length === 0 ? (
-            <div className="grid grid-cols-[180px_1fr]">
+            <div className="grid grid-cols-[210px_1fr]">
               <div className="sticky left-0 z-10 border-r border-[var(--wise-border)] bg-[var(--wise-surface)] px-3 py-2 pl-8 text-xs text-slate-500">
                 Details
               </div>
@@ -208,7 +210,7 @@ export default function TimelineItemRow({
             detailRows.map((row) => (
               <div
                 key={row.label}
-                className="grid grid-cols-[180px_1fr] border-b border-[var(--wise-border)] last:border-b-0"
+                className="grid grid-cols-[210px_1fr] border-b border-[var(--wise-border)] last:border-b-0"
               >
                 <div className="sticky left-0 z-10 border-r border-[var(--wise-border)] bg-[var(--wise-surface)] px-3 py-2 pl-8 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                   {row.label}

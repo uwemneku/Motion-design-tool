@@ -1,3 +1,4 @@
+/** Add File Buttons.Tsx reusable UI component. */
 import { useRef, type ChangeEvent, type MouseEvent } from 'react';
 import { ToolButton } from './tool-button';
 
@@ -9,6 +10,9 @@ type AddFileButtonsProps = {
   onMouseDown: ButtonMouseDown;
 };
 
+/**
+ * Tool button that opens an image picker and forwards the selected file.
+ */
 export function AddImageButton({
   onAddImageFile,
   onMouseDown,
@@ -54,6 +58,9 @@ export function AddImageButton({
   );
 }
 
+/**
+ * Tool button that opens an SVG picker and forwards the selected file.
+ */
 export function AddSvgButton({
   onAddSvgFile,
   onMouseDown,

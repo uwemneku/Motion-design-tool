@@ -1,3 +1,4 @@
+/** Object.Ts shape model and behavior. */
 import type { FabricObject } from "fabric";
 import type {
   AnimatableProperties,

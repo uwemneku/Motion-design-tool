@@ -1,3 +1,4 @@
+/** Util.Ts canvas side panel UI logic. */
 import {
   EMPTY_FORM,
   GOOGLE_FONT_FAMILY_QUERY,
@@ -28,6 +29,7 @@ export function readDesignForm(instance?: AnimatableObject): DesignFormState {
       typeof object.get("stroke") === "string"
         ? String(object.get("stroke"))
         : "",
+    strokeWidth: toNumberInput(object.get("strokeWidth"), 1),
     text:
       typeof object.get("text") === "string" ? String(object.get("text")) : "",
     fontFamily:
@@ -50,7 +52,7 @@ export function readDesignForm(instance?: AnimatableObject): DesignFormState {
   };
 }
 
-export function normalizeHexColor(value: string, fallback = "#0d99ff") {
+export function normalizeHexColor(value: string, fallback = "#38bdf8") {
   // Normalize to long-form lowercase hex and preserve alpha channels when provided.
   const trimmed = value.trim();
   if (!HEX_COLOR_PATTERN.test(trimmed)) return fallback;
@@ -104,7 +106,7 @@ export const labelClass = "space-y-1 text-[11px] text-[#b1b1b1]";
 export const fieldClass =
   "h-7 w-full rounded-md border border-[var(--wise-border)] " +
   "bg-[var(--wise-surface)] px-2 text-[11px] text-[#efefef] " +
-  "outline-none focus:border-[#0d99ff] focus:ring-1 focus:ring-[#0d99ff]/45";
+  "outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8]/45";
 export const cardClass =
   "space-y-2 rounded-md border border-[var(--wise-border)] " +
   "bg-[var(--wise-surface)] p-2.5";

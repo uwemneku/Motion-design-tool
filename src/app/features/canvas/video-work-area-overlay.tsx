@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+/** Video Work Area Overlay.Tsx module implementation. */
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 import type { Canvas } from "fabric";
 import { getVideoWorkAreaRect } from "../export/video-work-area";
@@ -16,6 +17,7 @@ type VideoWorkAreaOverlayProps = {
   onSelectAspectRatio: (nextRatio: number) => void;
 };
 
+/** Overlay that marks the export-visible video area and aspect selector. */
 export default function VideoWorkAreaOverlay({
   fabricCanvas,
   aspectRatio,
@@ -24,9 +26,7 @@ export default function VideoWorkAreaOverlay({
   onSelectAspectRatio,
 }: VideoWorkAreaOverlayProps) {
   const [hostSize, setHostSize] = useState({ width: 0, height: 0 });
-  const [viewportTransform, setViewportTransform] = useState(
-    "matrix(1, 0, 0, 1, 0, 0)",
-  );
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const rect = useMemo(
     () => getVideoWorkAreaRect(hostSize.width, hostSize.height, aspectRatio),
     [aspectRatio, hostSize.height, hostSize.width],
@@ -47,8 +47,9 @@ export default function VideoWorkAreaOverlay({
 
       const transform = canvas.viewportTransform ?? [1, 0, 0, 1, 0, 0];
       const nextTransform = `matrix(${transform[0]}, ${transform[1]}, ${transform[2]}, ${transform[3]}, ${transform[4]}, ${transform[5]})`;
-      setViewportTransform((prev) =>
-        prev === nextTransform ? prev : nextTransform,
+      containerRef.current?.style.setProperty(
+        "--videoArea-transform",
+        nextTransform,
       );
     };
 
@@ -61,16 +62,19 @@ export default function VideoWorkAreaOverlay({
   }, [fabricCanvas]);
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-20">
+    <div
+      className="pointer-events-none absolute inset-0 z-20"
+      ref={containerRef}
+    >
       <div
         className="absolute inset-0"
         style={{
-          transform: viewportTransform,
+          transform: "var(--videoArea-transform, matrix(1, 0, 0, 1, 0, 0))",
           transformOrigin: "0 0",
         }}
       >
         <div
-          className="absolute rounded-sm border-2 border-[#0d99ff] shadow-[0_0_0_9999px_rgba(0,0,0,0.42)]"
+          className="absolute rounded-sm border-2 border-[var(--wise-accent)] shadow-[0_0_0_9999px_rgba(0,0,0,0.42)]"
           style={{
             left: rect.left,
             top: rect.top,
@@ -79,7 +83,7 @@ export default function VideoWorkAreaOverlay({
           }}
         >
           <div className="pointer-events-auto absolute -top-6 left-0 flex items-center gap-1 opacity-45 transition-opacity hover:opacity-100">
-            <div className="rounded bg-[#0d99ff]/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+            <div className="rounded bg-[var(--wise-accent)]/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
               Video Area
             </div>
             <select

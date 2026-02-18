@@ -1,3 +1,4 @@
+/** Editor Slice.Ts store state and reducers. */
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 export type EditorItemRecord = {
@@ -65,7 +66,7 @@ const editorSlice = createSlice({
     },
     addCanvasItemId(state, action: PayloadAction<string>) {
       if (!state.canvasItemIds.includes(action.payload)) {
-        state.canvasItemIds.push(action.payload);
+        state.canvasItemIds.unshift(action.payload);
       }
       state.itemsRecord[action.payload] ??= {
         name: action.payload,
@@ -96,7 +97,7 @@ const editorSlice = createSlice({
     ) {
       state.itemsRecord[action.payload.id] = action.payload.value;
       if (!state.canvasItemIds.includes(action.payload.id)) {
-        state.canvasItemIds.push(action.payload.id);
+        state.canvasItemIds.unshift(action.payload.id);
       }
     },
     removeItemRecord(state, action: PayloadAction<string>) {

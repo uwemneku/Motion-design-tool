@@ -1,10 +1,11 @@
+/** Fabric Controls.Ts module implementation. */
 import { Canvas, FabricObject } from "fabric";
 import {
   FIGMA_BLUE,
   FIGMA_BLUE_LIGHT,
   MAX_BORDER_SCALE_FACTOR,
   MIN_BORDER_SCALE_FACTOR,
-} from "../../../const";
+} from "../../../../const";
 
 function styleObjectControls(object: FabricObject) {
   object.set({

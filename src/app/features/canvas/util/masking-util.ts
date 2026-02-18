@@ -1,5 +1,6 @@
-import { MASK_SYNC_EVENTS, NONE_MASK_SOURCE_ID } from "../../../const";
-import type { AnimatableObject } from "../shapes/animatable-object/object";
+/** Masking Util.Ts module implementation. */
+import { MASK_SYNC_EVENTS, NONE_MASK_SOURCE_ID } from "../../../../const";
+import type { AnimatableObject } from "../../shapes/animatable-object/object";
 
 type MaskSyncContainer = {
   __maskSyncCleanup?: () => void;

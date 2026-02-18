@@ -1,3 +1,4 @@
+/** Index.Ts store state and reducers. */
 import { configureStore } from '@reduxjs/toolkit';
 import editorReducer from './editor-slice';
 import historyReducer from './history-slice';

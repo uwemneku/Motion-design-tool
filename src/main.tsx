@@ -1,9 +1,10 @@
+/** Main.Tsx module implementation. */
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Provider } from "react-redux";
 import { Toaster } from "sonner";
 import App from "./App";
-import { CanvasAppProvider } from "./app/features/canvas/canvas-app-context";
+import { CanvasAppProvider } from "./app/features/canvas/canvas-context/canvas-app-context";
 import { store } from "./app/store";
 import "./index.css";
 
