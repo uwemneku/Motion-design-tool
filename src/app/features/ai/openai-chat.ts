@@ -8,11 +8,22 @@ import {
   type AIEditorCommand,
 } from "./editor-ai-events";
 import {
+  analyzeSceneOverlapsFromScene,
   applyToolCallToWorkingScene,
   AVAILABLE_TOOLS_PROMPT_TEXT,
+  createTextLayoutFromScene,
+  findTextSlotFromScene,
+  getItemGeometryFromScene,
+  getItemsInVideoAreaFromScene,
+  getLayerOrderFromScene,
   toolCallSchema,
 } from "./tools";
-import { AGENT_SYSTEM_PROMPT, MAX_AGENT_STEPS } from "../../../const";
+import {
+  AGENT_STEP_INSTRUCTION_PROMPT,
+  AGENT_SYSTEM_PROMPT,
+  AGENT_TARGET_STEPS,
+  MAX_AGENT_STEPS,
+} from "../../../const";
 
 type OpenAIChatResult = {
   commands: AIEditorCommand[];
@@ -25,6 +36,7 @@ export type OpenAISceneContext = {
   project?: {
     canvasHeight: number;
     canvasWidth: number;
+    durationSeconds: number;
     videoAspectLabel: string;
     videoAspectRatio: number;
     videoBottom: number;
@@ -73,6 +85,7 @@ export type OpenAISceneContext = {
     };
     keyframeTimes: number[];
     name: string;
+    text?: string;
   }>;
 };
 
@@ -82,9 +95,9 @@ type AgentStepLog = {
 };
 
 type ToolResultLog = {
-  command?: AIEditorCommand;
   duplicateSignature?: string;
   createdId?: string;
+  data?: unknown;
   status: "executed" | "skipped";
   step: number;
   tool: string;
@@ -97,6 +110,7 @@ const stepDecisionSchema = z
     toolCalls: z.array(toolCallSchema),
   })
   .strict();
+type StepDecision = z.infer<typeof stepDecisionSchema>;
 
 /** Deep clones scene context for local planning/execution simulation. */
 function cloneSceneContext(
@@ -125,10 +139,11 @@ function getOpenAIResponseId(providerMetadata: unknown): string | null {
 /** Builds a compact prompt for one loop step with current context and logs. */
 function buildLoopStepPrompt(
   userPrompt: string,
-  workingScene: OpenAISceneContext,
+  scenePayload: ScenePromptPayload,
   step: number,
   latestStepLog: AgentStepLog | null,
   latestStepToolResults: ToolResultLog[],
+  includeTools: boolean,
 ) {
   const latestStepSummary = latestStepLog
     ? `- Step ${latestStepLog.step}: ${latestStepLog.result}`
@@ -138,9 +153,10 @@ function buildLoopStepPrompt(
       ? latestStepToolResults
           .map((entry) =>
             JSON.stringify({
-              command: entry.command,
+              commandType: entry.data ? undefined : entry.tool,
               duplicateSignature: entry.duplicateSignature,
               createdId: entry.createdId,
+              data: compactJsonValue(entry.data),
               status: entry.status,
               step: entry.step,
               tool: entry.tool,
@@ -148,7 +164,7 @@ function buildLoopStepPrompt(
           )
           .join("\n")
       : "- none";
-  const project = workingScene.project;
+  const project = scenePayload.project;
   const videoAnchors = project
     ? {
         center: {
@@ -173,43 +189,206 @@ function buildLoopStepPrompt(
   return [
     `User objective:\n${userPrompt}`,
     `Current step: ${step}/${MAX_AGENT_STEPS}`,
-    `Available tool(s): ${AVAILABLE_TOOLS_PROMPT_TEXT}`,
-    "Rules:",
-    "- Use toolCalls to request execution of frontend tools.",
-    "- You may call add_circle/add_polygon/add_line/add_rectangle/add_text " +
-      "multiple times in one step.",
-    "- Each created item gets a customId. Reuse that id with update_item_by_id " +
-      "to edit properties or append keyframes.",
-    "- Do not repeat a previously executed identical tool call unless " +
-      "arguments change.",
-    "- Always base placement calculations on video area bounds, not full canvas.",
-    "- Use videoAreaReferencePoints below as the primary placement reference.",
-    "- Video area bounds are: left=videoLeft, top=videoTop, right=videoRight, bottom=videoBottom.",
-    "- Compose inside video area by default unless user explicitly requests off-frame placement.",
-    "- Fabric objects are center-anchored: left/top are center coordinates.",
-    "- Use center-origin bounds math: leftBound=centerX-scaledWidth/2, " +
-      "rightBound=centerX+scaledWidth/2, topBound=centerY-scaledHeight/2, " +
-      "bottomBound=centerY+scaledHeight/2.",
-    "- Keyframe structure: item.keyframeTimes is a flat list of timestamps; " +
-      "item.keyframes contains per-property frame arrays where each frame " +
-      "is { id, time, value }.",
-    "- Use keyframes for property-specific reasoning (left/top/scale/opacity/angle/fill/stroke), " +
-      "not just keyframeTimes.",
-    '- Return status="done" only when objective is complete.',
-    '- Return status="needs_user_input" when blocked.',
+    `Target completion: <= ${AGENT_TARGET_STEPS} steps when possible.`,
+    AGENT_STEP_INSTRUCTION_PROMPT,
+    "Layer order convention: reorder_layers expects top-to-bottom IDs.",
+    ...(includeTools ? [`Available tool(s): ${AVAILABLE_TOOLS_PROMPT_TEXT}`] : []),
     "Scene context JSON:",
     "```json",
-    JSON.stringify(workingScene, null, 2),
+    JSON.stringify(scenePayload),
     "```",
     "Video area reference points JSON:",
     "```json",
-    JSON.stringify(videoAnchors, null, 2),
+    JSON.stringify(videoAnchors),
     "```",
     "Latest step summary (incremental; earlier steps are in conversation context):",
     latestStepSummary,
     "Latest tool results (JSON lines; incremental):",
     latestToolResultsText,
   ].join("\n\n");
+}
+
+/** Produces a compact scene payload to reduce per-step token cost. */
+function buildCompactSceneContext(scene: OpenAISceneContext) {
+  const compact = compactJsonValue(scene) as Partial<OpenAISceneContext> | undefined;
+  return {
+    items: Array.isArray(compact?.items) ? compact.items : [],
+    selectedId: compact?.selectedId ?? null,
+    ...(compact?.project ? { project: compact.project } : {}),
+  };
+}
+
+type ScenePromptPayload = {
+  changedItems?: OpenAISceneContext["items"];
+  items?: OpenAISceneContext["items"];
+  project?: OpenAISceneContext["project"];
+  removedItemIds?: string[];
+  selectedId: string | null;
+  stepMode: "delta" | "full";
+};
+
+/** Creates full payload on step 1 and deltas for following steps. */
+function buildScenePromptPayload(
+  compactScene: OpenAISceneContext,
+  previousScene: OpenAISceneContext | null,
+): ScenePromptPayload {
+  if (!previousScene) {
+    return {
+      items: compactScene.items,
+      project: compactScene.project,
+      selectedId: compactScene.selectedId,
+      stepMode: "full",
+    };
+  }
+
+  const previousById = new Map(previousScene.items.map((item) => [item.id, item]));
+  const currentIds = new Set(compactScene.items.map((item) => item.id));
+  const changedItems = compactScene.items.filter((item) => {
+    const previousItem = previousById.get(item.id);
+    if (!previousItem) return true;
+    return stableStringify(item) !== stableStringify(previousItem);
+  });
+  const removedItemIds = previousScene.items
+    .map((item) => item.id)
+    .filter((id) => !currentIds.has(id));
+
+  return {
+    ...(changedItems.length > 0 ? { changedItems } : {}),
+    ...(removedItemIds.length > 0 ? { removedItemIds } : {}),
+    project: compactScene.project,
+    selectedId: compactScene.selectedId,
+    stepMode: "delta",
+  };
+}
+
+/** Serializes objects with stable key ordering for deterministic diff checks. */
+function stableStringify(value: unknown): string {
+  return JSON.stringify(sortObjectKeys(value));
+}
+
+/** Recursively sorts object keys to make structural comparisons stable. */
+function sortObjectKeys(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => sortObjectKeys(entry));
+  }
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
+    a.localeCompare(b),
+  );
+  return Object.fromEntries(
+    entries.map(([key, nested]) => [key, sortObjectKeys(nested)]),
+  );
+}
+
+/** Removes nullish/empty fields and rounds numbers for prompt efficiency. */
+function compactJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    const next = value
+      .map((entry) => compactJsonValue(entry))
+      .filter((entry) => entry !== undefined);
+    return next.length > 0 ? next : undefined;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? Math.round(value * 1000) / 1000 : undefined;
+  }
+
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .map(([key, nested]) => [key, compactJsonValue(nested)] as const)
+      .filter(([, nested]) => nested !== undefined);
+    if (entries.length === 0) {
+      return undefined;
+    }
+    return Object.fromEntries(entries);
+  }
+
+  if (value === null) {
+    return undefined;
+  }
+
+  return value;
+}
+
+/** Extracts top-level JSON object substrings from potentially concatenated text. */
+function extractTopLevelJsonObjects(text: string) {
+  const results: string[] = [];
+  let depth = 0;
+  let startIndex = -1;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (character === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (character === "{") {
+      if (depth === 0) {
+        startIndex = index;
+      }
+      depth += 1;
+      continue;
+    }
+
+    if (character === "}") {
+      if (depth === 0) continue;
+      depth -= 1;
+      if (depth === 0 && startIndex >= 0) {
+        results.push(text.slice(startIndex, index + 1));
+        startIndex = -1;
+      }
+    }
+  }
+
+  return results;
+}
+
+/** Attempts to recover a valid step decision from malformed/multi-object model output. */
+function recoverStepDecisionFromError(error: unknown): StepDecision | null {
+  if (!error || typeof error !== "object") return null;
+  const maybeText = (error as Record<string, unknown>).text;
+  if (typeof maybeText !== "string" || maybeText.trim().length === 0) {
+    return null;
+  }
+
+  const parsedCandidates: StepDecision[] = [];
+  const jsonObjects = extractTopLevelJsonObjects(maybeText);
+  for (const jsonText of jsonObjects) {
+    try {
+      const candidate = JSON.parse(jsonText) as unknown;
+      const validated = stepDecisionSchema.safeParse(candidate);
+      if (validated.success) {
+        parsedCandidates.push(validated.data);
+      }
+    } catch {
+      // Ignore malformed candidates and continue scanning.
+    }
+  }
+
+  if (parsedCandidates.length === 0) return null;
+  const toolCallCandidate = parsedCandidates.find(
+    (candidate) =>
+      candidate.status === "tool_call" && candidate.toolCalls.length > 0,
+  );
+  return toolCallCandidate ?? parsedCandidates[0];
 }
 
 /**
@@ -241,9 +420,11 @@ export async function generateOpenAIChatTurn(
   const commands: AIEditorCommand[] = [];
   const createdItemIds: string[] = [];
   let executedCommandCount = 0;
-  const logs: AgentStepLog[] = [];
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
   let latestStepLog: AgentStepLog | null = null;
   let latestStepToolResults: ToolResultLog[] = [];
+  let previousCompactScene: OpenAISceneContext | null = null;
   const executedToolCallSignatures = new Set<string>();
 
   const nextGeneratedId = () => {
@@ -261,47 +442,71 @@ export async function generateOpenAIChatTurn(
 
   for (let step = 1; step <= MAX_AGENT_STEPS; step += 1) {
     onStep?.(`Step ${step}: deciding tool calls...`);
+    const compactScene = buildCompactSceneContext(workingScene);
+    const scenePayload = buildScenePromptPayload(compactScene, previousCompactScene);
 
-    const result = await generateObject({
-      model: openai(model),
-      ...(shouldSendSystemPrompt
-        ? {
-            system: AGENT_SYSTEM_PROMPT,
-          }
-        : {}),
-      schema: stepDecisionSchema,
-      prompt: buildLoopStepPrompt(
-        prompt,
-        workingScene,
-        step,
-        latestStepLog,
-        latestStepToolResults,
-      ),
-      ...(responseId
-        ? {
-            providerOptions: {
-              openai: {
-                previousResponseId: responseId,
-                reasoningEffort: "minimal",
-                systemMessageMode: "developer",
-                textVerbosity: "medium",
+    let result:
+      | {
+          object: StepDecision;
+          providerMetadata?: unknown;
+          usage?: unknown;
+        }
+      | null = null;
+    let decision: StepDecision;
+    try {
+      result = await generateObject({
+        model: openai(model),
+        ...(shouldSendSystemPrompt
+          ? {
+              system: AGENT_SYSTEM_PROMPT,
+            }
+          : {}),
+        schema: stepDecisionSchema,
+        prompt: buildLoopStepPrompt(
+          prompt,
+          scenePayload,
+          step,
+          latestStepLog,
+          latestStepToolResults,
+          step === 1,
+        ),
+        ...(responseId
+          ? {
+              providerOptions: {
+                openai: {
+                  previousResponseId: responseId,
+                  reasoningEffort: "minimal",
+                  systemMessageMode: "developer",
+                  textVerbosity: "low",
+                },
               },
-            },
-          }
-        : {
-            providerOptions: {
-              openai: {
-                reasoningEffort: "minimal",
-                systemMessageMode: "developer",
-                textVerbosity: "medium",
+            }
+          : {
+              providerOptions: {
+                openai: {
+                  reasoningEffort: "minimal",
+                  systemMessageMode: "developer",
+                  textVerbosity: "low",
+                },
               },
-            },
-          }),
-    });
+            }),
+      });
+      decision = result.object;
+      const usage = getUsage(result);
+      totalInputTokens += usage.inputTokens;
+      totalOutputTokens += usage.outputTokens;
+    } catch (error) {
+      const recoveredDecision = recoverStepDecisionFromError(error);
+      if (!recoveredDecision) {
+        throw error;
+      }
+      decision = recoveredDecision;
+    }
     shouldSendSystemPrompt = false;
+    previousCompactScene = compactScene;
 
-    responseId = getOpenAIResponseId(result.providerMetadata) ?? responseId;
-    const decision = result.object;
+    responseId =
+      (result ? getOpenAIResponseId(result.providerMetadata) : null) ?? responseId;
 
     if (decision.status === "done") {
       onStep?.(`Step ${step}: objective complete.`);
@@ -309,9 +514,11 @@ export async function generateOpenAIChatTurn(
         createdItemIds.length > 0
           ? `\n\nCreated item IDs: ${createdItemIds.join(", ")}`
           : "";
+      const tokenFeedback =
+        `\n\nToken usage (in/out): ${totalInputTokens}/${totalOutputTokens}.`;
       return {
         commands,
-        reply: `${decision.message}${idFeedback}`,
+        reply: `${decision.message}${idFeedback}${tokenFeedback}`,
         responseId,
       };
     }
@@ -322,30 +529,120 @@ export async function generateOpenAIChatTurn(
         createdItemIds.length > 0
           ? `\n\nCreated item IDs: ${createdItemIds.join(", ")}`
           : "";
+      const tokenFeedback =
+        `\n\nToken usage (in/out): ${totalInputTokens}/${totalOutputTokens}.`;
       return {
         commands,
-        reply: `${decision.message}${idFeedback}`,
+        reply: `${decision.message}${idFeedback}${tokenFeedback}`,
         responseId,
       };
     }
 
     if (decision.toolCalls.length === 0) {
       const note = "No tool call returned.";
-      logs.push({ result: note, step });
       onStep?.(`Step ${step}: ${note}`);
       continue;
     }
 
     const executedTools: string[] = [];
     const currentStepToolResults: ToolResultLog[] = [];
-    for (const toolCall of decision.toolCalls) {
+    const toolCalls = decision.toolCalls.slice(0, 3);
+    for (const toolCall of toolCalls) {
+      if (toolCall.tool === "get_layer_order") {
+        const layerOrder = getLayerOrderFromScene(workingScene);
+        currentStepToolResults.push({
+          data: {
+            bottomToTop: [...layerOrder].reverse(),
+            topToBottom: layerOrder,
+          },
+          status: "executed",
+          step,
+          tool: toolCall.tool,
+        });
+        executedTools.push(toolCall.tool);
+        continue;
+      }
+
+      if (toolCall.tool === "analyze_scene_overlaps") {
+        const overlapReport = analyzeSceneOverlapsFromScene(
+          workingScene,
+          toolCall.args.padding ?? 0,
+        );
+        currentStepToolResults.push({
+          data: overlapReport,
+          status: "executed",
+          step,
+          tool: toolCall.tool,
+        });
+        executedTools.push(toolCall.tool);
+        continue;
+      }
+
+      if (toolCall.tool === "find_text_slot") {
+        const slot = findTextSlotFromScene(workingScene, {
+          height: toolCall.args.height,
+          padding: toolCall.args.padding,
+          preferredTop: toolCall.args.preferredTop,
+          width: toolCall.args.width,
+        });
+        currentStepToolResults.push({
+          data: slot,
+          status: "executed",
+          step,
+          tool: toolCall.tool,
+        });
+        executedTools.push(toolCall.tool);
+        continue;
+      }
+
+      if (toolCall.tool === "get_items_in_video_area") {
+        const report = getItemsInVideoAreaFromScene(
+          workingScene,
+          toolCall.args.visibleOnly ?? false,
+        );
+        currentStepToolResults.push({
+          data: report,
+          status: "executed",
+          step,
+          tool: toolCall.tool,
+        });
+        executedTools.push(toolCall.tool);
+        continue;
+      }
+
+      if (toolCall.tool === "get_item_geometry") {
+        const report = getItemGeometryFromScene(workingScene, toolCall.args.ids);
+        currentStepToolResults.push({
+          data: report,
+          status: "executed",
+          step,
+          tool: toolCall.tool,
+        });
+        executedTools.push(toolCall.tool);
+        continue;
+      }
+
+      if (toolCall.tool === "create_text_layout") {
+        const layout = createTextLayoutFromScene(workingScene, {
+          blocks: toolCall.args.blocks,
+          region: toolCall.args.region,
+        });
+        currentStepToolResults.push({
+          data: layout,
+          status: "executed",
+          step,
+          tool: toolCall.tool,
+        });
+        executedTools.push(toolCall.tool);
+        continue;
+      }
+
       const signature = getToolCallSignature(toolCall);
       if (executedToolCallSignatures.has(signature)) {
         const skippedStepLog: AgentStepLog = {
           step,
           result: `Skipped duplicate tool call: ${signature}`,
         };
-        logs.push(skippedStepLog);
         latestStepLog = skippedStepLog;
         currentStepToolResults.push({
           duplicateSignature: signature,
@@ -373,7 +670,6 @@ export async function generateOpenAIChatTurn(
         createdItemIds.push(createdId);
       }
       currentStepToolResults.push({
-        command,
         ...(createdId ? { createdId } : {}),
         status: "executed",
         step,
@@ -387,7 +683,6 @@ export async function generateOpenAIChatTurn(
 
     if (executedTools.length === 0) {
       const note = "Tool calls were not executable.";
-      logs.push({ result: note, step });
       onStep?.(`Step ${step}: ${note}`);
       continue;
     }
@@ -397,10 +692,7 @@ export async function generateOpenAIChatTurn(
         const latestSceneContext = await Promise.resolve(refreshSceneContext());
         workingScene = cloneSceneContext(latestSceneContext);
       } catch {
-        logs.push({
-          step,
-          result: "Context refresh failed. Continuing with predicted scene.",
-        });
+        // Keep the predicted scene when a refresh fails.
       }
     }
 
@@ -411,10 +703,11 @@ export async function generateOpenAIChatTurn(
         : "";
 
     const stepLog: AgentStepLog = { result: `${summary}${createdIdSummary}`, step };
-    logs.push(stepLog);
     latestStepLog = stepLog;
     latestStepToolResults = currentStepToolResults;
-    onStep?.(`Step ${step}: ${summary}${createdIdSummary}`);
+    onStep?.(
+      `Step ${step}: ${summary}${createdIdSummary} | tokens in/out: ${totalInputTokens}/${totalOutputTokens}`,
+    );
   }
 
   const idFeedback =
@@ -425,9 +718,25 @@ export async function generateOpenAIChatTurn(
     commands,
     reply:
       executedCommandCount > 0
-        ? `Reached step limit (${MAX_AGENT_STEPS}). Executed ${executedCommandCount} tool call(s).${idFeedback}`
+        ? `Reached step limit (${MAX_AGENT_STEPS}). Executed ${executedCommandCount} tool call(s).${idFeedback}\n\nToken usage (in/out): ${totalInputTokens}/${totalOutputTokens}.`
         : `Reached step limit (${MAX_AGENT_STEPS}) without executable tools.`,
     responseId,
+  };
+}
+
+/** Extracts token usage totals from generateObject result metadata. */
+function getUsage(result: { usage?: unknown }) {
+  const usage = result.usage as
+    | {
+        inputTokens?: number;
+        outputTokens?: number;
+      }
+    | undefined;
+  return {
+    inputTokens:
+      typeof usage?.inputTokens === "number" ? usage.inputTokens : 0,
+    outputTokens:
+      typeof usage?.outputTokens === "number" ? usage.outputTokens : 0,
   };
 }
 
@@ -440,6 +749,7 @@ function getToolCallSignature(toolCall: unknown) {
 function getCreatedItemId(command: AIEditorCommand): string | null {
   if (
     command.type === "add_circle" ||
+    command.type === "add_image" ||
     command.type === "add_line" ||
     command.type === "add_polygon" ||
     command.type === "add_rectangle" ||

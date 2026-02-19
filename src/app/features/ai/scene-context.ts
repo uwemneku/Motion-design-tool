@@ -67,10 +67,16 @@ export function buildSceneItemContext(
     return { id, name, keyframeTimes };
   }
 
+  const textValue =
+    typeof instance.fabricObject.get('text') === 'string'
+      ? String(instance.fabricObject.get('text'))
+      : undefined;
+
   return {
     id,
     name,
     keyframeTimes,
+    ...(textValue ? { text: textValue } : {}),
     current: (() => {
       const snapshot = instance.getSnapshot();
       const width =
@@ -108,10 +114,7 @@ export function buildSceneItemContext(
         height,
         scaledHeight,
         scaledWidth,
-        text:
-          typeof instance.fabricObject.get('text') === 'string'
-            ? String(instance.fabricObject.get('text'))
-            : undefined,
+        text: textValue,
         width,
       };
     })(),
@@ -124,6 +127,47 @@ export function buildSceneItemContext(
       scaleY: mapNumericFrames(instance.keyframes.scaleY),
       stroke: mapColorFrames(instance.colorKeyframes.stroke),
       top: mapNumericFrames(instance.keyframes.top),
+    },
+  };
+}
+
+/** Builds a reduced AI scene item payload focused on planning-critical fields. */
+export function buildCompactSceneItemContext(
+  id: string,
+  name: string,
+  keyframeTimes: number[],
+  instance?: CanvasItemInstanceLike,
+) {
+  const item = buildSceneItemContext(id, name, keyframeTimes, instance);
+  if (!('current' in item) || !item.current) {
+    return item;
+  }
+
+  return {
+    id: item.id,
+    keyframeTimes: item.keyframeTimes,
+    keyframes: item.keyframes,
+    name: item.name,
+    ...(item.text ? { text: item.text } : {}),
+    current: {
+      angle: item.current.angle,
+      ...(item.current.bounds ? { bounds: item.current.bounds } : {}),
+      ...(typeof item.current.fill === 'string' ? { fill: item.current.fill } : {}),
+      ...(typeof item.current.height === 'number' ? { height: item.current.height } : {}),
+      left: item.current.left,
+      opacity: item.current.opacity,
+      scaleX: item.current.scaleX,
+      scaleY: item.current.scaleY,
+      ...(typeof item.current.scaledHeight === 'number'
+        ? { scaledHeight: item.current.scaledHeight }
+        : {}),
+      ...(typeof item.current.scaledWidth === 'number'
+        ? { scaledWidth: item.current.scaledWidth }
+        : {}),
+      ...(typeof item.current.stroke === 'string' ? { stroke: item.current.stroke } : {}),
+      ...(typeof item.current.text === 'string' ? { text: item.current.text } : {}),
+      top: item.current.top,
+      ...(typeof item.current.width === 'number' ? { width: item.current.width } : {}),
     },
   };
 }

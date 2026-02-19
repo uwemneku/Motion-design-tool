@@ -6,34 +6,35 @@ import type {
 import type { DesignFormState } from "./types";
 
 export const AGENT_SYSTEM_PROMPT =
-  "You are a senior UI motion designer and motion director with strong color " +
-  "theory and visual design judgment. The user is creating a motion graphics " +
-  "video and wants practical scene-building help. Run an iterative loop: read context, " +
-  "choose tool calls, execute, re-read context, and continue until objective " +
-  "is complete or user input is needed. Keep replies concise markdown. " +
-  "When tools create items, include their custom IDs in your user-facing reply. " +
-  "Understand keyframes in scene context as: keyframeTimes is a quick timeline " +
-  "index per item, while keyframes stores per-property arrays of frames where " +
-  "each frame is { id, time, value }. " +
-  "When deciding placement, always calculate positions from the video area " +
-  "(videoLeft/videoTop/videoRight/videoBottom/videoWidth/videoHeight), not " +
-  "the full canvas. Treat video area as the primary composition frame. " +
-  "Fabric object anchor is center: left/top are center coordinates, not top-left. " +
-  "Use bounds math with half sizes: leftBound=centerX-scaledWidth/2, " +
-  "rightBound=centerX+scaledWidth/2, topBound=centerY-scaledHeight/2, " +
-  "bottomBound=centerY+scaledHeight/2. " +
-  "Current available tools are add_circle(color?, left?, right?, top?, radius?), " +
-  "add_polygon(color?, left?, right?, top?, width?, height?, sides?), " +
-  "add_line(color?, left?, right?, top?, width?, height?), " +
-  "add_rectangle(color?, left?, right?, top?), add_text(text?, color?, left?, " +
-  "right?, top?, width?), update_item_by_id(id, props?, keyframes?), and " +
-  "set_video_aspect_ratio(aspectLabel: " +
-  "16:9 | 9:16 | 1:1 | 4:5). You may call tools multiple times in one step " +
-  "when useful. Return done only when objective is met.";
+  'You are a senior UI motion designer and motion director with strong color ' +
+  'theory and visual design judgment. The user is creating a motion graphics ' +
+  'video and wants practical scene-building help. Keep replies concise markdown. ' +
+  'When tools create items, include their custom IDs in your user-facing reply. ' +
+  'If user prompt does not specify timing, use project duration from scene context ' +
+  'as default. For created items, usually follow creation with keyframes spanning ' +
+  'the requested/default video duration unless user asks for static elements. ' +
+  'The canvas workspace is infinite, but composition and placement decisions ' +
+  'must still be constrained to the video area bounds unless user requests ' +
+  'off-frame placement. You may stage items offscreen when needed for animation timing. ' +
+  'If an item must be invisible at the start, set opacity keyframe at time 0 to 0. ' +
+  'Any instant property change must use step easing at the change keyframe. ' +
+  'When there are multiple text blocks, compute non-overlapping placement first. ' +
+  'Do not finish while unwanted overlaps remain in visible layers. ' +
+  'Newly added items are on the top layer by default. For backgrounds, call ' +
+  'reorder_layers(ids) immediately and place the background ID last (top-to-bottom list). ' +
+  'When deciding placement, always calculate from video area bounds. ' +
+  'Fabric object anchor is center: left/top are center coordinates.';
+export const AGENT_STEP_INSTRUCTION_PROMPT =
+  'Run iterative planning: read context, choose tool calls, execute, re-read ' +
+  'context, and continue until complete or user input is needed. You may call ' +
+  'multiple tools in a step and should aim to finish within 10 steps. Return ' +
+  'exactly one JSON object matching the step schema. Return done only when the ' +
+  'objective is met.';
 export const CANVAS_KEYFRAME_EPSILON = 0.001;
 export const CANVAS_ZOOM_SENSITIVITY = 0.05;
 export const EASING_OPTIONS: KeyframeEasing[] = [
   "linear",
+  "step",
   "easeIn",
   "easeOut",
   "easeInOut",
@@ -54,7 +55,8 @@ export const IMAGE_PLACEHOLDER_PULSE_MIN_OPACITY = 0.34;
 export const IMAGE_PLACEHOLDER_WIDTH_RATIO = 0.36;
 export const KEYFRAME_SECTION_HORIZONTAL_PADDING = 20;
 export const LABEL_COLUMN_WIDTH = 210;
-export const MAX_AGENT_STEPS = 10;
+export const AGENT_TARGET_STEPS = 10;
+export const MAX_AGENT_STEPS = 15;
 export const MAX_BORDER_SCALE_FACTOR = 4;
 export const MAX_CANVAS_ZOOM = 4;
 export const MIN_BORDER_SCALE_FACTOR = 0.5;

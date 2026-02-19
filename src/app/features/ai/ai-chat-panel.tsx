@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import { AppScrollArea } from "../../components/app-scroll-area";
 import { SpinnerStatusRow } from "../../components/spinner-status-row";
 import { store, type RootState } from "../../store";
+import { TIMELINE_DURATION } from "../../../const";
 import type { CanvasAppContextValue } from "../canvas/canvas-context/canvas-app-context";
 import { useCanvasAppContext } from "../canvas/hooks/use-canvas-app-context";
 import {
@@ -14,8 +15,8 @@ import {
   type AIActionStatusPayload,
   type AIImageStatusPayload,
 } from "./editor-ai-events";
+import { buildCompactSceneItemContext } from "./scene-context";
 import { generateOpenAIChatTurn } from "./openai-chat";
-import { buildSceneItemContext } from "./scene-context";
 
 type ChatMessage = {
   id: string;
@@ -280,9 +281,12 @@ function buildOpenAISceneContext(
   const { canvasItemIds, itemsRecord, projectInfo, selectedId } = state.editor;
   return {
     selectedId,
-    project: projectInfo,
+    project: {
+      ...projectInfo,
+      durationSeconds: TIMELINE_DURATION,
+    },
     items: canvasItemIds.map((id) => ({
-      ...buildSceneItemContext(
+      ...buildCompactSceneItemContext(
         id,
         itemsRecord[id]?.name ?? id,
         (itemsRecord[id]?.keyframe ?? []).map((keyframe) => keyframe.timestamp),

@@ -19,6 +19,7 @@ export type AnimatableSnapshot = {
 
 export type KeyframeEasing =
   | 'linear'
+  | 'step'
   | 'easeIn'
   | 'easeOut'
   | 'easeInOut'

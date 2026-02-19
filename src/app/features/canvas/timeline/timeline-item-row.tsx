@@ -1,19 +1,19 @@
 /** Timeline Item Row.Tsx timeline UI and behavior. */
 import { useMemo, useState, type MouseEvent } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import type { RootState } from "../../../store";
-import type { AppDispatch } from "../../../store";
-import { setPlayheadTime, setSelectedId } from "../../../store/editor-slice";
+import type { AppDispatch, RootState } from "../../../store";
+import {
+  setPlayheadTime,
+  setSelectedId,
+  setSelectedKeyframe,
+} from "../../../store/editor-slice";
 import type {
   ColorKeyframe,
-  KeyframeEasing,
   Keyframe,
 } from "../../shapes/animatable-object/types";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 import {
-  EASING_OPTIONS,
   KEYFRAME_SECTION_HORIZONTAL_PADDING,
-  TIME_EPSILON,
 } from "../../../../const";
 
 type TimelineItemRowProps = {
@@ -23,6 +23,8 @@ type TimelineItemRowProps = {
 };
 
 type DetailEntry = {
+  keyframeId: string;
+  property: string;
   time: number;
   text: string;
 };
@@ -41,10 +43,6 @@ export default function TimelineItemRow({
   const dispatch = useDispatch<AppDispatch>();
   const { getInstanceById } = useCanvasAppContext();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [selectedKeyframeTime, setSelectedKeyframeTime] = useState<
-    number | null
-  >(null);
-  const [easingRevision, setEasingRevision] = useState(0);
 
   const selectedId = useSelector((state: RootState) => state.editor.selectedId);
   const name = useSelector(
@@ -69,24 +67,37 @@ export default function TimelineItemRow({
       []) as ColorKeyframe[];
 
     return [
-      buildPairedDetailRow("Position", "x", leftFrames, "y", topFrames),
-      buildPairedDetailRow("Scale", "x", scaleXFrames, "y", scaleYFrames),
-      buildSingleDetailRow("Opacity", opacityFrames),
-      buildSingleDetailRow("Rotation", angleFrames),
-      buildColorDetailRow("Fill", fillFrames),
-      buildColorDetailRow("Stroke", strokeFrames),
+      buildSingleDetailRow("Position X", "left", leftFrames),
+      buildSingleDetailRow("Position Y", "top", topFrames),
+      buildSingleDetailRow("Scale X", "scaleX", scaleXFrames),
+      buildSingleDetailRow("Scale Y", "scaleY", scaleYFrames),
+      buildSingleDetailRow("Opacity", "opacity", opacityFrames),
+      buildSingleDetailRow("Rotation", "angle", angleFrames),
+      buildColorDetailRow("Fill", "fill", fillFrames),
+      buildColorDetailRow("Stroke", "stroke", strokeFrames),
     ].filter((row) => row.entries.length > 0);
   }, [getInstanceById, id, keyframes]);
 
   const seekToTime = (time: number) => {
     dispatch(setPlayheadTime(Number(time.toFixed(3))));
   };
-  const selectedEasing = useMemo(() => {
-    if (selectedKeyframeTime === null) return null;
-    const instance = getInstanceById(id);
-    if (!instance) return null;
-    return getEasingAtTime(instance, selectedKeyframeTime);
-  }, [easingRevision, getInstanceById, id, selectedKeyframeTime]);
+  const selectKeyframe = (entry: DetailEntry) => {
+    seekToTime(entry.time);
+    dispatch(setSelectedId(id));
+    dispatch(
+      setSelectedKeyframe({
+        itemId: id,
+        keyframeId: entry.keyframeId,
+        property: entry.property,
+        timestamp: entry.time,
+      }),
+    );
+  };
+  const seekOnly = (time: number) => {
+    seekToTime(time);
+    dispatch(setSelectedId(id));
+    dispatch(setSelectedKeyframe(null));
+  };
 
   return (
     <div className="border-b border-[var(--wise-border)] text-sm">
@@ -159,49 +170,21 @@ export default function TimelineItemRow({
                 <button
                   type="button"
                   key={keyframe.id}
-                  className="absolute top-1/2 z-10 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#e8eeff] bg-[var(--wise-accent)]"
+                  className="absolute top-1/2 z-[60] size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#e8eeff] bg-[var(--wise-accent)]"
                   style={{ left: `${left}%` }}
                   title={`${name} @ ${keyframe.timestamp.toFixed(2)}s`}
+                  onMouseDown={(event) => {
+                    event.stopPropagation();
+                    seekOnly(keyframe.timestamp);
+                  }}
                   onClick={(event) => {
                     event.stopPropagation();
-                    seekToTime(keyframe.timestamp);
-                    setSelectedKeyframeTime(keyframe.timestamp);
+                    seekOnly(keyframe.timestamp);
                   }}
                 />
               );
             })}
           </div>
-          {selectedKeyframeTime !== null ? (
-            <div className="mt-2 flex items-center gap-2 text-xs text-slate-300">
-              <span>{`Keyframe ${selectedKeyframeTime.toFixed(2)}s`}</span>
-              <select
-                className="rounded border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-1 text-xs text-slate-100 outline-none"
-                value={selectedEasing ?? "linear"}
-                onChange={(event) => {
-                  const instance = getInstanceById(id);
-                  if (!instance) return;
-                  applyEasingAtTime(
-                    instance,
-                    selectedKeyframeTime,
-                    event.target.value as KeyframeEasing,
-                  );
-                  instance.fabricObject.canvas?.requestRenderAll();
-                  setEasingRevision((prev) => prev + 1);
-                }}
-              >
-                {selectedEasing === "mixed" ? (
-                  <option value="linear" disabled>
-                    mixed
-                  </option>
-                ) : null}
-                {EASING_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
         </div>
       </div>
 
@@ -249,13 +232,16 @@ export default function TimelineItemRow({
                         <button
                           type="button"
                           key={`${row.label}-${entry.time}-${index}`}
-                          className="absolute top-1/2 z-10 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#e8eeff] bg-[var(--wise-accent)]"
+                          className="absolute top-1/2 z-[60] size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#e8eeff] bg-[var(--wise-accent)]"
                           style={{ left: `${left}%` }}
                           title={`${row.label} @ ${entry.time.toFixed(2)}s • ${entry.text}`}
+                          onMouseDown={(event) => {
+                            event.stopPropagation();
+                            selectKeyframe(entry);
+                          }}
                           onClick={(event) => {
                             event.stopPropagation();
-                            seekToTime(entry.time);
-                            setSelectedKeyframeTime(entry.time);
+                            selectKeyframe(entry);
                           }}
                         />
                       );
@@ -280,44 +266,17 @@ function formatValue(value: number) {
   return Math.abs(value) >= 100 ? value.toFixed(0) : value.toFixed(2);
 }
 
-function getValueAtTime(frames: Keyframe[], time: number) {
-  const frame = frames.find(
-    (item) => Math.abs(item.time - time) <= TIME_EPSILON,
-  );
-  return frame?.value;
-}
-
-function buildPairedDetailRow(
+function buildSingleDetailRow(
   label: string,
-  firstLabel: string,
-  firstFrames: Keyframe[],
-  secondLabel: string,
-  secondFrames: Keyframe[],
+  property: string,
+  frames: Keyframe[],
 ): DetailRow {
-  const times = Array.from(
-    new Set([
-      ...firstFrames.map((item) => item.time),
-      ...secondFrames.map((item) => item.time),
-    ]),
-  ).sort((a, b) => a - b);
-
-  const entries = times.map((time) => {
-    const firstValue = getValueAtTime(firstFrames, time);
-    const secondValue = getValueAtTime(secondFrames, time);
-    return {
-      time,
-      text: `${firstLabel}:${firstValue === undefined ? "-" : formatValue(firstValue)} ${secondLabel}:${secondValue === undefined ? "-" : formatValue(secondValue)}`,
-    };
-  });
-
-  return { label, entries };
-}
-
-function buildSingleDetailRow(label: string, frames: Keyframe[]): DetailRow {
   return {
     label,
     entries: frames
       .map((frame) => ({
+        keyframeId: frame.id,
+        property,
         time: frame.time,
         text: formatValue(frame.value),
       }))
@@ -327,82 +286,18 @@ function buildSingleDetailRow(label: string, frames: Keyframe[]): DetailRow {
 
 function buildColorDetailRow(
   label: string,
+  property: string,
   frames: ColorKeyframe[],
 ): DetailRow {
   return {
     label,
     entries: frames
       .map((frame) => ({
+        keyframeId: frame.id,
+        property,
         time: frame.time,
         text: frame.value,
       }))
       .sort((a, b) => a.time - b.time),
   };
-}
-
-function applyEasingAtTime(
-  instance: {
-    keyframes: Partial<
-      Record<string, Array<{ time: number; easing: KeyframeEasing }>>
-    >;
-    colorKeyframes: Partial<
-      Record<string, Array<{ time: number; easing: KeyframeEasing }>>
-    >;
-  },
-  time: number,
-  easing: KeyframeEasing,
-) {
-  Object.values(instance.keyframes).forEach((frames) => {
-    if (!frames) return;
-    frames.forEach((frame) => {
-      if (Math.abs(frame.time - time) <= TIME_EPSILON) {
-        frame.easing = easing;
-      }
-    });
-  });
-
-  Object.values(instance.colorKeyframes).forEach((frames) => {
-    if (!frames) return;
-    frames.forEach((frame) => {
-      if (Math.abs(frame.time - time) <= TIME_EPSILON) {
-        frame.easing = easing;
-      }
-    });
-  });
-}
-
-function getEasingAtTime(
-  instance: {
-    keyframes: Partial<
-      Record<string, Array<{ time: number; easing: KeyframeEasing }>>
-    >;
-    colorKeyframes: Partial<
-      Record<string, Array<{ time: number; easing: KeyframeEasing }>>
-    >;
-  },
-  time: number,
-) {
-  const easings = new Set<KeyframeEasing>();
-
-  Object.values(instance.keyframes).forEach((frames) => {
-    if (!frames) return;
-    frames.forEach((frame) => {
-      if (Math.abs(frame.time - time) <= TIME_EPSILON) {
-        easings.add(frame.easing);
-      }
-    });
-  });
-
-  Object.values(instance.colorKeyframes).forEach((frames) => {
-    if (!frames) return;
-    frames.forEach((frame) => {
-      if (Math.abs(frame.time - time) <= TIME_EPSILON) {
-        easings.add(frame.easing);
-      }
-    });
-  });
-
-  if (easings.size === 0) return null;
-  if (easings.size === 1) return Array.from(easings)[0];
-  return "mixed";
 }

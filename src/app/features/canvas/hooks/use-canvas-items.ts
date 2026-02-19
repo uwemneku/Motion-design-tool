@@ -10,8 +10,10 @@ import { useRef } from "react";
 import { useDispatch } from "react-redux";
 import { toast } from "sonner";
 import { AnimatableObject } from "../../shapes/animatable-object/object";
+import type { KeyframeEasing } from "../../shapes/animatable-object/types";
 import {
   removeItemRecord,
+  setCanvasItemIds,
   setSelectedId,
   upsertItemRecord,
 } from "../../../store/editor-slice";
@@ -167,8 +169,12 @@ function applyStrokeUniformRecursively(object: FabricObject) {
 
 export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
   const dispatch = useDispatch<AppDispatch>();
-  const { getInstanceById, registerInstance, unregisterInstance } =
-    useCanvasAppContext();
+  const {
+    getInstanceById,
+    instancesRef,
+    registerInstance,
+    unregisterInstance,
+  } = useCanvasAppContext();
   const placeholderCleanupByIdRef = useRef<Map<string, () => void>>(new Map());
 
   const addObjectToCanvas = (
@@ -329,8 +335,13 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       }
     }
 
+    const shouldSetSelected = options.shouldSetSelected ?? true;
     canvas.add(object);
-    canvas.setActiveObject(object);
+    if (shouldSetSelected) {
+      canvas.setActiveObject(object);
+    } else if (canvas.getActiveObject() === object) {
+      canvas.discardActiveObject();
+    }
     canvas.requestRenderAll();
 
     dispatch(
@@ -342,7 +353,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
         },
       }),
     );
-    if (options.shouldSetSelected ?? true) {
+    if (shouldSetSelected) {
       dispatch(setSelectedId(customId));
     }
 
@@ -438,7 +449,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
 
     const id = addObjectToCanvas(placeholder, "image", {
       ...options,
-      customId: createUniqueId("image-placeholder"),
+      customId: options.customId ?? createUniqueId("image-placeholder"),
       name: "image-loading",
       shouldSetSelected: false,
     });
@@ -651,11 +662,11 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     const text = new TextObject(content, {
       left: 240,
       top: 260,
-      width: 260,
       fontSize: 44,
       fill: options.color ?? "#ffffff",
       fontWeight: 700,
       editable: true,
+      ...options,
     });
 
     addObjectToCanvas(text, "text", options);
@@ -875,6 +886,250 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     return true;
   };
 
+  const reorderLayers = (idsInOrder: string[]) => {
+    const canvas = fabricCanvas.current;
+    if (!canvas) return false;
+
+    const itemCount = idsInOrder.length;
+    for (let index = 0; index < itemCount; index += 1) {
+      const id = idsInOrder[index];
+      const instance = getInstanceById(id);
+      const object = instance?.fabricObject;
+      if (!object) continue;
+      const stackIndex = itemCount - 1 - index;
+
+      if (typeof canvas.moveObjectTo === "function") {
+        canvas.moveObjectTo(object, stackIndex);
+      } else if ("moveTo" in object && typeof object.moveTo === "function") {
+        object.moveTo(stackIndex);
+      }
+    }
+
+    dispatch(setCanvasItemIds(idsInOrder));
+    canvas.requestRenderAll();
+    return true;
+  };
+
+  const syncItemRecordFromInstance = (id: string) => {
+    const instance = getInstanceById(id);
+    const existing = dispatch(
+      dispatchableSelector((state) => state.editor.itemsRecord[id]),
+    );
+    if (!instance || !existing) return;
+    dispatch(
+      upsertItemRecord({
+        id,
+        value: {
+          ...existing,
+          keyframe: instance
+            .getTimelineMarkers()
+            .map((marker) => ({
+              id: marker.id,
+              timestamp: marker.time,
+            }))
+            .sort((a, b) => a.timestamp - b.timestamp),
+        },
+      }),
+    );
+  };
+
+  const modifyKeyframeById = (
+    keyframeId: string,
+    updates: {
+      easing?: KeyframeEasing;
+      time?: number;
+      value?: number | string;
+    } = {},
+  ) => {
+    const canvas = fabricCanvas.current;
+    if (!canvas) return false;
+
+    for (const [itemId, instance] of instancesRef.current.entries()) {
+      let updated = false;
+
+      for (const property of Object.keys(instance.keyframes) as Array<
+        keyof typeof instance.keyframes
+      >) {
+        const frames = instance.keyframes[property];
+        if (!frames) continue;
+        for (const frame of frames) {
+          if (frame.id !== keyframeId) continue;
+          if (
+            typeof updates.time === "number" &&
+            Number.isFinite(updates.time)
+          ) {
+            frame.time = updates.time;
+          }
+          if (updates.easing) {
+            frame.easing = updates.easing;
+          }
+          if (
+            typeof updates.value === "number" &&
+            Number.isFinite(updates.value)
+          ) {
+            frame.value = updates.value;
+          }
+          frames.sort((a, b) => a.time - b.time);
+          updated = true;
+          break;
+        }
+        if (updated) break;
+      }
+
+      if (!updated) {
+        for (const property of Object.keys(instance.colorKeyframes) as Array<
+          keyof typeof instance.colorKeyframes
+        >) {
+          const frames = instance.colorKeyframes[property];
+          if (!frames) continue;
+          for (const frame of frames) {
+            if (frame.id !== keyframeId) continue;
+            if (
+              typeof updates.time === "number" &&
+              Number.isFinite(updates.time)
+            ) {
+              frame.time = updates.time;
+            }
+            if (updates.easing) {
+              frame.easing = updates.easing;
+            }
+            if (typeof updates.value === "string" && updates.value.length > 0) {
+              frame.value = updates.value;
+            }
+            frames.sort((a, b) => a.time - b.time);
+            updated = true;
+            break;
+          }
+          if (updated) break;
+        }
+      }
+
+      if (!updated) continue;
+
+      syncItemRecordFromInstance(itemId);
+      canvas.requestRenderAll();
+      return true;
+    }
+
+    return false;
+  };
+
+  const deleteKeyframeById = (keyframeId: string) => {
+    const canvas = fabricCanvas.current;
+    if (!canvas) return false;
+
+    for (const [itemId, instance] of instancesRef.current.entries()) {
+      let deleted = false;
+
+      for (const property of Object.keys(instance.keyframes) as Array<
+        keyof typeof instance.keyframes
+      >) {
+        const frames = instance.keyframes[property];
+        if (!frames) continue;
+        const nextFrames = frames.filter((frame) => frame.id !== keyframeId);
+        if (nextFrames.length === frames.length) continue;
+        if (nextFrames.length > 0) {
+          instance.keyframes[property] =
+            nextFrames as (typeof instance.keyframes)[typeof property];
+        } else {
+          delete instance.keyframes[property];
+        }
+        deleted = true;
+        break;
+      }
+
+      if (!deleted) {
+        for (const property of Object.keys(instance.colorKeyframes) as Array<
+          keyof typeof instance.colorKeyframes
+        >) {
+          const frames = instance.colorKeyframes[property];
+          if (!frames) continue;
+          const nextFrames = frames.filter((frame) => frame.id !== keyframeId);
+          if (nextFrames.length === frames.length) continue;
+          if (nextFrames.length > 0) {
+            instance.colorKeyframes[property] =
+              nextFrames as (typeof instance.colorKeyframes)[typeof property];
+          } else {
+            delete instance.colorKeyframes[property];
+          }
+          deleted = true;
+          break;
+        }
+      }
+
+      if (!deleted) continue;
+
+      syncItemRecordFromInstance(itemId);
+      canvas.requestRenderAll();
+      return true;
+    }
+
+    return false;
+  };
+
+  /**
+   * Shifts timeline markers and keyframe times for selected items by a delta.
+   * Negative shifts are clamped at 0 to keep keyframes in-range.
+   */
+  const shiftItemTimelines = (ids: string[], deltaSeconds: number) => {
+    const canvas = fabricCanvas.current;
+    if (!canvas || !Number.isFinite(deltaSeconds)) return false;
+
+    const uniqueIds = ids.filter((id, index) => ids.indexOf(id) === index);
+    let didUpdate = false;
+
+    for (const id of uniqueIds) {
+      const instance = getInstanceById(id);
+      const itemRecord = dispatch(
+        dispatchableSelector((state) => state.editor.itemsRecord[id]),
+      );
+      if (!instance || !itemRecord) continue;
+
+      for (const property of Object.keys(instance.keyframes) as Array<
+        keyof typeof instance.keyframes
+      >) {
+        const frames = instance.keyframes[property];
+        if (!frames) continue;
+        frames.forEach((frame) => {
+          frame.time = Math.max(0, frame.time + deltaSeconds);
+        });
+        frames.sort((a, b) => a.time - b.time);
+      }
+
+      for (const property of Object.keys(instance.colorKeyframes) as Array<
+        keyof typeof instance.colorKeyframes
+      >) {
+        const frames = instance.colorKeyframes[property];
+        if (!frames) continue;
+        frames.forEach((frame) => {
+          frame.time = Math.max(0, frame.time + deltaSeconds);
+        });
+        frames.sort((a, b) => a.time - b.time);
+      }
+
+      dispatch(
+        upsertItemRecord({
+          id,
+          value: {
+            ...itemRecord,
+            keyframe: itemRecord.keyframe
+              .map((marker) => ({
+                ...marker,
+                timestamp: Math.max(0, marker.timestamp + deltaSeconds),
+              }))
+              .sort((a, b) => a.timestamp - b.timestamp),
+          },
+        }),
+      );
+      didUpdate = true;
+    }
+
+    if (didUpdate) {
+      canvas.requestRenderAll();
+    }
+    return didUpdate;
+  };
+
   return {
     addCircle,
     addLine,
@@ -885,8 +1140,12 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     addSvgFromFile,
     addImageFromURL,
     removeItemById,
+    reorderLayers,
+    modifyKeyframeById,
+    deleteKeyframeById,
     updateItemById,
     replaceItemWithImageFromURL,
     addText,
+    shiftItemTimelines,
   };
 }

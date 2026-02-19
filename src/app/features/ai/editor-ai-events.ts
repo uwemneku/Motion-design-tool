@@ -90,8 +90,14 @@ export type AIEditorCommand =
     }
   | {
       type: "add_image";
+      customId?: string;
+      height?: number;
+      left?: number;
+      right?: number;
       url?: string;
       prompt?: string;
+      top?: number;
+      width?: number;
       keyframes?: AIItemKeyframe[];
     }
   | {
@@ -101,12 +107,40 @@ export type AIEditorCommand =
       keyframes?: AIItemKeyframe[];
     }
   | {
+      type: 'batch_update_items';
+      updates: Array<{
+        id: string;
+        keyframes?: AIItemKeyframe[];
+        props?: AIItemPatch;
+      }>;
+    }
+  | {
       type: "delete_item";
       target: AIItemTarget;
     }
   | {
       type: "set_aspect_ratio";
       aspectLabel: "16:9" | "9:16" | "1:1" | "4:5";
+    }
+  | {
+      type: 'reorder_layers';
+      ids: string[];
+    }
+  | {
+      type: 'modify_keyframe';
+      easing?: KeyframeEasing;
+      keyframeId: string;
+      time?: number;
+      value?: number | string;
+    }
+  | {
+      type: 'delete_keyframe';
+      keyframeId: string;
+    }
+  | {
+      type: 'timeline_shift';
+      deltaSeconds: number;
+      ids: string[];
     };
 
 export const AI_EDITOR_COMMAND_EVENT = "ai-editor-command";

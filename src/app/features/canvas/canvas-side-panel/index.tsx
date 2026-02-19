@@ -2,8 +2,9 @@
 import { useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { type RootState } from "../../../store";
-import CanvasSidePanelDesign from "./design";
 import CanvasSidePanelAnimations from "./animations";
+import CanvasSidePanelDesign from "./design";
+import { KeyframeDetailsPanel } from "./keyframe-details";
 export type PanelTab = "design" | "animations";
 
 /** Right-side inspector panel for design edits and animation templates. */
@@ -64,6 +65,7 @@ export default function CanvasSidePanel() {
               keyframeTimesText={keyframeTimesText}
             />
           )}
+          <KeyframeDetailsPanel />
         </div>
       </div>
     </aside>

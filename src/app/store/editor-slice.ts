@@ -28,6 +28,12 @@ export type EditorState = {
   canvasItemIds: string[];
   itemsRecord: Record<string, EditorItemRecord>;
   selectedId: string | null;
+  selectedKeyframe: {
+    itemId: string;
+    keyframeId: string;
+    property: string;
+    timestamp: number;
+  } | null;
   projectInfo: EditorProjectInfo;
 };
 
@@ -37,6 +43,7 @@ const initialState: EditorState = {
   canvasItemIds: [],
   itemsRecord: {},
   selectedId: null,
+  selectedKeyframe: null,
   projectInfo: {
     canvasWidth: 0,
     canvasHeight: 0,
@@ -79,11 +86,15 @@ const editorSlice = createSlice({
       if (state.selectedId === action.payload) {
         state.selectedId = null;
       }
+      if (state.selectedKeyframe?.itemId === action.payload) {
+        state.selectedKeyframe = null;
+      }
     },
     clearCanvasItemIds(state) {
       state.canvasItemIds = [];
       state.itemsRecord = {};
       state.selectedId = null;
+      state.selectedKeyframe = null;
     },
     setItemsRecord(
       state,
@@ -106,9 +117,31 @@ const editorSlice = createSlice({
       if (state.selectedId === action.payload) {
         state.selectedId = null;
       }
+      if (state.selectedKeyframe?.itemId === action.payload) {
+        state.selectedKeyframe = null;
+      }
     },
     setSelectedId(state, action: PayloadAction<string | null>) {
       state.selectedId = action.payload;
+      if (
+        state.selectedKeyframe &&
+        state.selectedKeyframe.itemId !== action.payload
+      ) {
+        state.selectedKeyframe = null;
+      }
+    },
+    setSelectedKeyframe(
+      state,
+      action: PayloadAction<
+        {
+          itemId: string;
+          keyframeId: string;
+          property: string;
+          timestamp: number;
+        } | null
+      >,
+    ) {
+      state.selectedKeyframe = action.payload;
     },
     setProjectInfo(state, action: PayloadAction<EditorProjectInfo>) {
       state.projectInfo = action.payload;
@@ -127,6 +160,7 @@ export const {
   upsertItemRecord,
   removeItemRecord,
   setSelectedId,
+  setSelectedKeyframe,
   setProjectInfo,
 } = editorSlice.actions;
 

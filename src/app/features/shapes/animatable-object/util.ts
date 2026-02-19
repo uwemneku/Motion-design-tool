@@ -36,6 +36,7 @@ function easeOutElastic(progress: number) {
 
 export function applyEasing(progress: number, easing: KeyframeEasing) {
   const t = clamp(progress, 0, 1);
+  if (easing === 'step') return t < 1 ? 0 : 1;
   if (easing === 'easeIn') return t * t * t;
   if (easing === 'easeOut') return 1 - Math.pow(1 - t, 3);
   if (easing === 'easeInOut') {
