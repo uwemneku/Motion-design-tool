@@ -46,6 +46,12 @@ type UseCanvasItemsParams = {
   fabricCanvas: MutableRefObject<Canvas | null>;
 };
 type AddItemOptions = {
+  height?: number;
+  left?: number;
+  radius?: number;
+  right?: number;
+  top?: number;
+  width?: number;
   keyframes?: AIItemKeyframe[];
   color?: string;
   sides?: number;
@@ -53,6 +59,19 @@ type AddItemOptions = {
   markers?: Array<{ id: string; timestamp: number }>;
   name?: string;
   shouldSetSelected?: boolean;
+};
+
+type UpdateItemProps = {
+  angle?: number;
+  fill?: string;
+  left?: number;
+  opacity?: number;
+  scaleX?: number;
+  scaleY?: number;
+  stroke?: string;
+  text?: string;
+  top?: number;
+  width?: number;
 };
 
 function isSvgFile(file: File) {
@@ -165,6 +184,53 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
 
     const customId = options.customId ?? createUniqueId(typeName);
     const object: FabricObject = instance.fabricObject;
+    const hasLeft =
+      typeof options.left === "number" && Number.isFinite(options.left);
+    const hasRight =
+      typeof options.right === "number" && Number.isFinite(options.right);
+    const hasTop =
+      typeof options.top === "number" && Number.isFinite(options.top);
+    const hasWidth =
+      typeof options.width === "number" && Number.isFinite(options.width);
+    const hasHeight =
+      typeof options.height === "number" && Number.isFinite(options.height);
+
+    if (hasLeft || hasRight || hasTop) {
+      const objectHalfWidth = object.getScaledWidth() / 2;
+      const nextLeft = hasLeft
+        ? Number(options.left)
+        : hasRight
+          ? canvas.getWidth() - Number(options.right) - objectHalfWidth
+          : (object.left ?? 0);
+      const nextTop = hasTop ? Number(options.top) : (object.top ?? 0);
+      object.set({
+        left: nextLeft,
+        top: nextTop,
+      });
+      object.setCoords();
+    }
+
+    if (hasWidth || hasHeight) {
+      const currentScaleX = object.scaleX ?? 1;
+      const currentScaleY = object.scaleY ?? 1;
+      const currentScaledWidth = object.getScaledWidth();
+      const currentScaledHeight = object.getScaledHeight();
+      const nextScaleX =
+        hasWidth && currentScaledWidth > 0
+          ? currentScaleX * (Number(options.width) / currentScaledWidth)
+          : currentScaleX;
+      const nextScaleY =
+        hasHeight && currentScaledHeight > 0
+          ? currentScaleY * (Number(options.height) / currentScaledHeight)
+          : currentScaleY;
+
+      object.set({
+        scaleX: nextScaleX,
+        scaleY: nextScaleY,
+      });
+      object.setCoords();
+    }
+
     object.customId = customId;
     object.set("customId", customId);
     registerInstance(customId, instance);
@@ -230,6 +296,22 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
         instance.addKeyframe({
           property: "angle",
           value: keyframe.angle,
+          time: keyframe.time,
+          easing: keyframe.easing ?? "linear",
+        });
+      }
+      if (typeof keyframe.fill === "string" && keyframe.fill.length > 0) {
+        instance.addColorKeyframe({
+          property: "fill",
+          value: keyframe.fill,
+          time: keyframe.time,
+          easing: keyframe.easing ?? "linear",
+        });
+      }
+      if (typeof keyframe.stroke === "string" && keyframe.stroke.length > 0) {
+        instance.addColorKeyframe({
+          property: "stroke",
+          value: keyframe.stroke,
           time: keyframe.time,
           easing: keyframe.easing ?? "linear",
         });
@@ -324,7 +406,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     });
   };
 
-  const addImagePlaceholder = () => {
+  const addImagePlaceholder = (options: AddItemOptions = {}) => {
     const canvas = fabricCanvas.current;
     if (!canvas) return null;
 
@@ -355,6 +437,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     });
 
     const id = addObjectToCanvas(placeholder, "image", {
+      ...options,
       customId: createUniqueId("image-placeholder"),
       name: "image-loading",
       shouldSetSelected: false,
@@ -425,13 +508,17 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
 
   const addCircle = (options: AddItemOptions = {}) => {
     const circle = new CircleObject({
-      left: 180,
-      top: 160,
-      radius: 70,
+      left: 0,
+      top: 0,
+      radius:
+        typeof options.radius === "number" && Number.isFinite(options.radius)
+          ? Math.max(1, options.radius)
+          : 70,
       fill: options.color ?? "#ffffff",
       stroke: "#7f1d1d",
       strokeWidth: 0,
       strokeUniform: true,
+      ...options,
     });
 
     addObjectToCanvas(circle, "circle", options);
@@ -446,6 +533,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       stroke: "#312e81",
       strokeWidth: 0,
       strokeUniform: true,
+      ...options,
     });
 
     addObjectToCanvas(polygon, "polygon", options);
@@ -459,6 +547,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       strokeWidth: 2,
       strokeLineCap: "round",
       strokeUniform: true,
+      ...options,
     });
 
     addObjectToCanvas(line, "line", options);
@@ -474,6 +563,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       stroke: "#14532d",
       strokeWidth: 0,
       strokeUniform: true,
+      ...options,
     });
 
     addObjectToCanvas(rectangle, "rectangle", options);
@@ -501,22 +591,23 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       top: 220,
       scaleX: scale,
       scaleY: scale,
+      ...options,
     });
 
     addObjectToCanvas(imageObject, "image", options);
   };
 
-  const addImageFromFile = async (file: File) => {
+  const addImageFromFile = async (file: File, options: AddItemOptions = {}) => {
     // Import bitmap files through object URL and revoke URL after load.
     const fileUrl = URL.createObjectURL(file);
     try {
-      await addImageFromURL(fileUrl);
+      await addImageFromURL(fileUrl, options);
     } finally {
       URL.revokeObjectURL(fileUrl);
     }
   };
 
-  const addSvgFromFile = async (file: File) => {
+  const addSvgFromFile = async (file: File, options: AddItemOptions = {}) => {
     // Attempt SVG parsing into editable Fabric objects instead of rasterizing.
     if (!isSvgFile(file)) {
       toast.error("Please select an SVG file.");
@@ -541,6 +632,10 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
 
       svgObjects.forEach((object, index) => {
         addObjectToCanvas(new AnimatableObject(object), "svg", {
+          ...options,
+          left: options.left,
+          right: options.right,
+          top: options.top,
           name: getSvgLayerName(object, index),
           shouldSetSelected: index === svgObjects.length - 1,
         });
@@ -566,6 +661,220 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     addObjectToCanvas(text, "text", options);
   };
 
+  const updateItemById = (
+    id: string,
+    options: { keyframes?: AIItemKeyframe[]; props?: UpdateItemProps } = {},
+  ) => {
+    const canvas = fabricCanvas.current;
+    if (!canvas) return false;
+    const instance = getInstanceById(id);
+    const itemRecord = dispatch(
+      dispatchableSelector((state) => state.editor.itemsRecord[id]),
+    );
+    if (!instance || !itemRecord) return false;
+
+    const timelineMarkers = [...itemRecord.keyframe];
+    const object = instance.fabricObject;
+    const playheadTime = dispatch(
+      dispatchableSelector((state) => state.editor.playheadTime),
+    );
+
+    const pushMarkerIfNeeded = (timestamp: number) => {
+      const hasMarker = timelineMarkers.some(
+        (marker) =>
+          Math.abs(marker.timestamp - timestamp) <= CANVAS_KEYFRAME_EPSILON,
+      );
+      if (hasMarker) return;
+      timelineMarkers.push({
+        id: createKeyframeMarkerId(),
+        timestamp,
+      });
+    };
+
+    if (options.props) {
+      const nextProps = options.props;
+      if (typeof nextProps.left === "number") {
+        object.set("left", nextProps.left);
+        instance.addKeyframe({
+          property: "left",
+          value: nextProps.left,
+          time: playheadTime,
+          easing: "linear",
+        });
+      }
+      if (typeof nextProps.top === "number") {
+        object.set("top", nextProps.top);
+        instance.addKeyframe({
+          property: "top",
+          value: nextProps.top,
+          time: playheadTime,
+          easing: "linear",
+        });
+      }
+      if (typeof nextProps.scaleX === "number") {
+        object.set("scaleX", nextProps.scaleX);
+        instance.addKeyframe({
+          property: "scaleX",
+          value: nextProps.scaleX,
+          time: playheadTime,
+          easing: "linear",
+        });
+      }
+      if (typeof nextProps.scaleY === "number") {
+        object.set("scaleY", nextProps.scaleY);
+        instance.addKeyframe({
+          property: "scaleY",
+          value: nextProps.scaleY,
+          time: playheadTime,
+          easing: "linear",
+        });
+      }
+      if (typeof nextProps.opacity === "number") {
+        object.set("opacity", nextProps.opacity);
+        instance.addKeyframe({
+          property: "opacity",
+          value: nextProps.opacity,
+          time: playheadTime,
+          easing: "linear",
+        });
+      }
+      if (typeof nextProps.angle === "number") {
+        object.set("angle", nextProps.angle);
+        instance.addKeyframe({
+          property: "angle",
+          value: nextProps.angle,
+          time: playheadTime,
+          easing: "linear",
+        });
+      }
+      if (typeof nextProps.width === "number") {
+        const currentScaleX = object.scaleX ?? 1;
+        const currentScaledWidth = object.getScaledWidth();
+        if (currentScaledWidth > 0) {
+          object.set(
+            "scaleX",
+            currentScaleX * (Number(nextProps.width) / currentScaledWidth),
+          );
+          const scaleX = Number(object.scaleX ?? 1);
+          instance.addKeyframe({
+            property: "scaleX",
+            value: scaleX,
+            time: playheadTime,
+            easing: "linear",
+          });
+        }
+      }
+      if (typeof nextProps.fill === "string" && nextProps.fill.length > 0) {
+        object.set("fill", nextProps.fill);
+        instance.addColorKeyframe({
+          property: "fill",
+          value: nextProps.fill,
+          time: playheadTime,
+          easing: "linear",
+        });
+      }
+      if (typeof nextProps.stroke === "string" && nextProps.stroke.length > 0) {
+        object.set("stroke", nextProps.stroke);
+        instance.addColorKeyframe({
+          property: "stroke",
+          value: nextProps.stroke,
+          time: playheadTime,
+          easing: "linear",
+        });
+      }
+      if (typeof nextProps.text === "string") {
+        object.set("text", nextProps.text);
+      }
+
+      pushMarkerIfNeeded(playheadTime);
+    }
+
+    const extraKeyframes = [...(options.keyframes ?? [])].sort(
+      (a, b) => a.time - b.time,
+    );
+    for (const keyframe of extraKeyframes) {
+      if (!Number.isFinite(keyframe.time)) continue;
+      if (typeof keyframe.left === "number") {
+        instance.addKeyframe({
+          property: "left",
+          value: keyframe.left,
+          time: keyframe.time,
+          easing: keyframe.easing ?? "linear",
+        });
+      }
+      if (typeof keyframe.top === "number") {
+        instance.addKeyframe({
+          property: "top",
+          value: keyframe.top,
+          time: keyframe.time,
+          easing: keyframe.easing ?? "linear",
+        });
+      }
+      if (typeof keyframe.scaleX === "number") {
+        instance.addKeyframe({
+          property: "scaleX",
+          value: keyframe.scaleX,
+          time: keyframe.time,
+          easing: keyframe.easing ?? "linear",
+        });
+      }
+      if (typeof keyframe.scaleY === "number") {
+        instance.addKeyframe({
+          property: "scaleY",
+          value: keyframe.scaleY,
+          time: keyframe.time,
+          easing: keyframe.easing ?? "linear",
+        });
+      }
+      if (typeof keyframe.opacity === "number") {
+        instance.addKeyframe({
+          property: "opacity",
+          value: keyframe.opacity,
+          time: keyframe.time,
+          easing: keyframe.easing ?? "linear",
+        });
+      }
+      if (typeof keyframe.angle === "number") {
+        instance.addKeyframe({
+          property: "angle",
+          value: keyframe.angle,
+          time: keyframe.time,
+          easing: keyframe.easing ?? "linear",
+        });
+      }
+      if (typeof keyframe.fill === "string" && keyframe.fill.length > 0) {
+        instance.addColorKeyframe({
+          property: "fill",
+          value: keyframe.fill,
+          time: keyframe.time,
+          easing: keyframe.easing ?? "linear",
+        });
+      }
+      if (typeof keyframe.stroke === "string" && keyframe.stroke.length > 0) {
+        instance.addColorKeyframe({
+          property: "stroke",
+          value: keyframe.stroke,
+          time: keyframe.time,
+          easing: keyframe.easing ?? "linear",
+        });
+      }
+      pushMarkerIfNeeded(keyframe.time);
+    }
+
+    object.setCoords();
+    canvas.requestRenderAll();
+    dispatch(
+      upsertItemRecord({
+        id,
+        value: {
+          ...itemRecord,
+          keyframe: timelineMarkers.sort((a, b) => a.timestamp - b.timestamp),
+        },
+      }),
+    );
+    return true;
+  };
+
   return {
     addCircle,
     addLine,
@@ -576,6 +885,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     addSvgFromFile,
     addImageFromURL,
     removeItemById,
+    updateItemById,
     replaceItemWithImageFromURL,
     addText,
   };

@@ -24,6 +24,7 @@ import { toast } from "sonner";
 type ExportMaskTrackingObject = FabricObject & {
   __maskProxyObject?: FabricObject;
   __maskSourceObject?: FabricObject;
+  isVideoAreaGuide?: boolean;
 };
 
 /**
@@ -85,6 +86,9 @@ function useExportVideo(
         const sourceObjectsById = new Map<string, FabricObject>();
         const sourceObjects = liveCanvas.getObjects();
         for (const sourceObject of sourceObjects) {
+          if (isVideoAreaGuideObject(sourceObject)) {
+            continue;
+          }
           if (sourceObject.customId) {
             sourceObjectsById.set(sourceObject.customId, sourceObject);
           }
@@ -197,6 +201,10 @@ function useExportVideo(
 }
 
 export default useExportVideo;
+
+function isVideoAreaGuideObject(object: FabricObject) {
+  return Boolean((object as ExportMaskTrackingObject).isVideoAreaGuide);
+}
 
 /**
  * Clones and scales keyframes from live-canvas coordinates into export space.

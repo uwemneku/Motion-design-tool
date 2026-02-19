@@ -10,7 +10,11 @@ import type {
   Keyframe,
 } from "../../shapes/animatable-object/types";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
-import { EASING_OPTIONS, TIME_EPSILON } from "../../../../const";
+import {
+  EASING_OPTIONS,
+  KEYFRAME_SECTION_HORIZONTAL_PADDING,
+  TIME_EPSILON,
+} from "../../../../const";
 
 type TimelineItemRowProps = {
   id: string;
@@ -125,9 +129,15 @@ export default function TimelineItemRow({
           </div>
         </div>
 
-        <div className="px-3 py-2">
+        <div
+          className="py-2"
+          style={{
+            paddingLeft: KEYFRAME_SECTION_HORIZONTAL_PADDING,
+            paddingRight: KEYFRAME_SECTION_HORIZONTAL_PADDING,
+          }}
+        >
           <div
-            className={`relative h-6 rounded-md border ${
+            className={`relative h-6 rounded-sm border ${
               selectedId === id
                 ? "border-[var(--wise-accent)] shadow-[inset_0_0_0_1px_rgba(56,189,248,0.42)]"
                 : "border-[var(--wise-border)]"
@@ -215,7 +225,13 @@ export default function TimelineItemRow({
                 <div className="sticky left-0 z-10 border-r border-[var(--wise-border)] bg-[var(--wise-surface)] px-3 py-2 pl-8 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                   {row.label}
                 </div>
-                <div className="px-3 py-2">
+                <div
+                  className="py-2"
+                  style={{
+                    paddingLeft: KEYFRAME_SECTION_HORIZONTAL_PADDING,
+                    paddingRight: KEYFRAME_SECTION_HORIZONTAL_PADDING,
+                  }}
+                >
                   <div
                     className="relative h-6 rounded border border-[var(--wise-border)]"
                     style={{

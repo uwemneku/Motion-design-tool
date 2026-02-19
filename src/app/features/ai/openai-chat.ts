@@ -1,374 +1,111 @@
 /** Openai Chat.Ts module implementation. */
-import { generateObject } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
+import { generateObject } from "ai";
 import { z } from "zod";
-import type {
-  AIEditorCommand,
-  AIItemKeyframe,
-  AIItemPatch,
-  AIItemTarget,
+import {
+  emitAIEditorCommand,
+  emitAIStepComplete,
+  type AIEditorCommand,
 } from "./editor-ai-events";
+import {
+  applyToolCallToWorkingScene,
+  AVAILABLE_TOOLS_PROMPT_TEXT,
+  toolCallSchema,
+} from "./tools";
 import { AGENT_SYSTEM_PROMPT, MAX_AGENT_STEPS } from "../../../const";
 
 type OpenAIChatResult = {
-  reply: string;
   commands: AIEditorCommand[];
+  reply: string;
   responseId: string | null;
 };
 
 export type OpenAISceneContext = {
   selectedId: string | null;
   project?: {
-    canvasWidth: number;
     canvasHeight: number;
-    videoWidth: number;
+    canvasWidth: number;
+    videoAspectLabel: string;
+    videoAspectRatio: number;
+    videoBottom: number;
     videoHeight: number;
     videoLeft: number;
-    videoTop: number;
     videoRight: number;
-    videoBottom: number;
-    videoAspectRatio: number;
-    videoAspectLabel: string;
+    videoTop: number;
+    videoWidth: number;
   };
   items: Array<{
-    id: string;
-    name: string;
-    keyframeTimes: number[];
     current?: {
-      left: number;
-      top: number;
+      angle: number;
+      bounds?: {
+        bottom: number;
+        left: number;
+        right: number;
+        top: number;
+      };
       centerX: number;
       centerY: number;
-      scaleX: number;
-      scaleY: number;
-      width?: number;
-      height?: number;
-      scaledWidth?: number;
-      scaledHeight?: number;
-      bounds?: {
-        left: number;
-        top: number;
-        right: number;
-        bottom: number;
-      };
-      opacity: number;
-      angle: number;
       fill?: string;
-      stroke?: string;
-      text?: string;
       fontFamily?: string;
       fontSize?: number;
+      height?: number;
+      left: number;
+      opacity: number;
+      scaleX: number;
+      scaleY: number;
+      scaledHeight?: number;
+      scaledWidth?: number;
+      stroke?: string;
+      text?: string;
+      top: number;
+      width?: number;
     };
+    id: string;
     keyframes?: {
-      left?: Array<{ id: string; time: number; value: number }>;
-      top?: Array<{ id: string; time: number; value: number }>;
-      scaleX?: Array<{ id: string; time: number; value: number }>;
-      scaleY?: Array<{ id: string; time: number; value: number }>;
-      opacity?: Array<{ id: string; time: number; value: number }>;
       angle?: Array<{ id: string; time: number; value: number }>;
       fill?: Array<{ id: string; time: number; value: string }>;
+      left?: Array<{ id: string; time: number; value: number }>;
+      opacity?: Array<{ id: string; time: number; value: number }>;
+      scaleX?: Array<{ id: string; time: number; value: number }>;
+      scaleY?: Array<{ id: string; time: number; value: number }>;
       stroke?: Array<{ id: string; time: number; value: string }>;
+      top?: Array<{ id: string; time: number; value: number }>;
     };
+    keyframeTimes: number[];
+    name: string;
   }>;
 };
 
-type SceneItem = OpenAISceneContext["items"][number];
-type ProjectContextPayload = NonNullable<OpenAISceneContext["project"]>;
-
-type ToolExecutionState = {
-  hasAddedItem: boolean;
-};
-
 type AgentStepLog = {
-  step: number;
   result: string;
+  step: number;
 };
 
-const aiItemKeyframeSchema = z
-  .object({
-    time: z.number(),
-    left: z.number().nullable(),
-    top: z.number().nullable(),
-    scaleX: z.number().nullable(),
-    scaleY: z.number().nullable(),
-    opacity: z.number().nullable(),
-    angle: z.number().nullable(),
-  })
-  .strict();
+type ToolResultLog = {
+  command?: AIEditorCommand;
+  duplicateSignature?: string;
+  createdId?: string;
+  status: "executed" | "skipped";
+  step: number;
+  tool: string;
+};
 
-const aiItemTargetSchema = z
+const stepDecisionSchema = z
   .object({
-    id: z.string().nullable(),
-    name: z.string().nullable(),
-  })
-  .strict();
-
-const updatePropsSchema = z
-  .object({
-    left: z.number().nullable(),
-    top: z.number().nullable(),
-    scaleX: z.number().nullable(),
-    scaleY: z.number().nullable(),
-    width: z.number().nullable(),
-    opacity: z.number().nullable(),
-    angle: z.number().nullable(),
-    text: z.string().nullable(),
-  })
-  .strict();
-
-const commandSchema = z
-  .object({
-    type: z.enum([
-      "add_circle",
-      "add_polygon",
-      "add_line",
-      "add_rectangle",
-      "add_text",
-      "add_image",
-      "update_item",
-      "delete_item",
-    ]),
-    color: z.string().nullable(),
-    text: z.string().nullable(),
-    url: z.string().nullable(),
-    prompt: z.string().nullable(),
-    target: aiItemTargetSchema,
-    props: updatePropsSchema,
-    keyframes: z.array(aiItemKeyframeSchema).nullable(),
-  })
-  .strict();
-
-const decisionSchema = z
-  .object({
-    status: z.enum(["action", "done", "needs_user_input"]),
     message: z.string().min(1),
-    action: commandSchema.nullable(),
+    status: z.enum(["tool_call", "done", "needs_user_input"]),
+    toolCalls: z.array(toolCallSchema),
   })
   .strict();
 
+/** Deep clones scene context for local planning/execution simulation. */
 function cloneSceneContext(
   sceneContext: OpenAISceneContext,
 ): OpenAISceneContext {
   return JSON.parse(JSON.stringify(sceneContext)) as OpenAISceneContext;
 }
 
-function sanitizeKeyframes(keyframes: unknown): AIItemKeyframe[] {
-  if (!Array.isArray(keyframes)) return [];
-  return keyframes
-    .map((value) => {
-      if (!value || typeof value !== "object") return null;
-      const candidate = value as Partial<AIItemKeyframe>;
-      const next: AIItemKeyframe = {
-        time:
-          typeof candidate.time === "number" && Number.isFinite(candidate.time)
-            ? candidate.time
-            : Number.NaN,
-      };
-
-      if (
-        typeof candidate.left === "number" &&
-        Number.isFinite(candidate.left)
-      ) {
-        next.left = candidate.left;
-      }
-      if (typeof candidate.top === "number" && Number.isFinite(candidate.top)) {
-        next.top = candidate.top;
-      }
-      if (
-        typeof candidate.scaleX === "number" &&
-        Number.isFinite(candidate.scaleX)
-      ) {
-        next.scaleX = candidate.scaleX;
-      }
-      if (
-        typeof candidate.scaleY === "number" &&
-        Number.isFinite(candidate.scaleY)
-      ) {
-        next.scaleY = candidate.scaleY;
-      }
-      if (
-        typeof candidate.opacity === "number" &&
-        Number.isFinite(candidate.opacity)
-      ) {
-        next.opacity = candidate.opacity;
-      }
-      if (
-        typeof candidate.angle === "number" &&
-        Number.isFinite(candidate.angle)
-      ) {
-        next.angle = candidate.angle;
-      }
-
-      return Number.isFinite(next.time) ? next : null;
-    })
-    .filter((value): value is AIItemKeyframe => value !== null);
-}
-
-function sanitizeColor(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function parseHexColor(color: string) {
-  const value = color.trim().replace(/^#/, "");
-  if (![3, 6].includes(value.length) || !/^[0-9a-f]+$/i.test(value)) {
-    return null;
-  }
-  const full =
-    value.length === 3
-      ? `${value[0]}${value[0]}${value[1]}${value[1]}${value[2]}${value[2]}`
-      : value;
-  return {
-    r: Number.parseInt(full.slice(0, 2), 16),
-    g: Number.parseInt(full.slice(2, 4), 16),
-    b: Number.parseInt(full.slice(4, 6), 16),
-  };
-}
-
-function parseRgbColor(color: string) {
-  const match = color
-    .trim()
-    .match(
-      /^rgba?\(\s*([0-9.]+)[,\s]+([0-9.]+)[,\s]+([0-9.]+)(?:[,\s/]+[0-9.]+)?\s*\)$/i,
-    );
-  if (!match) return null;
-
-  const r = Number(match[1]);
-  const g = Number(match[2]);
-  const b = Number(match[3]);
-  if (![r, g, b].every(Number.isFinite)) return null;
-
-  return {
-    r: Math.max(0, Math.min(255, Math.round(r))),
-    g: Math.max(0, Math.min(255, Math.round(g))),
-    b: Math.max(0, Math.min(255, Math.round(b))),
-  };
-}
-
-function relativeLuminance(rgb: { r: number; g: number; b: number }) {
-  const transform = (value: number) => {
-    const normalized = value / 255;
-    return normalized <= 0.03928
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4;
-  };
-
-  return (
-    0.2126 * transform(rgb.r) +
-    0.7152 * transform(rgb.g) +
-    0.0722 * transform(rgb.b)
-  );
-}
-
-function sanitizeAccessibleTextColor(color: string | undefined) {
-  const fallback = "#0f172a";
-  if (!color) return fallback;
-
-  const parsed = parseHexColor(color) ?? parseRgbColor(color);
-  if (!parsed) return fallback;
-
-  return relativeLuminance(parsed) > 0.45 ? fallback : color;
-}
-
-function sanitizeTarget(value: unknown): AIItemTarget | null {
-  if (!value || typeof value !== "object") return null;
-  const candidate = value as { id?: unknown; name?: unknown };
-  const id = typeof candidate.id === "string" ? candidate.id.trim() : "";
-  const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
-
-  if (!id && !name) return null;
-
-  return {
-    ...(id ? { id } : {}),
-    ...(name ? { name } : {}),
-  };
-}
-
-function sanitizeProps(value: unknown): AIItemPatch | undefined {
-  if (!value || typeof value !== "object") return undefined;
-  const candidate = value as Partial<AIItemPatch>;
-  const next: AIItemPatch = {};
-
-  if (typeof candidate.left === "number" && Number.isFinite(candidate.left)) {
-    next.left = candidate.left;
-  }
-  if (typeof candidate.top === "number" && Number.isFinite(candidate.top)) {
-    next.top = candidate.top;
-  }
-  if (
-    typeof candidate.scaleX === "number" &&
-    Number.isFinite(candidate.scaleX)
-  ) {
-    next.scaleX = candidate.scaleX;
-  }
-  if (
-    typeof candidate.scaleY === "number" &&
-    Number.isFinite(candidate.scaleY)
-  ) {
-    next.scaleY = candidate.scaleY;
-  }
-  if (typeof candidate.width === "number" && Number.isFinite(candidate.width)) {
-    next.width = candidate.width;
-  }
-  if (
-    typeof candidate.opacity === "number" &&
-    Number.isFinite(candidate.opacity)
-  ) {
-    next.opacity = candidate.opacity;
-  }
-  if (typeof candidate.angle === "number" && Number.isFinite(candidate.angle)) {
-    next.angle = candidate.angle;
-  }
-  if (typeof candidate.text === "string" && candidate.text.trim().length > 0) {
-    next.text = candidate.text.trim();
-  }
-
-  return Object.keys(next).length > 0 ? next : undefined;
-}
-
-function resolveItemIndex(
-  sceneContext: OpenAISceneContext,
-  target?: AIItemTarget | null,
-): number {
-  if (!target) return -1;
-
-  if (target.id) {
-    return sceneContext.items.findIndex((item) => item.id === target.id);
-  }
-
-  if (!target.name) return -1;
-  const needle = target.name.trim().toLowerCase();
-
-  const exact = sceneContext.items.findIndex(
-    (item) => item.name.trim().toLowerCase() === needle,
-  );
-  if (exact >= 0) return exact;
-
-  return sceneContext.items.findIndex((item) =>
-    item.name.trim().toLowerCase().includes(needle),
-  );
-}
-
-function getProjectContextPayload(
-  sceneContext: OpenAISceneContext,
-): ProjectContextPayload {
-  return (
-    sceneContext.project ?? {
-      canvasWidth: 0,
-      canvasHeight: 0,
-      videoWidth: 0,
-      videoHeight: 0,
-      videoLeft: 0,
-      videoTop: 0,
-      videoRight: 0,
-      videoBottom: 0,
-      videoAspectRatio: 16 / 9,
-      videoAspectLabel: "16:9",
-    }
-  );
-}
-
+/** Reads OpenAI response id from provider metadata for conversation continuity. */
 function getOpenAIResponseId(providerMetadata: unknown): string | null {
   if (!providerMetadata || typeof providerMetadata !== "object") {
     return null;
@@ -385,281 +122,106 @@ function getOpenAIResponseId(providerMetadata: unknown): string | null {
     : null;
 }
 
-function applyCommandToWorkingScene(
-  sceneContext: OpenAISceneContext,
-  command: AIEditorCommand,
-  nextGeneratedId: () => string,
-): void {
-  if (
-    command.type === "add_circle" ||
-    command.type === "add_polygon" ||
-    command.type === "add_line" ||
-    command.type === "add_rectangle" ||
-    command.type === "add_text" ||
-    command.type === "add_image"
-  ) {
-    const id = nextGeneratedId();
-    const nameByType: Record<string, string> = {
-      add_circle: "circle",
-      add_polygon: "polygon",
-      add_line: "line",
-      add_rectangle: "rectangle",
-      add_text: "text",
-      add_image: "image",
-    };
-
-    const keyframeTimes = command.keyframes
-      ?.map((keyframe) => keyframe.time)
-      .filter(Number.isFinite) ?? [0];
-
-    const item: SceneItem = {
-      id,
-      name: nameByType[command.type] ?? "item",
-      keyframeTimes,
-      current: {
-        left: 0,
-        top: 0,
-        centerX: 0,
-        centerY: 0,
-        scaleX: 1,
-        scaleY: 1,
-        opacity: 1,
-        angle: 0,
-      },
-      keyframes: {},
-    };
-
-    sceneContext.items.push(item);
-    sceneContext.selectedId = id;
-    return;
-  }
-
-  if (command.type === "delete_item") {
-    const index = resolveItemIndex(sceneContext, command.target);
-    if (index < 0) return;
-    const [removed] = sceneContext.items.splice(index, 1);
-    if (sceneContext.selectedId === removed.id) {
-      sceneContext.selectedId = null;
-    }
-    return;
-  }
-
-  if (command.type === "update_item") {
-    const index = resolveItemIndex(sceneContext, command.target);
-    if (index < 0) return;
-    const item = sceneContext.items[index];
-
-    item.current ??= {
-      left: 0,
-      top: 0,
-      centerX: 0,
-      centerY: 0,
-      scaleX: 1,
-      scaleY: 1,
-      width: 0,
-      height: 0,
-      scaledWidth: 0,
-      scaledHeight: 0,
-      bounds: {
-        left: 0,
-        top: 0,
-        right: 0,
-        bottom: 0,
-      },
-      opacity: 1,
-      angle: 0,
-    };
-
-    if (command.props) {
-      if (typeof command.props.left === "number")
-        item.current.left = command.props.left;
-      if (typeof command.props.top === "number")
-        item.current.top = command.props.top;
-      item.current.centerX = item.current.left;
-      item.current.centerY = item.current.top;
-      if (typeof command.props.scaleX === "number")
-        item.current.scaleX = command.props.scaleX;
-      if (typeof command.props.scaleY === "number")
-        item.current.scaleY = command.props.scaleY;
-      if (typeof command.props.width === "number")
-        item.current.width = command.props.width;
-      if (typeof command.props.opacity === "number")
-        item.current.opacity = command.props.opacity;
-      if (typeof command.props.angle === "number")
-        item.current.angle = command.props.angle;
-
-      const halfWidth =
-        ((item.current.scaledWidth ?? item.current.width ?? 0) || 0) / 2;
-      const halfHeight =
-        ((item.current.scaledHeight ?? item.current.height ?? 0) || 0) / 2;
-      item.current.bounds = {
-        left: item.current.centerX - halfWidth,
-        top: item.current.centerY - halfHeight,
-        right: item.current.centerX + halfWidth,
-        bottom: item.current.centerY + halfHeight,
-      };
-    }
-
-    const newTimes = (command.keyframes ?? []).map((keyframe) => keyframe.time);
-    const mergedTimes = Array.from(
-      new Set([...item.keyframeTimes, ...newTimes]),
-    ).sort((a, b) => a - b);
-
-    item.keyframeTimes = mergedTimes;
-    sceneContext.selectedId = item.id;
-  }
-}
-
-function isAddCommand(command: AIEditorCommand): boolean {
-  return (
-    command.type === "add_circle" ||
-    command.type === "add_polygon" ||
-    command.type === "add_line" ||
-    command.type === "add_rectangle" ||
-    command.type === "add_text" ||
-    command.type === "add_image"
-  );
-}
-
-function sanitizeCommand(
-  command: z.infer<typeof commandSchema>,
-): AIEditorCommand | null {
-  if (command.type === "add_circle") {
-    return {
-      type: "add_circle",
-      color: sanitizeColor(command.color),
-      keyframes: sanitizeKeyframes(command.keyframes),
-    };
-  }
-
-  if (command.type === "add_polygon") {
-    return {
-      type: "add_polygon",
-      color: sanitizeColor(command.color),
-      keyframes: sanitizeKeyframes(command.keyframes),
-    };
-  }
-
-  if (command.type === "add_line") {
-    return {
-      type: "add_line",
-      color: sanitizeColor(command.color),
-      keyframes: sanitizeKeyframes(command.keyframes),
-    };
-  }
-
-  if (command.type === "add_rectangle") {
-    return {
-      type: "add_rectangle",
-      color: sanitizeColor(command.color),
-      keyframes: sanitizeKeyframes(command.keyframes),
-    };
-  }
-
-  if (command.type === "add_text") {
-    return {
-      type: "add_text",
-      text: (command.text ?? "").trim() || "AI text",
-      color: sanitizeAccessibleTextColor(sanitizeColor(command.color)),
-      keyframes: sanitizeKeyframes(command.keyframes),
-    };
-  }
-
-  if (command.type === "add_image") {
-    const url = typeof command.url === "string" ? command.url.trim() : "";
-    const prompt =
-      typeof command.prompt === "string" ? command.prompt.trim() : "";
-
-    if (!url && !prompt) return null;
-
-    return {
-      type: "add_image",
-      ...(url ? { url } : {}),
-      ...(prompt ? { prompt } : {}),
-      keyframes: sanitizeKeyframes(command.keyframes),
-    };
-  }
-
-  if (command.type === "update_item") {
-    const target = sanitizeTarget(command.target);
-    if (!target) return null;
-
-    const props = sanitizeProps(command.props);
-    const keyframes = sanitizeKeyframes(command.keyframes);
-
-    return {
-      type: "update_item",
-      target,
-      ...(props ? { props } : {}),
-      ...(keyframes.length > 0 ? { keyframes } : {}),
-    };
-  }
-
-  if (command.type === "delete_item") {
-    const target = sanitizeTarget(command.target);
-    if (!target) return null;
-
-    return {
-      type: "delete_item",
-      target,
-    };
-  }
-
-  return null;
-}
-
-function buildAgentPrompt(
+/** Builds a compact prompt for one loop step with current context and logs. */
+function buildLoopStepPrompt(
   userPrompt: string,
   workingScene: OpenAISceneContext,
   step: number,
-  logs: AgentStepLog[],
-): string {
-  const project = getProjectContextPayload(workingScene);
-  const previousSteps = logs.length
-    ? logs.map((entry) => `- Step ${entry.step}: ${entry.result}`).join("\n")
+  latestStepLog: AgentStepLog | null,
+  latestStepToolResults: ToolResultLog[],
+) {
+  const latestStepSummary = latestStepLog
+    ? `- Step ${latestStepLog.step}: ${latestStepLog.result}`
     : "- none";
+  const latestToolResultsText =
+    latestStepToolResults.length > 0
+      ? latestStepToolResults
+          .map((entry) =>
+            JSON.stringify({
+              command: entry.command,
+              duplicateSignature: entry.duplicateSignature,
+              createdId: entry.createdId,
+              status: entry.status,
+              step: entry.step,
+              tool: entry.tool,
+            }),
+          )
+          .join("\n")
+      : "- none";
+  const project = workingScene.project;
+  const videoAnchors = project
+    ? {
+        center: {
+          x: project.videoLeft + project.videoWidth / 2,
+          y: project.videoTop + project.videoHeight / 2,
+        },
+        thirds: {
+          x1: project.videoLeft + project.videoWidth / 3,
+          x2: project.videoLeft + (project.videoWidth * 2) / 3,
+          y1: project.videoTop + project.videoHeight / 3,
+          y2: project.videoTop + (project.videoHeight * 2) / 3,
+        },
+        paddedBounds: {
+          left: project.videoLeft + 24,
+          top: project.videoTop + 24,
+          right: project.videoRight - 24,
+          bottom: project.videoBottom - 24,
+        },
+      }
+    : null;
 
   return [
-    `User request:\n${userPrompt}`,
+    `User objective:\n${userPrompt}`,
     `Current step: ${step}/${MAX_AGENT_STEPS}`,
-    "Project context JSON:",
+    `Available tool(s): ${AVAILABLE_TOOLS_PROMPT_TEXT}`,
+    "Rules:",
+    "- Use toolCalls to request execution of frontend tools.",
+    "- You may call add_circle/add_polygon/add_line/add_rectangle/add_text " +
+      "multiple times in one step.",
+    "- Each created item gets a customId. Reuse that id with update_item_by_id " +
+      "to edit properties or append keyframes.",
+    "- Do not repeat a previously executed identical tool call unless " +
+      "arguments change.",
+    "- Always base placement calculations on video area bounds, not full canvas.",
+    "- Use videoAreaReferencePoints below as the primary placement reference.",
+    "- Video area bounds are: left=videoLeft, top=videoTop, right=videoRight, bottom=videoBottom.",
+    "- Compose inside video area by default unless user explicitly requests off-frame placement.",
+    "- Fabric objects are center-anchored: left/top are center coordinates.",
+    "- Use center-origin bounds math: leftBound=centerX-scaledWidth/2, " +
+      "rightBound=centerX+scaledWidth/2, topBound=centerY-scaledHeight/2, " +
+      "bottomBound=centerY+scaledHeight/2.",
+    "- Keyframe structure: item.keyframeTimes is a flat list of timestamps; " +
+      "item.keyframes contains per-property frame arrays where each frame " +
+      "is { id, time, value }.",
+    "- Use keyframes for property-specific reasoning (left/top/scale/opacity/angle/fill/stroke), " +
+      "not just keyframeTimes.",
+    '- Return status="done" only when objective is complete.',
+    '- Return status="needs_user_input" when blocked.',
+    "Scene context JSON:",
     "```json",
-    JSON.stringify(
-      {
-        selectedId: workingScene.selectedId,
-        project,
-        videoBoundary: {
-          left: project.videoLeft,
-          top: project.videoTop,
-          right: project.videoRight,
-          bottom: project.videoBottom,
-          width: project.videoWidth,
-          height: project.videoHeight,
-        },
-        outsideVideoAreaRule:
-          "x < videoLeft || x > videoRight || y < videoTop || y > videoBottom",
-        itemBoundsRule:
-          "Objects are center-origin. bounds.left = centerX - scaledWidth/2, bounds.top = centerY - scaledHeight/2, bounds.right = centerX + scaledWidth/2, bounds.bottom = centerY + scaledHeight/2.",
-        items: workingScene.items,
-      },
-      null,
-      2,
-    ),
+    JSON.stringify(workingScene, null, 2),
     "```",
-    "Execution log so far:",
-    previousSteps,
-    "Decide next step using decision schema.",
-    "If an action is needed, return exactly one action.",
-    'If complete, return status="done".',
-    'If blocked, return status="needs_user_input" with one question.',
+    "Video area reference points JSON:",
+    "```json",
+    JSON.stringify(videoAnchors, null, 2),
+    "```",
+    "Latest step summary (incremental; earlier steps are in conversation context):",
+    latestStepSummary,
+    "Latest tool results (JSON lines; incremental):",
+    latestToolResultsText,
   ].join("\n\n");
 }
 
+/**
+ * Runs an iterative AI tool loop until done/blocked/step-limit.
+ * Tools are frontend-executable commands returned in `commands`.
+ */
 export async function generateOpenAIChatTurn(
   prompt: string,
   sceneContext: OpenAISceneContext,
   previousResponseId?: string | null,
   onStep?: (message: string) => void,
+  refreshSceneContext?: () => OpenAISceneContext | Promise<OpenAISceneContext>,
 ): Promise<OpenAIChatResult> {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
   if (!apiKey) {
@@ -669,129 +231,226 @@ export async function generateOpenAIChatTurn(
   const baseUrl =
     import.meta.env.VITE_OPENAI_BASE_URL ?? "https://api.openai.com/v1";
   const model = import.meta.env.VITE_OPENAI_MODEL ?? "gpt-5";
-  const isGpt5Model = model.toLowerCase().startsWith("gpt-5");
 
   const openai = createOpenAI({
     apiKey,
     baseURL: baseUrl,
   });
 
-  const workingScene = cloneSceneContext(sceneContext);
+  let workingScene = cloneSceneContext(sceneContext);
   const commands: AIEditorCommand[] = [];
+  const createdItemIds: string[] = [];
+  let executedCommandCount = 0;
   const logs: AgentStepLog[] = [];
-  const executionState: ToolExecutionState = {
-    hasAddedItem: false,
-  };
+  let latestStepLog: AgentStepLog | null = null;
+  let latestStepToolResults: ToolResultLog[] = [];
+  const executedToolCallSignatures = new Set<string>();
 
-  let generatedItemCounter = 0;
   const nextGeneratedId = () => {
-    generatedItemCounter += 1;
-    return `ai-item-${generatedItemCounter}`;
+    if (
+      typeof crypto !== "undefined" &&
+      typeof crypto.randomUUID === "function"
+    ) {
+      return `ai-item-${crypto.randomUUID()}`;
+    }
+    return `ai-item-${Math.random().toString(36).slice(2, 10)}`;
   };
 
   let responseId: string | null = previousResponseId ?? null;
+  let shouldSendSystemPrompt = !responseId;
 
   for (let step = 1; step <= MAX_AGENT_STEPS; step += 1) {
-    onStep?.(`Step ${step}: reading context and deciding next action...`);
-    const openaiOptions: {
-      previousResponseId?: string;
-      reasoningEffort?: "minimal";
-      textVerbosity?: "medium";
-      systemMessageMode?: "developer";
-    } = {};
-
-    if (responseId) {
-      openaiOptions.previousResponseId = responseId;
-    }
-    if (isGpt5Model) {
-      openaiOptions.reasoningEffort = "minimal";
-      openaiOptions.textVerbosity = "medium";
-      openaiOptions.systemMessageMode = "developer";
-    }
+    onStep?.(`Step ${step}: deciding tool calls...`);
 
     const result = await generateObject({
       model: openai(model),
-      system: AGENT_SYSTEM_PROMPT,
-      schema: decisionSchema,
-      prompt: buildAgentPrompt(prompt, workingScene, step, logs),
-      ...(Object.keys(openaiOptions).length > 0
-        ? { providerOptions: { openai: openaiOptions } }
+      ...(shouldSendSystemPrompt
+        ? {
+            system: AGENT_SYSTEM_PROMPT,
+          }
         : {}),
+      schema: stepDecisionSchema,
+      prompt: buildLoopStepPrompt(
+        prompt,
+        workingScene,
+        step,
+        latestStepLog,
+        latestStepToolResults,
+      ),
+      ...(responseId
+        ? {
+            providerOptions: {
+              openai: {
+                previousResponseId: responseId,
+                reasoningEffort: "minimal",
+                systemMessageMode: "developer",
+                textVerbosity: "medium",
+              },
+            },
+          }
+        : {
+            providerOptions: {
+              openai: {
+                reasoningEffort: "minimal",
+                systemMessageMode: "developer",
+                textVerbosity: "medium",
+              },
+            },
+          }),
     });
+    shouldSendSystemPrompt = false;
 
     responseId = getOpenAIResponseId(result.providerMetadata) ?? responseId;
     const decision = result.object;
 
     if (decision.status === "done") {
-      onStep?.(`Step ${step}: done.`);
+      onStep?.(`Step ${step}: objective complete.`);
+      const idFeedback =
+        createdItemIds.length > 0
+          ? `\n\nCreated item IDs: ${createdItemIds.join(", ")}`
+          : "";
       return {
-        reply: decision.message,
         commands,
+        reply: `${decision.message}${idFeedback}`,
         responseId,
       };
     }
 
     if (decision.status === "needs_user_input") {
       onStep?.(`Step ${step}: waiting for user input.`);
+      const idFeedback =
+        createdItemIds.length > 0
+          ? `\n\nCreated item IDs: ${createdItemIds.join(", ")}`
+          : "";
       return {
-        reply: decision.message,
         commands,
+        reply: `${decision.message}${idFeedback}`,
         responseId,
       };
     }
 
-    if (!decision.action) {
-      onStep?.(`Step ${step}: no action returned.`);
-      logs.push({
-        step,
-        result: "No action payload returned by model.",
-      });
+    if (decision.toolCalls.length === 0) {
+      const note = "No tool call returned.";
+      logs.push({ result: note, step });
+      onStep?.(`Step ${step}: ${note}`);
       continue;
     }
 
-    const command = sanitizeCommand(decision.action);
-    if (!command) {
-      onStep?.(`Step ${step}: invalid action payload.`);
-      logs.push({
+    const executedTools: string[] = [];
+    const currentStepToolResults: ToolResultLog[] = [];
+    for (const toolCall of decision.toolCalls) {
+      const signature = getToolCallSignature(toolCall);
+      if (executedToolCallSignatures.has(signature)) {
+        const skippedStepLog: AgentStepLog = {
+          step,
+          result: `Skipped duplicate tool call: ${signature}`,
+        };
+        logs.push(skippedStepLog);
+        latestStepLog = skippedStepLog;
+        currentStepToolResults.push({
+          duplicateSignature: signature,
+          status: "skipped",
+          step,
+          tool: toolCall.tool,
+        });
+        continue;
+      }
+
+      const command = applyToolCallToWorkingScene(
+        toolCall,
+        nextGeneratedId,
+        workingScene,
+      );
+      if (!command) continue;
+
+      emitAIEditorCommand(command);
+      executedToolCallSignatures.add(signature);
+      executedCommandCount += 1;
+      executedTools.push(toolCall.tool);
+      commands.push(command);
+      const createdId = getCreatedItemId(command);
+      if (createdId) {
+        createdItemIds.push(createdId);
+      }
+      currentStepToolResults.push({
+        command,
+        ...(createdId ? { createdId } : {}),
+        status: "executed",
         step,
-        result: "Invalid action payload.",
+        tool: toolCall.tool,
       });
-      continue;
     }
-
-    if (isAddCommand(command) && executionState.hasAddedItem) {
-      onStep?.(`Step ${step}: blocked by one-add-item-per-run rule.`);
-      logs.push({
-        step,
-        result: "Blocked: one add-item action is allowed per run.",
-      });
-      continue;
-    }
-
-    if (isAddCommand(command)) {
-      executionState.hasAddedItem = true;
-    }
-
-    applyCommandToWorkingScene(workingScene, command, nextGeneratedId);
-    commands.push(command);
-    onStep?.(`Step ${step}: executed ${command.type}.`);
-
-    logs.push({
+    emitAIStepComplete({
       step,
-      result: `Executed action: ${command.type}`,
+      toolCount: executedTools.length,
     });
+
+    if (executedTools.length === 0) {
+      const note = "Tool calls were not executable.";
+      logs.push({ result: note, step });
+      onStep?.(`Step ${step}: ${note}`);
+      continue;
+    }
+
+    if (refreshSceneContext) {
+      try {
+        const latestSceneContext = await Promise.resolve(refreshSceneContext());
+        workingScene = cloneSceneContext(latestSceneContext);
+      } catch {
+        logs.push({
+          step,
+          result: "Context refresh failed. Continuing with predicted scene.",
+        });
+      }
+    }
+
+    const summary = `Executed tools: ${executedTools.join(", ")}`;
+    const createdIdSummary =
+      createdItemIds.length > 0
+        ? ` | created IDs: ${createdItemIds.join(", ")}`
+        : "";
+
+    const stepLog: AgentStepLog = { result: `${summary}${createdIdSummary}`, step };
+    logs.push(stepLog);
+    latestStepLog = stepLog;
+    latestStepToolResults = currentStepToolResults;
+    onStep?.(`Step ${step}: ${summary}${createdIdSummary}`);
   }
 
+  const idFeedback =
+    createdItemIds.length > 0
+      ? `\n\nCreated item IDs: ${createdItemIds.join(", ")}`
+      : "";
   return {
-    reply:
-      commands.length > 0
-        ? `Reached step limit (${MAX_AGENT_STEPS}). Executed ${commands.length} action${commands.length === 1 ? "" : "s"}.`
-        : `Reached step limit (${MAX_AGENT_STEPS}) without executable action.`,
     commands,
+    reply:
+      executedCommandCount > 0
+        ? `Reached step limit (${MAX_AGENT_STEPS}). Executed ${executedCommandCount} tool call(s).${idFeedback}`
+        : `Reached step limit (${MAX_AGENT_STEPS}) without executable tools.`,
     responseId,
   };
 }
 
+/** Creates a stable signature for duplicate tool-call detection within a run. */
+function getToolCallSignature(toolCall: unknown) {
+  return JSON.stringify(toolCall);
+}
+
+/** Returns created item custom ID for add commands. */
+function getCreatedItemId(command: AIEditorCommand): string | null {
+  if (
+    command.type === "add_circle" ||
+    command.type === "add_line" ||
+    command.type === "add_polygon" ||
+    command.type === "add_rectangle" ||
+    command.type === "add_text"
+  ) {
+    return command.customId ?? null;
+  }
+  return null;
+}
+
+/** Generates an image data URL using OpenAI image API. */
 export async function generateOpenAIImageDataUrl(
   prompt: string,
 ): Promise<string> {

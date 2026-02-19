@@ -1,25 +1,21 @@
 /** Ai Chat Panel.Tsx module implementation. */
-import { useEffect, useMemo, useRef, useState } from "react";
 import { PaperPlaneIcon } from "@radix-ui/react-icons";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { useSelector } from "react-redux";
 import remarkGfm from "remark-gfm";
 import { AppScrollArea } from "../../components/app-scroll-area";
 import { SpinnerStatusRow } from "../../components/spinner-status-row";
-import type {
-  ColorKeyframe,
-  Keyframe,
-} from "../shapes/animatable-object/types";
+import { store, type RootState } from "../../store";
+import type { CanvasAppContextValue } from "../canvas/canvas-context/canvas-app-context";
+import { useCanvasAppContext } from "../canvas/hooks/use-canvas-app-context";
 import {
   AI_ACTION_STATUS_EVENT,
   AI_IMAGE_STATUS_EVENT,
-  emitAIEditorCommand,
   type AIActionStatusPayload,
   type AIImageStatusPayload,
 } from "./editor-ai-events";
-import type { RootState } from "../../store";
 import { generateOpenAIChatTurn } from "./openai-chat";
-import { useCanvasAppContext } from "../canvas/hooks/use-canvas-app-context";
+import { buildSceneItemContext } from "./scene-context";
 
 type ChatMessage = {
   id: string;
@@ -37,16 +33,6 @@ export default function AIChatPanel() {
   const [pendingImageOps, setPendingImageOps] = useState(0);
   const [lastResponseId, setLastResponseId] = useState<string | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
-  const canvasItemIds = useSelector(
-    (state: RootState) => state.editor.canvasItemIds,
-  );
-  const itemsRecord = useSelector(
-    (state: RootState) => state.editor.itemsRecord,
-  );
-  const selectedId = useSelector((state: RootState) => state.editor.selectedId);
-  const projectInfo = useSelector(
-    (state: RootState) => state.editor.projectInfo,
-  );
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: createId("m"),
@@ -124,20 +110,10 @@ export default function AIChatPanel() {
     setAgentSteps([]);
 
     try {
-      const sceneContext = {
-        selectedId,
-        project: projectInfo,
-        items: canvasItemIds.map((id) => ({
-          ...buildSceneItemContext(
-            id,
-            itemsRecord[id]?.name ?? id,
-            (itemsRecord[id]?.keyframe ?? []).map(
-              (keyframe) => keyframe.timestamp,
-            ),
-            getInstanceById(id),
-          ),
-        })),
-      };
+      const sceneContext = buildOpenAISceneContext(
+        store.getState(),
+        getInstanceById,
+      );
       const turn = await generateOpenAIChatTurn(
         prompt,
         sceneContext,
@@ -145,16 +121,16 @@ export default function AIChatPanel() {
         (stepMessage) => {
           setAgentSteps((prev) => [...prev, stepMessage]);
         },
+        () => buildOpenAISceneContext(store.getState(), getInstanceById),
       );
       setMessages((prev) => [
         ...prev,
         { id: createId("m"), role: "assistant", text: turn.reply },
       ]);
       setLastResponseId(turn.responseId);
-      if (turn.commands.length > 0) {
-        turn.commands.forEach((command) => emitAIEditorCommand(command));
-      }
     } catch (error) {
+      console.log({ error });
+
       const message = error instanceof Error ? error.message : "Unknown error.";
       setMessages((prev) => [
         ...prev,
@@ -296,122 +272,23 @@ function ChatMarkdown({ content }: ChatMarkdownProps) {
   );
 }
 
-function mapNumericFrames(frames: Keyframe[] | undefined) {
-  return (frames ?? []).map((frame) => ({
-    id: frame.id,
-    time: frame.time,
-    value: frame.value,
-  }));
-}
-
-function mapColorFrames(frames: ColorKeyframe[] | undefined) {
-  return (frames ?? []).map((frame) => ({
-    id: frame.id,
-    time: frame.time,
-    value: frame.value,
-  }));
-}
-
-function buildSceneItemContext(
-  id: string,
-  name: string,
-  keyframeTimes: number[],
-  instance?: {
-    fabricObject: {
-      get: (key: string) => unknown;
-      getScaledHeight: () => number;
-      getScaledWidth: () => number;
-      height?: number;
-      width?: number;
-    };
-    keyframes: {
-      left?: Keyframe[];
-      top?: Keyframe[];
-      scaleX?: Keyframe[];
-      scaleY?: Keyframe[];
-      opacity?: Keyframe[];
-      angle?: Keyframe[];
-    };
-    colorKeyframes: {
-      fill?: ColorKeyframe[];
-      stroke?: ColorKeyframe[];
-    };
-    getSnapshot: () => {
-      left: number;
-      top: number;
-      scaleX: number;
-      scaleY: number;
-      opacity: number;
-      angle: number;
-    };
-    getColorSnapshot: () => {
-      fill?: string;
-      stroke?: string;
-    };
-  },
+/** Builds the latest AI scene context directly from Redux state and canvas instances. */
+function buildOpenAISceneContext(
+  state: RootState,
+  getInstanceById: CanvasAppContextValue["getInstanceById"],
 ) {
-  if (!instance) {
-    return { id, name, keyframeTimes };
-  }
-
+  const { canvasItemIds, itemsRecord, projectInfo, selectedId } = state.editor;
   return {
-    id,
-    name,
-    keyframeTimes,
-    current: (() => {
-      const snapshot = instance.getSnapshot();
-      const width =
-        typeof instance.fabricObject.width === "number"
-          ? instance.fabricObject.width
-          : undefined;
-      const height =
-        typeof instance.fabricObject.height === "number"
-          ? instance.fabricObject.height
-          : undefined;
-      const scaledWidth = instance.fabricObject.getScaledWidth();
-      const scaledHeight = instance.fabricObject.getScaledHeight();
-      const halfWidth = scaledWidth / 2;
-      const halfHeight = scaledHeight / 2;
-
-      return {
-        ...snapshot,
-        centerX: snapshot.left,
-        centerY: snapshot.top,
-        width,
-        height,
-        scaledWidth,
-        scaledHeight,
-        bounds: {
-          left: snapshot.left - halfWidth,
-          top: snapshot.top - halfHeight,
-          right: snapshot.left + halfWidth,
-          bottom: snapshot.top + halfHeight,
-        },
-        ...instance.getColorSnapshot(),
-        text:
-          typeof instance.fabricObject.get("text") === "string"
-            ? String(instance.fabricObject.get("text"))
-            : undefined,
-        fontFamily:
-          typeof instance.fabricObject.get("fontFamily") === "string"
-            ? String(instance.fabricObject.get("fontFamily"))
-            : undefined,
-        fontSize:
-          typeof instance.fabricObject.get("fontSize") === "number"
-            ? Number(instance.fabricObject.get("fontSize"))
-            : undefined,
-      };
-    })(),
-    keyframes: {
-      left: mapNumericFrames(instance.keyframes.left),
-      top: mapNumericFrames(instance.keyframes.top),
-      scaleX: mapNumericFrames(instance.keyframes.scaleX),
-      scaleY: mapNumericFrames(instance.keyframes.scaleY),
-      opacity: mapNumericFrames(instance.keyframes.opacity),
-      angle: mapNumericFrames(instance.keyframes.angle),
-      fill: mapColorFrames(instance.colorKeyframes.fill),
-      stroke: mapColorFrames(instance.colorKeyframes.stroke),
-    },
+    selectedId,
+    project: projectInfo,
+    items: canvasItemIds.map((id) => ({
+      ...buildSceneItemContext(
+        id,
+        itemsRecord[id]?.name ?? id,
+        (itemsRecord[id]?.keyframe ?? []).map((keyframe) => keyframe.timestamp),
+        getInstanceById(id),
+      ),
+    })),
   };
 }
 

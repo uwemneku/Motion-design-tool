@@ -211,9 +211,13 @@ export default function TimelinePanel() {
                   </div>
                 </div>
                 <div
-                  className="relative cursor-pointer px-3 py-2"
+                  className="relative cursor-pointer px-[20px] py-2"
                   onClick={seekFromPointer}
                   title="Click to move playhead"
+                  style={{
+                    paddingLeft: KEYFRAME_SECTION_HORIZONTAL_PADDING,
+                    paddingRight: KEYFRAME_SECTION_HORIZONTAL_PADDING,
+                  }}
                 >
                   <div className="relative h-4">
                     {Array.from(

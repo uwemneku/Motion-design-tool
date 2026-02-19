@@ -39,6 +39,7 @@ import {
   type MaskHistoryEventDetail,
 } from "../util/mask-history-events";
 import { setMaskSourceForInstance } from "../util/masking-util";
+import { AI_STEP_COMPLETE_EVENT } from "../../ai/editor-ai-events";
 
 function getPropertiesForTransformAction(action?: string) {
   if (!action) return NUMERIC_ANIMATABLE_PROPERTIES;
@@ -381,7 +382,7 @@ function useFabricEditor() {
         preserveObjectStacking: true,
         selection: true,
       });
-      initAligningGuidelines(fabricRef.current, { color: 'rgb(56 189 248)' });
+      initAligningGuidelines(fabricRef.current, { color: "rgb(56 189 248)" });
 
       applyFigmaLikeControls(fabricRef.current);
 
@@ -653,14 +654,16 @@ function useFabricEditor() {
         if (canvas.getActiveObjects().includes(hoveredObject)) return;
 
         const context = canvas.getSelectionContext();
-        const viewportTransform = canvas.viewportTransform ?? [1, 0, 0, 1, 0, 0];
+        const viewportTransform = canvas.viewportTransform ?? [
+          1, 0, 0, 1, 0, 0,
+        ];
         const viewportCoords = hoveredObject
           .getCoords()
           .map((point) => util.transformPoint(point, viewportTransform));
         if (viewportCoords.length < 4) return;
 
         context.save();
-        context.strokeStyle = 'rgba(56, 189, 248, 0.9)';
+        context.strokeStyle = "rgba(56, 189, 248, 0.9)";
         context.lineWidth = 1.25;
         context.setLineDash([6, 4]);
         context.beginPath();
@@ -706,11 +709,22 @@ function useFabricEditor() {
     const canvas = fabricRef.current;
     if (!canvas) return;
 
-    instancesRef.current.forEach((instance) => {
-      instance.seek(playheadTime);
-      syncMaskProxyForObject(instance.fabricObject);
-    });
-    canvas.requestRenderAll();
+    const update = () => {
+      instancesRef.current.forEach((instance) => {
+        instance.seek(playheadTime);
+        syncMaskProxyForObject(instance.fabricObject);
+      });
+      canvas.requestRenderAll();
+    };
+    update();
+
+    window.addEventListener(AI_STEP_COMPLETE_EVENT, update as EventListener);
+    return () => {
+      window.removeEventListener(
+        AI_STEP_COMPLETE_EVENT,
+        update as EventListener,
+      );
+    };
   }, [instancesRef, playheadTime]);
 
   useEffect(() => {

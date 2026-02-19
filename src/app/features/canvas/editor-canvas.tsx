@@ -20,7 +20,16 @@ export default function EditorCanvas() {
   const dispatch = useDispatch();
 
   const activeAspectPreset = VIDEO_ASPECT_PRESETS[aspectPresetIndex];
-  useListForAiComand(fabricCanvas);
+  useListForAiComand(fabricCanvas, {
+    onSetAspectRatio: (nextAspectLabel) => {
+      const nextIndex = VIDEO_ASPECT_PRESETS.findIndex(
+        (preset) => preset.label === nextAspectLabel,
+      );
+      if (nextIndex >= 0) {
+        setAspectPresetIndex(nextIndex);
+      }
+    },
+  });
 
   useEffect(() => {
     const canvas = fabricCanvas.current;
