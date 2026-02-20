@@ -71,3 +71,19 @@ export default defineConfig([
   },
 ])
 ```
+
+## Editor UI Notes
+
+### Floating Design/Animations Menu
+
+- The `Design` / `Animations` inspector is now a floating panel on desktop (`xl` and up), positioned at the top-right of the canvas stage.
+- On smaller screens, the same panel falls back to a stacked section below the canvas.
+- The panel behavior and placement are implemented in:
+  - `src/app/features/canvas/editor-canvas.tsx`
+  - `src/app/features/canvas/canvas-side-panel/index.tsx`
+
+### Floating Tool Dock
+
+- The canvas tools are implemented as a draggable floating dock and are constrained to the canvas bounds.
+- Current dock implementation:
+  - `src/app/features/canvas/canvas-tools-fab.tsx`

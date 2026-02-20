@@ -47,6 +47,8 @@ function createVideoGuideRect(options: ConstructorParameters<typeof Rect>[0]) {
     lockMovementX: true,
     lockMovementY: true,
     objectCaching: false,
+    originX: 'left',
+    originY: 'top',
     selectable: false,
     ...options,
   });
@@ -111,6 +113,17 @@ function updateGuideObjects(
   guides.dimLeft.setCoords();
   guides.dimRight.setCoords();
   guides.border.setCoords();
+}
+
+/** Returns true when rect geometry has changed enough to require guide updates. */
+function hasRectChanged(current: VideoWorkAreaRect, next: VideoWorkAreaRect) {
+  const epsilon = 0.5;
+  return (
+    Math.abs(current.left - next.left) > epsilon ||
+    Math.abs(current.top - next.top) > epsilon ||
+    Math.abs(current.width - next.width) > epsilon ||
+    Math.abs(current.height - next.height) > epsilon
+  );
 }
 
 function bringGuidesToFront(canvas: Canvas, guides: VideoGuideSet) {
@@ -224,8 +237,22 @@ export default function VideoWorkAreaOverlay({
     };
 
     const onAfterRender = () => {
-      const rect = rectRef.current;
-      setLabelPosition(computeVideoAreaLabelPosition(canvas, rect));
+      const activeGuides = guidesRef.current;
+      if (!activeGuides) return;
+
+      const nextRect = getVideoWorkAreaRect(
+        canvas.getWidth(),
+        canvas.getHeight(),
+        aspectRatio,
+      );
+      if (hasRectChanged(rectRef.current, nextRect)) {
+        rectRef.current = nextRect;
+        updateGuideObjects(canvas, activeGuides, nextRect);
+        bringGuidesToFront(canvas, activeGuides);
+        canvas.requestRenderAll();
+      }
+
+      setLabelPosition(computeVideoAreaLabelPosition(canvas, rectRef.current));
     };
 
     updateGuidesFromCanvas();

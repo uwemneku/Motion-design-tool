@@ -82,16 +82,19 @@ export default function EditorCanvas() {
 
       <div
         data-canvas_container
-        className="flex min-h-0 flex-1 flex-col xl:flex-row"
+        className="flex min-h-0 flex-1 flex-col"
         style={{
           background:
             "repeating-linear-gradient(45deg, #262626, #262626 16px, #2c2c2c 16px, #2c2c2c 32px)",
         }}
       >
-        <div className="relative min-h-[240px] min-w-0 flex-1 overflow-hidden border border-[var(--wise-border)] bg-[var(--wise-surface)] xl:h-full">
+        <div className="relative   min-w-0 flex-1 overflow-hidden border border-[var(--wise-border)]  xl:h-full">
           <CanvasToolsFab fabricCanvas={fabricCanvas} />
-          <canvas ref={bindHost} className="h-full w-full" />
+          <div ref={bindHost} className="h-full w-full" />
           <CanvasZoomControl fabricCanvas={fabricCanvas} />
+          <div className="pointer-events-none absolute h-full right-3 top-3 z-30  max-h-[calc(100%-24px)] overflow-hidden">
+            <CanvasSidePanel />
+          </div>
           <VideoWorkAreaOverlay
             fabricCanvas={fabricCanvas}
             aspectRatio={activeAspectPreset.ratio}
@@ -107,7 +110,6 @@ export default function EditorCanvas() {
             }}
           />
         </div>
-        <CanvasSidePanel />
       </div>
 
       <TimelinePanel />

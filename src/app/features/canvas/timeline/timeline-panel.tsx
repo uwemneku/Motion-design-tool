@@ -11,7 +11,6 @@ import {
   TIMELINE_LABEL_STEP,
   TIMELINE_MAX_HEIGHT,
   TIMELINE_MIN_HEIGHT,
-  TRACK_MIN_WIDTH,
 } from "../../../../const";
 import TimelineItemRow from "./timeline-item-row";
 import TimelinePlayhead from "./timeline-playhead";
@@ -155,10 +154,7 @@ export default function TimelinePanel() {
           cornerClassName="bg-[var(--wise-surface-raised)]"
         >
           <div className="h-full w-full">
-            <div
-              className="relative h-full min-w-[1200px]"
-              style={{ minWidth: TRACK_MIN_WIDTH }}
-            >
+            <div className="relative h-full ">
               <TimelinePlayhead
                 duration={TIMELINE_DURATION}
                 keyframeSectionOffset={

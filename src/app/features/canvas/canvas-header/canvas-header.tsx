@@ -2,9 +2,12 @@
 import * as Tooltip from "@radix-ui/react-tooltip";
 import type { Canvas } from "fabric";
 import { useState, type MouseEvent, type MutableRefObject } from "react";
+import { toast } from "sonner";
 import { SliderPanelControl } from "../../../components/slider-panel-control";
+import { getVideoWorkAreaRect } from "../../export/video-work-area";
 import CanvasHistoryControls from "./canvas-history-controls";
 import useExportVideo from "../../export/use-export-video";
+import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 
 type CanvasHeaderProps = {
   fabricCanvas: MutableRefObject<Canvas | null>;
@@ -23,6 +26,7 @@ export default function CanvasHeader({
     fabricCanvas,
     activeAspectRatio,
   );
+  const { fabricCanvasRef } = useCanvasAppContext();
 
   return (
     <Tooltip.Provider>
@@ -30,7 +34,20 @@ export default function CanvasHeader({
         className="flex items-center border-b border-[var(--wise-border)] bg-[var(--wise-surface-raised)] px-2.5 py-2"
         data-testId="header"
       >
-        <div className="text-xs font-semibold uppercase tracking-wide text-[#a7a7a7]">
+        <div
+          className="text-xs font-semibold uppercase tracking-wide text-[#a7a7a7]"
+          onClick={() => {
+            const canvas = fabricCanvasRef.current;
+            canvas?.toCanvasElement(2).toBlob((blob) => {
+              if (!blob) {
+                toast.error("Failed to capture canvas screenshot.");
+                return;
+              }
+              const url = URL.createObjectURL(blob);
+              window.open(url, "_blank", "noopener,noreferrer");
+            });
+          }}
+        >
           Motion Editor
         </div>
 
@@ -84,4 +101,64 @@ export default function CanvasHeader({
 /** Prevents focus changes while pressing toolbar action buttons. */
 function preventMouseDownFocus(event: MouseEvent<HTMLButtonElement>) {
   event.preventDefault();
+}
+
+type FabricCanvasScreenshotHost = Canvas & {
+  contextContainer?: CanvasRenderingContext2D;
+  lowerCanvasEl?: HTMLCanvasElement;
+};
+
+/** Captures a screenshot clipped to the video work area with a safe fallback path. */
+function captureCanvasScreenshot(canvas: Canvas, activeAspectRatio: number) {
+  const videoArea = getVideoWorkAreaRect(
+    canvas.getWidth(),
+    canvas.getHeight(),
+    activeAspectRatio,
+  );
+  const screenshotOptions = {
+    format: "png" as const,
+    quality: 1,
+    multiplier: 2,
+    left: videoArea.left,
+    top: videoArea.top,
+    width: videoArea.width,
+    height: videoArea.height,
+  };
+
+  const host = canvas as FabricCanvasScreenshotHost;
+  if (host.contextContainer) {
+    return canvas.toDataURL(screenshotOptions);
+  }
+
+  const source = host.lowerCanvasEl;
+  if (!source) {
+    throw new Error("Fabric canvas surface is not available.");
+  }
+
+  const output = document.createElement("canvas");
+  output.width = Math.max(
+    2,
+    Math.round(videoArea.width * screenshotOptions.multiplier),
+  );
+  output.height = Math.max(
+    2,
+    Math.round(videoArea.height * screenshotOptions.multiplier),
+  );
+  const context = output.getContext("2d");
+  if (!context) {
+    throw new Error("Could not initialize screenshot context.");
+  }
+
+  context.drawImage(
+    source,
+    videoArea.left,
+    videoArea.top,
+    videoArea.width,
+    videoArea.height,
+    0,
+    0,
+    output.width,
+    output.height,
+  );
+  return output.toDataURL("image/png", screenshotOptions.quality);
 }

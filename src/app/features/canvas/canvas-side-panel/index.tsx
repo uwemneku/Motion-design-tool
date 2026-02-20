@@ -25,8 +25,8 @@ export default function CanvasSidePanel() {
   }, [selectedItem]);
 
   return (
-    <aside className="flex max-h-[34vh] w-full shrink-0 flex-col overflow-hidden border-t border-[var(--wise-border)] bg-[var(--wise-surface-raised)]/95 xl:h-full xl:max-h-none xl:w-72 xl:border-t-0 xl:border-l">
-      <div className="flex border-b border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 pt-2">
+    <aside className="pointer-events-auto flex h-full max-h-full  shrink-0 flex-col overflow-hidden border-t   w-[320px] xl:rounded-2xl xl:border border-[rgba(255,255,255,0.14)] bg-[rgba(12,12,15,0.9)] shadow-[0_18px_40px_rgba(0,0,0,0.42)] backdrop-blur">
+      <div className="flex border-b border-(--wise-border) bg-(--wise-surface)/90 px-2 pt-2">
         <button
           type="button"
           onClick={() => {
@@ -55,7 +55,10 @@ export default function CanvasSidePanel() {
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-2.5 xl:p-3">
+      <div
+        className="min-h-0 flex-1 overflow-y-auto p-2.5 xl:p-3"
+        data-container
+      >
         <div className="space-y-4">
           {activeTab === "design" ? (
             <CanvasSidePanelDesign />

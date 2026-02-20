@@ -18,7 +18,6 @@ import {
   applyFigmaLikeControls,
   syncObjectControlBorderScale,
 } from "../util/fabric-controls";
-import { initAligningGuidelines } from "fabric/extensions";
 import { useCanvasAppContext } from "./use-canvas-app-context";
 import { AnimatableObject } from "../../shapes/animatable-object/object";
 import type { AnimatableProperties } from "../../shapes/animatable-object/types";
@@ -40,6 +39,22 @@ import {
 } from "../util/mask-history-events";
 import { setMaskSourceForInstance } from "../util/masking-util";
 import { AI_STEP_COMPLETE_EVENT } from "../../ai/editor-ai-events";
+
+/** Returns stable pixel dimensions derived from the canvas host container. */
+function getHostContainerSize(container: HTMLDivElement) {
+  return {
+    height: Math.max(1, Math.round(container.clientHeight)),
+    width: Math.max(1, Math.round(container.clientWidth)),
+  };
+}
+
+/** Syncs Fabric canvas dimensions to its host container dimensions. */
+function syncCanvasSizeToContainer(canvas: Canvas, container: HTMLDivElement) {
+  const { height, width } = getHostContainerSize(container);
+  if (canvas.getWidth() === width && canvas.getHeight() === height) return;
+  canvas.setDimensions({ height, width });
+  canvas.requestRenderAll();
+}
 
 function getPropertiesForTransformAction(action?: string) {
   if (!action) return NUMERIC_ANIMATABLE_PROPERTIES;
@@ -141,8 +156,12 @@ function syncMaskProxyForObject(object: FabricObject) {
 
 function useFabricEditor() {
   const fabricRef = useRef<Canvas | null>(null);
+  const hostCanvasElementRef = useRef<HTMLCanvasElement | null>(null);
+  const hostElementRef = useRef<HTMLDivElement | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const dispatch = useDispatch<AppDispatch>();
   const {
+    setFabricCanvasInstance,
     instancesRef,
     getInstanceById,
     unregisterInstance,
@@ -368,39 +387,51 @@ function useFabricEditor() {
   }, [getInstanceById]);
 
   const bindHost = useCallback(
-    (node: HTMLCanvasElement | null) => {
-      if (!node || fabricRef.current) return;
+    (node: HTMLDivElement | null) => {
+      if (!node) {
+        hostElementRef.current = null;
+        return;
+      }
+      if (fabricRef.current) return;
       let isPanning = false;
       let lastPanX = 0;
       let lastPanY = 0;
       const transformActionById = new Map<string, string>();
+      const canvasElement = document.createElement("canvas");
+      canvasElement.className = "h-full w-full";
+      node.replaceChildren(canvasElement);
+      hostElementRef.current = node;
+      hostCanvasElementRef.current = canvasElement;
 
-      fabricRef.current = new Canvas(node, {
-        width: node.clientWidth,
-        height: node.clientHeight,
+      const { height, width } = getHostContainerSize(node);
+      const _canvas = new Canvas(canvasElement, {
+        width,
+        height,
         backgroundColor: "transparent",
         preserveObjectStacking: true,
         selection: true,
+        subTargetCheck: true,
       });
-      initAligningGuidelines(fabricRef.current, { color: "rgb(56 189 248)" });
+      fabricRef.current = _canvas;
+      setFabricCanvasInstance(_canvas);
 
-      applyFigmaLikeControls(fabricRef.current);
+      applyFigmaLikeControls(_canvas);
 
-      fabricRef.current.on("selection:created", (event) => {
+      _canvas.on("selection:created", (event) => {
         const customId = event.selected?.[0]?.customId ?? null;
         dispatch(setSelectedId(customId));
       });
 
-      fabricRef.current.on("selection:updated", (event) => {
+      _canvas.on("selection:updated", (event) => {
         const customId = event.selected?.[0]?.customId ?? null;
         dispatch(setSelectedId(customId));
       });
 
-      fabricRef.current.on("selection:cleared", () => {
+      _canvas.on("selection:cleared", () => {
         dispatch(setSelectedId(null));
       });
 
-      fabricRef.current.on("object:modified", ({ target }) => {
+      _canvas.on("object:modified", ({ target }) => {
         const customId = target?.customId;
         if (!customId) return;
 
@@ -519,7 +550,7 @@ function useFabricEditor() {
         });
       });
 
-      fabricRef.current.on("before:transform", ({ transform }) => {
+      _canvas.on("before:transform", ({ transform }) => {
         const customId = transform?.target?.customId;
         const action = transform?.action;
         if (!customId || !action) return;
@@ -538,7 +569,7 @@ function useFabricEditor() {
         });
       });
 
-      fabricRef.current.on("object:added", ({ target }) => {
+      _canvas.on("object:added", ({ target }) => {
         if (isHistoryReplayRef.current || !target?.customId) return;
         const customId = target.customId;
         const snapshot = buildItemMutationSnapshot(customId);
@@ -557,7 +588,7 @@ function useFabricEditor() {
         });
       });
 
-      fabricRef.current.on("object:removed", ({ target }) => {
+      _canvas.on("object:removed", ({ target }) => {
         if (isHistoryReplayRef.current || !target?.customId) return;
         const customId = target.customId;
         const snapshot = buildItemMutationSnapshot(customId);
@@ -576,7 +607,7 @@ function useFabricEditor() {
         });
       });
 
-      fabricRef.current.on("mouse:wheel", (event) => {
+      _canvas.on("mouse:wheel", (event) => {
         const wheelEvent = event.e as WheelEvent;
         const canvas = fabricRef.current;
         if (!canvas) return;
@@ -599,7 +630,7 @@ function useFabricEditor() {
         wheelEvent.stopPropagation();
       });
 
-      fabricRef.current.on("mouse:down", (event) => {
+      _canvas.on("mouse:down", (event) => {
         const pointerEvent = event.e as MouseEvent;
         const shouldStartPan = pointerEvent.altKey || pointerEvent.button === 1;
         if (!shouldStartPan) return;
@@ -611,7 +642,7 @@ function useFabricEditor() {
         fabricRef.current!.defaultCursor = "grabbing";
       });
 
-      fabricRef.current.on("mouse:move", (event) => {
+      _canvas.on("mouse:move", (event) => {
         if (!isPanning) return;
         const pointerEvent = event.e as MouseEvent;
         const canvas = fabricRef.current;
@@ -625,7 +656,7 @@ function useFabricEditor() {
         lastPanY = pointerEvent.clientY;
       });
 
-      fabricRef.current.on("mouse:up", () => {
+      _canvas.on("mouse:up", () => {
         if (!isPanning) return;
         isPanning = false;
         if (!fabricRef.current) return;
@@ -633,20 +664,20 @@ function useFabricEditor() {
         fabricRef.current.defaultCursor = "default";
       });
 
-      fabricRef.current.on("mouse:over", (event) => {
+      _canvas.on("mouse:over", (event) => {
         const nextHovered = event.target ?? null;
         if (hoveredObjectRef.current === nextHovered) return;
         hoveredObjectRef.current = nextHovered;
         fabricRef.current?.requestRenderAll();
       });
 
-      fabricRef.current.on("mouse:out", () => {
+      _canvas.on("mouse:out", () => {
         if (!hoveredObjectRef.current) return;
         hoveredObjectRef.current = null;
         fabricRef.current?.requestRenderAll();
       });
 
-      fabricRef.current.on("after:render", () => {
+      _canvas.on("after:render", () => {
         const canvas = fabricRef.current;
         const hoveredObject = hoveredObjectRef.current;
         if (!canvas || !hoveredObject || hoveredObject.canvas !== canvas)
@@ -676,8 +707,17 @@ function useFabricEditor() {
         context.stroke();
         context.restore();
       });
+
+      const resizeObserver = new ResizeObserver(() => {
+        const canvas = fabricRef.current;
+        const host = hostElementRef.current;
+        if (!canvas || !host) return;
+        syncCanvasSizeToContainer(canvas, host);
+      });
+      resizeObserver.observe(node);
+      resizeObserverRef.current = resizeObserver;
     },
-    [dispatch, getInstanceById],
+    [dispatch, getInstanceById, setFabricCanvasInstance],
   );
 
   useEffect(() => {
@@ -791,12 +831,29 @@ function useFabricEditor() {
   }, [dispatch, unregisterInstance]);
 
   useEffect(() => {
+    if (!fabricRef.current) return;
+    // const f = initAligningGuidelines(fabricRef.current, {
+    //   color: "rgb(56 189 248)",
+    // });
+
     return () => {
+      resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = null;
       fabricRef.current?.dispose();
       fabricRef.current = null;
+      setFabricCanvasInstance(null);
+      if (
+        hostElementRef.current &&
+        hostCanvasElementRef.current &&
+        hostCanvasElementRef.current.parentElement === hostElementRef.current
+      ) {
+        hostElementRef.current.removeChild(hostCanvasElementRef.current);
+      }
+      hostCanvasElementRef.current = null;
+      hostElementRef.current = null;
       clearInstances();
     };
-  }, [clearInstances]);
+  }, [clearInstances, setFabricCanvasInstance]);
 
   return { bindHost, fabricCanvas: fabricRef };
 }

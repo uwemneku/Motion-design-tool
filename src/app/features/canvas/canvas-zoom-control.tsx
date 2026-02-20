@@ -24,9 +24,9 @@ export default function CanvasZoomControl({
     };
 
     syncZoom();
-    canvas.on("after:render", syncZoom);
+    // canvas.on("after:render", syncZoom);
     return () => {
-      canvas.off("after:render", syncZoom);
+      // canvas.off("after:render", syncZoom);
     };
   }, [fabricCanvas]);
 
@@ -36,6 +36,9 @@ export default function CanvasZoomControl({
     canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
     syncObjectControlBorderScale(canvas);
     canvas.requestRenderAll();
+    canvas.toDataURL({
+      multiplier: 1,
+    });
   };
 
   return (
