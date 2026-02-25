@@ -170,10 +170,10 @@ function applyStrokeUniformRecursively(object: FabricObject) {
 export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
   const dispatch = useDispatch<AppDispatch>();
   const {
-    getInstanceById,
+    getObjectById: getInstanceById,
     instancesRef,
-    registerInstance,
-    unregisterInstance,
+    addCanvasObject: registerInstance,
+    deleteCanvasObject: unregisterInstance,
   } = useCanvasAppContext();
   const placeholderCleanupByIdRef = useRef<Map<string, () => void>>(new Map());
 
@@ -185,7 +185,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     const canvas = fabricCanvas.current;
     if (!canvas) return null;
     const playheadTime = dispatch(
-      dispatchableSelector((state) => state.editor.playheadTime),
+      dispatchableSelector((state) => state.editor.playHeadTime),
     );
 
     const customId = options.customId ?? createUniqueId(typeName);
@@ -687,7 +687,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     const timelineMarkers = [...itemRecord.keyframe];
     const object = instance.fabricObject;
     const playheadTime = dispatch(
-      dispatchableSelector((state) => state.editor.playheadTime),
+      dispatchableSelector((state) => state.editor.playHeadTime),
     );
 
     const pushMarkerIfNeeded = (timestamp: number) => {

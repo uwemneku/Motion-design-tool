@@ -1,44 +1,24 @@
 /** Canvas Zoom Control.Tsx module implementation. */
-import { useEffect, useState } from "react";
-import type { MutableRefObject } from "react";
-import type { Canvas } from "fabric";
 import { syncObjectControlBorderScale } from "./util/fabric-controls";
-
-type CanvasZoomControlProps = {
-  fabricCanvas: MutableRefObject<Canvas | null>;
-};
+import { useCanvasAppContext } from "./hooks/use-canvas-app-context";
+import { useAppDispatch, useAppSelector } from "../../store";
+import { setProjectInfo } from "../../store/editor-slice";
 
 /** Floating zoom badge that also resets canvas zoom on click. */
-export default function CanvasZoomControl({
-  fabricCanvas,
-}: CanvasZoomControlProps) {
-  const [canvasZoom, setCanvasZoom] = useState(1);
-
-  useEffect(() => {
-    const canvas = fabricCanvas.current;
-    if (!canvas) return;
-
-    const syncZoom = () => {
-      const zoom = canvas.getZoom();
-      setCanvasZoom((prev) => (Math.abs(prev - zoom) < 0.0001 ? prev : zoom));
-    };
-
-    syncZoom();
-    // canvas.on("after:render", syncZoom);
-    return () => {
-      // canvas.off("after:render", syncZoom);
-    };
-  }, [fabricCanvas]);
+export default function CanvasZoomControl() {
+  const { fabricCanvasRef } = useCanvasAppContext();
+  const canvasZoom = useAppSelector(
+    (state) => state.editor.projectInfo.canvasZoom ?? 1,
+  );
+  const dispatch = useAppDispatch();
 
   const resetZoom = () => {
-    const canvas = fabricCanvas.current;
+    const canvas = fabricCanvasRef.current;
     if (!canvas) return;
     canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
     syncObjectControlBorderScale(canvas);
     canvas.requestRenderAll();
-    canvas.toDataURL({
-      multiplier: 1,
-    });
+    dispatch(setProjectInfo({ canvasZoom: 1 }));
   };
 
   return (

@@ -40,8 +40,11 @@ export default function CanvasSidePanelAnimations({
     selectedId ? state.editor.itemsRecord[selectedId] : null,
   );
   const isTextSelected = selectedItem?.name.trim().toLowerCase() === "text";
-  const { getInstanceById, registerInstance, unregisterInstance } =
-    useCanvasAppContext();
+  const {
+    getObjectById: getInstanceById,
+    addCanvasObject: registerInstance,
+    deleteCanvasObject: unregisterInstance,
+  } = useCanvasAppContext();
 
   const applyAnimationTemplate = (
     template: (typeof animationTemplates)[number],
@@ -69,7 +72,7 @@ export default function CanvasSidePanelAnimations({
     }
 
     const startTime = dispatch(
-      dispatchableSelector((state) => state.editor.playheadTime),
+      dispatchableSelector((state) => state.editor.playHeadTime),
     );
     const endTime = startTime + template.duration;
     const keyframeTimes = [startTime, endTime];
@@ -150,7 +153,7 @@ export default function CanvasSidePanelAnimations({
     if (!instance) return;
 
     const startTime = dispatch(
-      dispatchableSelector((state) => state.editor.playheadTime),
+      dispatchableSelector((state) => state.editor.playHeadTime),
     );
 
     if (template.id === "text_chars_rise") {

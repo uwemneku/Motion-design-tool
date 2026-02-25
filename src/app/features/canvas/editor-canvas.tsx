@@ -1,84 +1,20 @@
 /** Editor Canvas.Tsx module implementation. */
-import { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
-import { setProjectInfo } from "../../store/editor-slice";
-import { getVideoWorkAreaRect } from "../export/video-work-area";
 import CanvasHeader from "./canvas-header/canvas-header";
 import CanvasSidePanel from "./canvas-side-panel";
 import CanvasToolsFab from "./canvas-tools-fab";
 import CanvasZoomControl from "./canvas-zoom-control";
 import TimelinePanel from "./timeline/timeline-panel";
-import { useListForAiComand } from "./hooks/use-list-for-ai-comand";
-import useFabricEditor from "./hooks/use-fabric-editor";
 import VideoWorkAreaOverlay from "./video-work-area-overlay";
-import { VIDEO_ASPECT_PRESETS } from "../../../const";
+import { useCanvasAppContext } from "./hooks/use-canvas-app-context";
+import { SeekObjects } from "./hooks/use-seek-objects";
 
 /** Main editor surface that composes canvas, side panel, and timeline. */
 export default function EditorCanvas() {
-  const { bindHost, fabricCanvas } = useFabricEditor();
-  const [aspectPresetIndex, setAspectPresetIndex] = useState(0);
-  const dispatch = useDispatch();
-
-  const activeAspectPreset = VIDEO_ASPECT_PRESETS[aspectPresetIndex];
-  useListForAiComand(fabricCanvas, {
-    onSetAspectRatio: (nextAspectLabel) => {
-      const nextIndex = VIDEO_ASPECT_PRESETS.findIndex(
-        (preset) => preset.label === nextAspectLabel,
-      );
-      if (nextIndex >= 0) {
-        setAspectPresetIndex(nextIndex);
-      }
-    },
-  });
-
-  useEffect(() => {
-    const canvas = fabricCanvas.current;
-    if (!canvas) return;
-
-    const updateProjectInfoFromCanvas = () => {
-      const canvasWidth = canvas.getWidth();
-      const canvasHeight = canvas.getHeight();
-      const videoRect = getVideoWorkAreaRect(
-        canvasWidth,
-        canvasHeight,
-        activeAspectPreset.ratio,
-      );
-
-      dispatch(
-        setProjectInfo({
-          canvasWidth,
-          canvasHeight,
-          videoWidth: Math.round(videoRect.width),
-          videoHeight: Math.round(videoRect.height),
-          videoLeft: Math.round(videoRect.left),
-          videoTop: Math.round(videoRect.top),
-          videoRight: Math.round(videoRect.left + videoRect.width),
-          videoBottom: Math.round(videoRect.top + videoRect.height),
-          videoAspectRatio: activeAspectPreset.ratio,
-          videoAspectLabel: activeAspectPreset.label,
-        }),
-      );
-    };
-
-    updateProjectInfoFromCanvas();
-    window.addEventListener("resize", updateProjectInfoFromCanvas);
-
-    return () => {
-      window.removeEventListener("resize", updateProjectInfoFromCanvas);
-    };
-  }, [
-    activeAspectPreset.label,
-    activeAspectPreset.ratio,
-    dispatch,
-    fabricCanvas,
-  ]);
+  const { bindHost } = useCanvasAppContext();
 
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden border border-[var(--wise-border)] bg-[var(--wise-surface-raised)] ">
-      <CanvasHeader
-        fabricCanvas={fabricCanvas}
-        activeAspectRatio={activeAspectPreset.ratio}
-      />
+      <CanvasHeader />
 
       <div
         data-canvas_container
@@ -89,30 +25,20 @@ export default function EditorCanvas() {
         }}
       >
         <div className="relative   min-w-0 flex-1 overflow-hidden border border-[var(--wise-border)]  xl:h-full">
-          <CanvasToolsFab fabricCanvas={fabricCanvas} />
-          <div ref={bindHost} className="h-full w-full" />
-          <CanvasZoomControl fabricCanvas={fabricCanvas} />
+          <CanvasToolsFab />
+          <div className="h-full w-full">
+            <canvas className="h-full w-full" ref={bindHost}></canvas>
+          </div>
+          <CanvasZoomControl />
           <div className="pointer-events-none absolute h-full right-3 top-3 z-30  max-h-[calc(100%-24px)] overflow-hidden">
             <CanvasSidePanel />
           </div>
-          <VideoWorkAreaOverlay
-            fabricCanvas={fabricCanvas}
-            aspectRatio={activeAspectPreset.ratio}
-            aspectLabel={activeAspectPreset.label}
-            aspectOptions={VIDEO_ASPECT_PRESETS}
-            onSelectAspectRatio={(nextRatio) => {
-              const nextIndex = VIDEO_ASPECT_PRESETS.findIndex(
-                (preset) => Math.abs(preset.ratio - nextRatio) < 0.0001,
-              );
-              if (nextIndex >= 0) {
-                setAspectPresetIndex(nextIndex);
-              }
-            }}
-          />
+          <VideoWorkAreaOverlay />
         </div>
       </div>
 
       <TimelinePanel />
+      <SeekObjects />
     </section>
   );
 }

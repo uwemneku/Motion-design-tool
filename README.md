@@ -1,89 +1,63 @@
-# React + TypeScript + Vite
+# NewMotion
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Motion editor built with React, TypeScript, Fabric.js, Redux Toolkit, and MediaBunny.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- React + Vite + TypeScript
+- Fabric.js (canvas editing)
+- Redux Toolkit (editor/timeline/history state)
+- Tailwind CSS (UI styling)
+- MediaBunny (video export)
+- OpenAI integrations for scene automation
 
-## React Compiler
+## Requirements
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Node.js 22
+- pnpm
 
-## Expanding the ESLint configuration
+## Setup
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+nvm use 22
+pnpm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Run
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm dev
 ```
 
-## Editor UI Notes
+Open the URL printed by Vite.
 
-### Floating Design/Animations Menu
+## Scripts
 
-- The `Design` / `Animations` inspector is now a floating panel on desktop (`xl` and up), positioned at the top-right of the canvas stage.
-- On smaller screens, the same panel falls back to a stacked section below the canvas.
-- The panel behavior and placement are implemented in:
-  - `src/app/features/canvas/editor-canvas.tsx`
-  - `src/app/features/canvas/canvas-side-panel/index.tsx`
+- `pnpm dev` - start dev server
+- `pnpm build` - typecheck + production build
+- `pnpm typecheck` - TypeScript project build checks
+- `pnpm typecheck:watch` - watch-mode typecheck
+- `pnpm lint` - ESLint
+- `pnpm preview` - preview production build
 
-### Floating Tool Dock
+## Project Structure
 
-- The canvas tools are implemented as a draggable floating dock and are constrained to the canvas bounds.
-- Current dock implementation:
-  - `src/app/features/canvas/canvas-tools-fab.tsx`
+- `src/app/layout` - app shell layout
+- `src/app/features/canvas` - editor canvas, tools, side panel, timeline, overlays
+- `src/app/features/export` - export pipeline
+- `src/app/features/ai` - AI chat and tool-call orchestration
+- `src/app/store` - Redux store and slices
+- `src/const.ts` - shared app constants and prompts
+
+## Core UI Behavior
+
+- Canvas tools are floating and draggable.
+- Design/Animations panel is floating on desktop and stacked on smaller screens.
+- Timeline supports play/pause, draggable playhead, keyframe rows, and resize.
+- Video work area overlay marks the visible export region.
+
+## Notes
+
+- Fabric instance ownership lives in canvas context/hooks.
+- Business logic should be kept in hooks/util files under `src/app/features/**`.
+- Follow rules in `AGENTS.md` for formatting and architecture conventions.

@@ -1,12 +1,10 @@
-/** Canvas Items List.Tsx module implementation. */
 import { Reorder } from "framer-motion";
 import { useDispatch, useSelector } from "react-redux";
-import type { AppDispatch, RootState } from "../../../store";
-import { setCanvasItemIds } from "../../../store/editor-slice";
-import { CanvasItemsListItem } from "./canvas-items-list-item";
-import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
+import type { AppDispatch, RootState } from "../../store";
+import { setCanvasItemIds } from "../../store/editor-slice";
+import { CanvasItemsListItem } from "./items-list/canvas-items-list-item";
+import { useCanvasAppContext } from "./hooks/use-canvas-app-context";
 
-/** Reorderable list of canvas items shown from top-most to bottom-most. */
 export default function CanvasItemsList() {
   const dispatch = useDispatch<AppDispatch>();
   const { getObjectById: getInstanceById } = useCanvasAppContext();

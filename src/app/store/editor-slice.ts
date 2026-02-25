@@ -20,10 +20,11 @@ export type EditorProjectInfo = {
   videoBottom: number;
   videoAspectRatio: number;
   videoAspectLabel: string;
+  canvasZoom?: number;
 };
 
 export type EditorState = {
-  playheadTime: number;
+  playHeadTime: number;
   isPaused: boolean;
   canvasItemIds: string[];
   itemsRecord: Record<string, EditorItemRecord>;
@@ -38,7 +39,7 @@ export type EditorState = {
 };
 
 const initialState: EditorState = {
-  playheadTime: 0,
+  playHeadTime: 0,
   isPaused: true,
   canvasItemIds: [],
   itemsRecord: {},
@@ -55,6 +56,7 @@ const initialState: EditorState = {
     videoBottom: 0,
     videoAspectRatio: 16 / 9,
     videoAspectLabel: "16:9",
+    canvasZoom: 1,
   },
 };
 
@@ -63,7 +65,7 @@ const editorSlice = createSlice({
   initialState,
   reducers: {
     setPlayheadTime(state, action: PayloadAction<number>) {
-      state.playheadTime = action.payload;
+      state.playHeadTime = action.payload;
     },
     setIsPaused(state, action: PayloadAction<boolean>) {
       state.isPaused = action.payload;
@@ -81,7 +83,9 @@ const editorSlice = createSlice({
       };
     },
     removeCanvasItemId(state, action: PayloadAction<string>) {
-      state.canvasItemIds = state.canvasItemIds.filter((id) => id !== action.payload);
+      state.canvasItemIds = state.canvasItemIds.filter(
+        (id) => id !== action.payload,
+      );
       delete state.itemsRecord[action.payload];
       if (state.selectedId === action.payload) {
         state.selectedId = null;
@@ -113,7 +117,9 @@ const editorSlice = createSlice({
     },
     removeItemRecord(state, action: PayloadAction<string>) {
       delete state.itemsRecord[action.payload];
-      state.canvasItemIds = state.canvasItemIds.filter((id) => id !== action.payload);
+      state.canvasItemIds = state.canvasItemIds.filter(
+        (id) => id !== action.payload,
+      );
       if (state.selectedId === action.payload) {
         state.selectedId = null;
       }
@@ -132,19 +138,17 @@ const editorSlice = createSlice({
     },
     setSelectedKeyframe(
       state,
-      action: PayloadAction<
-        {
-          itemId: string;
-          keyframeId: string;
-          property: string;
-          timestamp: number;
-        } | null
-      >,
+      action: PayloadAction<{
+        itemId: string;
+        keyframeId: string;
+        property: string;
+        timestamp: number;
+      } | null>,
     ) {
       state.selectedKeyframe = action.payload;
     },
-    setProjectInfo(state, action: PayloadAction<EditorProjectInfo>) {
-      state.projectInfo = action.payload;
+    setProjectInfo(state, action: PayloadAction<Partial<EditorProjectInfo>>) {
+      state.projectInfo = { ...state.projectInfo, ...action.payload };
     },
   },
 });

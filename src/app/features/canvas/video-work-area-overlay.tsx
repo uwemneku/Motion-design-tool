@@ -1,172 +1,27 @@
 /** Video Work Area Overlay.Tsx module implementation. */
-import { Point, Rect, util, type Canvas, type FabricObject } from 'fabric';
-import { useEffect, useRef, useState } from 'react';
-import type { MutableRefObject } from 'react';
-import { FIGMA_BLUE } from '../../../const';
+import { type FabricObject } from "fabric";
+import { useEffect, useRef, useState } from "react";
+import { VIDEO_ASPECT_PRESETS } from "../../../const";
 import {
   getVideoWorkAreaRect,
   type VideoWorkAreaRect,
-} from '../export/video-work-area';
-
-type AspectOption = {
-  label: string;
-  ratio: number;
-};
-
-type VideoWorkAreaOverlayProps = {
-  fabricCanvas: MutableRefObject<Canvas | null>;
-  aspectRatio: number;
-  aspectLabel: string;
-  aspectOptions: AspectOption[];
-  onSelectAspectRatio: (nextRatio: number) => void;
-};
-
-type VideoGuideObject = FabricObject & {
-  isVideoAreaGuide?: boolean;
-};
-
-type VideoGuideSet = {
-  border: Rect;
-  dimBottom: Rect;
-  dimLeft: Rect;
-  dimRight: Rect;
-  dimTop: Rect;
-};
-
-function isVideoGuideObject(object?: FabricObject | null): object is VideoGuideObject {
-  return Boolean((object as VideoGuideObject | null)?.isVideoAreaGuide);
-}
-
-function createVideoGuideRect(options: ConstructorParameters<typeof Rect>[0]) {
-  const rect = new Rect({
-    evented: false,
-    excludeFromExport: true,
-    hasBorders: false,
-    hasControls: false,
-    hoverCursor: 'default',
-    lockMovementX: true,
-    lockMovementY: true,
-    objectCaching: false,
-    originX: 'left',
-    originY: 'top',
-    selectable: false,
-    ...options,
-  });
-  (rect as VideoGuideObject).isVideoAreaGuide = true;
-  rect.set('isVideoAreaGuide', true);
-  return rect;
-}
-
-function computeVideoAreaLabelPosition(
-  canvas: Canvas,
-  rect: VideoWorkAreaRect,
-) {
-  const transform = canvas.viewportTransform ?? [1, 0, 0, 1, 0, 0];
-  const topLeft = util.transformPoint(new Point(rect.left, rect.top), transform);
-  return {
-    left: topLeft.x,
-    top: topLeft.y - 24,
-  };
-}
-
-function updateGuideObjects(
-  canvas: Canvas,
-  guides: VideoGuideSet,
-  rect: VideoWorkAreaRect,
-) {
-  const canvasWidth = canvas.getWidth();
-  const canvasHeight = canvas.getHeight();
-
-  guides.dimTop.set({
-    height: Math.max(0, rect.top),
-    left: 0,
-    top: 0,
-    width: canvasWidth,
-  });
-  guides.dimBottom.set({
-    height: Math.max(0, canvasHeight - (rect.top + rect.height)),
-    left: 0,
-    top: rect.top + rect.height,
-    width: canvasWidth,
-  });
-  guides.dimLeft.set({
-    height: rect.height,
-    left: 0,
-    top: rect.top,
-    width: Math.max(0, rect.left),
-  });
-  guides.dimRight.set({
-    height: rect.height,
-    left: rect.left + rect.width,
-    top: rect.top,
-    width: Math.max(0, canvasWidth - (rect.left + rect.width)),
-  });
-  guides.border.set({
-    height: rect.height,
-    left: rect.left,
-    top: rect.top,
-    width: rect.width,
-  });
-
-  guides.dimTop.setCoords();
-  guides.dimBottom.setCoords();
-  guides.dimLeft.setCoords();
-  guides.dimRight.setCoords();
-  guides.border.setCoords();
-}
-
-/** Returns true when rect geometry has changed enough to require guide updates. */
-function hasRectChanged(current: VideoWorkAreaRect, next: VideoWorkAreaRect) {
-  const epsilon = 0.5;
-  return (
-    Math.abs(current.left - next.left) > epsilon ||
-    Math.abs(current.top - next.top) > epsilon ||
-    Math.abs(current.width - next.width) > epsilon ||
-    Math.abs(current.height - next.height) > epsilon
-  );
-}
-
-function bringGuidesToFront(canvas: Canvas, guides: VideoGuideSet) {
-  const bringObjectToFront = (
-    canvas as unknown as {
-      bringObjectToFront?: (object: FabricObject) => void;
-    }
-  ).bringObjectToFront;
-
-  if (typeof bringObjectToFront === 'function') {
-    bringObjectToFront.call(canvas, guides.dimTop);
-    bringObjectToFront.call(canvas, guides.dimBottom);
-    bringObjectToFront.call(canvas, guides.dimLeft);
-    bringObjectToFront.call(canvas, guides.dimRight);
-    bringObjectToFront.call(canvas, guides.border);
-    return;
-  }
-
-  // Fallback for older/variant Fabric APIs: re-add in desired stacking order.
-  canvas.remove(
-    guides.dimTop,
-    guides.dimBottom,
-    guides.dimLeft,
-    guides.dimRight,
-    guides.border,
-  );
-  canvas.add(
-    guides.dimTop,
-    guides.dimBottom,
-    guides.dimLeft,
-    guides.dimRight,
-    guides.border,
-  );
-}
+} from "../export/video-work-area";
+import { useCanvasAppContext } from "./hooks/use-canvas-app-context";
+import { setProjectInfo } from "../../store/editor-slice";
+import { useAppDispatch, useAppSelector } from "../../store";
+import {
+  bringGuidesToFront,
+  computeVideoAreaLabelPosition,
+  getViewportBounds,
+  guides,
+  isVideoGuideObject,
+  updateGuideObjects,
+  type VideoGuideSet,
+} from "./util/video-guide";
 
 /** Overlay that marks the export-visible video area and aspect selector. */
-export default function VideoWorkAreaOverlay({
-  fabricCanvas,
-  aspectRatio,
-  aspectLabel,
-  aspectOptions,
-  onSelectAspectRatio,
-}: VideoWorkAreaOverlayProps) {
+export default function VideoWorkAreaOverlay() {
+  const { fabricCanvasRef } = useCanvasAppContext();
   const guidesRef = useRef<VideoGuideSet | null>(null);
   const rectRef = useRef<VideoWorkAreaRect>({
     left: 0,
@@ -174,33 +29,22 @@ export default function VideoWorkAreaOverlay({
     width: 0,
     height: 0,
   });
-  const [isInfoHovered, setIsInfoHovered] = useState(false);
   const [labelPosition, setLabelPosition] = useState({ left: 0, top: -9999 });
+  const aspectRation = useAppSelector(
+    (state) => state.editor.projectInfo.videoAspectRatio,
+  );
+  const activeAspectPreset =
+    VIDEO_ASPECT_PRESETS.find(
+      (preset) => Math.abs(preset.ratio - aspectRation) < 0.0001,
+    ) ?? VIDEO_ASPECT_PRESETS[0];
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
-    const canvas = fabricCanvas.current;
+    const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
+    // add guides to canvas if missing.
     if (!guidesRef.current) {
-      const guides: VideoGuideSet = {
-        border: createVideoGuideRect({
-          fill: 'transparent',
-          stroke: FIGMA_BLUE,
-          strokeWidth: 2,
-        }),
-        dimTop: createVideoGuideRect({
-          fill: 'rgba(0, 0, 0, 0.42)',
-        }),
-        dimBottom: createVideoGuideRect({
-          fill: 'rgba(0, 0, 0, 0.42)',
-        }),
-        dimLeft: createVideoGuideRect({
-          fill: 'rgba(0, 0, 0, 0.42)',
-        }),
-        dimRight: createVideoGuideRect({
-          fill: 'rgba(0, 0, 0, 0.42)',
-        }),
-      };
       guidesRef.current = guides;
       canvas.add(
         guides.dimTop,
@@ -212,23 +56,35 @@ export default function VideoWorkAreaOverlay({
       bringGuidesToFront(canvas, guides);
     }
 
-    const updateGuidesFromCanvas = () => {
+    const updateGuidesFromCanvas = (requestRender = false) => {
       const activeGuides = guidesRef.current;
       if (!activeGuides) return;
 
       const rect = getVideoWorkAreaRect(
         canvas.getWidth(),
         canvas.getHeight(),
-        aspectRatio,
+        activeAspectPreset.ratio,
       );
+      const viewport = getViewportBounds(canvas);
       rectRef.current = rect;
 
-      updateGuideObjects(canvas, activeGuides, rect);
-      setLabelPosition(computeVideoAreaLabelPosition(canvas, rect));
+      updateGuideObjects(activeGuides, rect, viewport);
+      const nextLabelPosition = computeVideoAreaLabelPosition(canvas, rect);
+      setLabelPosition((previous) =>
+        Math.abs(previous.left - nextLabelPosition.left) > 0.5 ||
+        Math.abs(previous.top - nextLabelPosition.top) > 0.5
+          ? nextLabelPosition
+          : previous,
+      );
       bringGuidesToFront(canvas, activeGuides);
-      canvas.requestRenderAll();
+      if (requestRender) {
+        canvas.requestRenderAll();
+      }
     };
 
+    /**
+     * Move guide rect to the front after/when new object is added
+     */
     const onObjectAdded = (event: { target?: FabricObject }) => {
       if (isVideoGuideObject(event.target)) return;
       const activeGuides = guidesRef.current;
@@ -236,40 +92,70 @@ export default function VideoWorkAreaOverlay({
       bringGuidesToFront(canvas, activeGuides);
     };
 
-    const onAfterRender = () => {
-      const activeGuides = guidesRef.current;
-      if (!activeGuides) return;
-
-      const nextRect = getVideoWorkAreaRect(
-        canvas.getWidth(),
-        canvas.getHeight(),
-        aspectRatio,
-      );
-      if (hasRectChanged(rectRef.current, nextRect)) {
-        rectRef.current = nextRect;
-        updateGuideObjects(canvas, activeGuides, nextRect);
-        bringGuidesToFront(canvas, activeGuides);
-        canvas.requestRenderAll();
-      }
-
-      setLabelPosition(computeVideoAreaLabelPosition(canvas, rectRef.current));
+    const onBeforeRender = () => {
+      updateGuidesFromCanvas(false);
+    };
+    const onWindowResize = () => {
+      updateGuidesFromCanvas(true);
     };
 
-    updateGuidesFromCanvas();
-    canvas.on('object:added', onObjectAdded);
-    canvas.on('after:render', onAfterRender);
-    window.addEventListener('resize', updateGuidesFromCanvas);
+    updateGuidesFromCanvas(true);
+    canvas.on("object:added", onObjectAdded);
+    canvas.on("before:render", onBeforeRender);
+    window.addEventListener("resize", onWindowResize);
 
     return () => {
-      canvas.off('object:added', onObjectAdded);
-      canvas.off('after:render', onAfterRender);
-      window.removeEventListener('resize', updateGuidesFromCanvas);
+      canvas.off("object:added", onObjectAdded);
+      canvas.off("before:render", onBeforeRender);
+      window.removeEventListener("resize", onWindowResize);
     };
-  }, [aspectRatio, fabricCanvas]);
+  }, [activeAspectPreset.ratio, fabricCanvasRef]);
 
+  // Update project info in the store when canvas or aspect ratio changes.
   useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const updateProjectInfoFromCanvas = () => {
+      const canvasWidth = canvas.getWidth();
+      const canvasHeight = canvas.getHeight();
+      const videoRect = getVideoWorkAreaRect(
+        canvasWidth,
+        canvasHeight,
+        activeAspectPreset.ratio,
+      );
+
+      dispatch(
+        setProjectInfo({
+          canvasWidth,
+          canvasHeight,
+          videoWidth: Math.round(videoRect.width),
+          videoHeight: Math.round(videoRect.height),
+          videoLeft: Math.round(videoRect.left),
+          videoTop: Math.round(videoRect.top),
+          videoRight: Math.round(videoRect.left + videoRect.width),
+          videoBottom: Math.round(videoRect.top + videoRect.height),
+          videoAspectLabel: activeAspectPreset.label,
+        }),
+      );
+    };
+
+    updateProjectInfoFromCanvas();
+    window.addEventListener("resize", updateProjectInfoFromCanvas);
+
     return () => {
-      const canvas = fabricCanvas.current;
+      window.removeEventListener("resize", updateProjectInfoFromCanvas);
+    };
+  }, [
+    activeAspectPreset.label,
+    activeAspectPreset.ratio,
+    dispatch,
+    fabricCanvasRef,
+  ]);
+
+  // cleanup guides on unmount
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    return () => {
       const guides = guidesRef.current;
       if (!canvas || !guides) return;
       canvas.remove(
@@ -282,22 +168,15 @@ export default function VideoWorkAreaOverlay({
       guidesRef.current = null;
       canvas.requestRenderAll();
     };
-  }, [fabricCanvas]);
+  }, [fabricCanvasRef]);
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20">
       <div
-        className="pointer-events-auto absolute flex items-center gap-1 transition-opacity"
+        className="pointer-events-auto absolute flex items-center gap-1 transition-opacity opacity-45 hover:opacity-100"
         style={{
           left: labelPosition.left,
-          opacity: isInfoHovered ? 1 : 0.45,
           top: labelPosition.top,
-        }}
-        onMouseEnter={() => {
-          setIsInfoHovered(true);
-        }}
-        onMouseLeave={() => {
-          setIsInfoHovered(false);
         }}
       >
         <div
@@ -309,13 +188,17 @@ export default function VideoWorkAreaOverlay({
           Video Area
         </div>
         <select
-          value={aspectLabel}
+          value={activeAspectPreset.label}
           onChange={(event) => {
-            const selected = aspectOptions.find(
+            const selected = VIDEO_ASPECT_PRESETS.find(
               (option) => option.label === event.target.value,
             );
             if (selected) {
-              onSelectAspectRatio(selected.ratio);
+              dispatch(
+                setProjectInfo({
+                  videoAspectRatio: selected.ratio,
+                }),
+              );
             }
           }}
           className={
@@ -326,13 +209,13 @@ export default function VideoWorkAreaOverlay({
             "focus-visible:ring-0 hover:bg-[var(--wise-surface-muted)]"
           }
           style={{
-            WebkitAppearance: 'none',
-            MozAppearance: 'none',
-            backgroundImage: 'none',
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            backgroundImage: "none",
           }}
           aria-label="Change video aspect ratio"
         >
-          {aspectOptions.map((option) => (
+          {VIDEO_ASPECT_PRESETS.map((option) => (
             <option key={option.label} value={option.label}>
               {option.label}
             </option>

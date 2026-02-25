@@ -24,7 +24,7 @@ export default function TimelinePlayhead({
 }: TimelinePlayheadProps) {
   const dispatch = useDispatch<AppDispatch>();
   const playheadTime = useSelector(
-    (state: RootState) => state.editor.playheadTime,
+    (state: RootState) => state.editor.playHeadTime,
   );
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);

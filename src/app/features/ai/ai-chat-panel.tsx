@@ -26,7 +26,7 @@ type ChatMessage = {
 
 /** Chat panel for AI-assisted scene authoring and status feedback. */
 export default function AIChatPanel() {
-  const { getInstanceById } = useCanvasAppContext();
+  const { getObjectById: getInstanceById } = useCanvasAppContext();
   const [input, setInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [agentSteps, setAgentSteps] = useState<string[]>([]);
@@ -276,7 +276,7 @@ function ChatMarkdown({ content }: ChatMarkdownProps) {
 /** Builds the latest AI scene context directly from Redux state and canvas instances. */
 function buildOpenAISceneContext(
   state: RootState,
-  getInstanceById: CanvasAppContextValue["getInstanceById"],
+  getInstanceById: CanvasAppContextValue["getObjectById"],
 ) {
   const { canvasItemIds, itemsRecord, projectInfo, selectedId } = state.editor;
   return {

@@ -1,13 +1,6 @@
 /** Canvas Tools Fab.Tsx module implementation. */
-import type { Canvas } from "fabric";
 import * as Tooltip from "@radix-ui/react-tooltip";
-import {
-  useEffect,
-  useRef,
-  useState,
-  type MouseEvent,
-  type MutableRefObject,
-} from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import {
   AddCircleButton,
   AddLineButton,
@@ -21,10 +14,7 @@ import {
 import { AddPolygonButton } from "../../components/canvas-tools/add-polygon-button";
 import { useCanvasItems } from "./hooks/use-canvas-items";
 import { FAB_EDGE_PADDING } from "../../../const";
-
-type CanvasToolsFabProps = {
-  fabricCanvas: MutableRefObject<Canvas | null>;
-};
+import { useCanvasAppContext } from "./hooks/use-canvas-app-context";
 
 type Position = {
   x: number;
@@ -32,7 +22,8 @@ type Position = {
 };
 
 /** Draggable floating tool dock for adding canvas items. */
-export default function CanvasToolsFab({ fabricCanvas }: CanvasToolsFabProps) {
+export default function CanvasToolsFab() {
+  const { fabricCanvasRef } = useCanvasAppContext();
   const {
     addCircle,
     addImageFromFile,
@@ -41,7 +32,7 @@ export default function CanvasToolsFab({ fabricCanvas }: CanvasToolsFabProps) {
     addPolygon,
     addRectangle,
     addText,
-  } = useCanvasItems({ fabricCanvas });
+  } = useCanvasItems({ fabricCanvas: fabricCanvasRef });
   const fabRef = useRef<HTMLDivElement | null>(null);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const hasUserMovedRef = useRef(false);

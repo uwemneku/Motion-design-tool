@@ -22,7 +22,7 @@ export function MaskSourceControl({
   selectedId,
   selectedInstance,
 }: MaskSourceControlProps) {
-  const { getInstanceById } = useCanvasAppContext();
+  const { getObjectById: getInstanceById } = useCanvasAppContext();
   const [sourceId, setSourceId] = useState<string>(NONE_MASK_SOURCE_ID);
   const maskRequestVersionRef = useRef(0);
 

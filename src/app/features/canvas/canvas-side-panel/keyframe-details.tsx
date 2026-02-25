@@ -1,15 +1,15 @@
 /** Keyframe Details.Tsx canvas side panel UI logic. */
-import { useMemo, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import type { AppDispatch, RootState } from '../../../store';
-import { setSelectedKeyframe } from '../../../store/editor-slice';
-import { EASING_OPTIONS } from '../../../../const';
+import { useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import type { AppDispatch, RootState } from "../../../store";
+import { setSelectedKeyframe } from "../../../store/editor-slice";
+import { EASING_OPTIONS } from "../../../../const";
 import type {
   ColorKeyframe,
   KeyframeEasing,
   Keyframe,
-} from '../../shapes/animatable-object/types';
-import { useCanvasAppContext } from '../hooks/use-canvas-app-context';
+} from "../../shapes/animatable-object/types";
+import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 
 type DetailRow = {
   label: string;
@@ -19,7 +19,7 @@ type DetailRow = {
 /** Shows selected item keyframe details in the side panel footer area. */
 export function KeyframeDetailsPanel() {
   const dispatch = useDispatch<AppDispatch>();
-  const { getInstanceById } = useCanvasAppContext();
+  const { getObjectById: getInstanceById } = useCanvasAppContext();
   const [revision, setRevision] = useState(0);
   const selectedId = useSelector((state: RootState) => state.editor.selectedId);
   const selectedKeyframe = useSelector(
@@ -47,14 +47,14 @@ export function KeyframeDetailsPanel() {
     if (!instance) return [];
 
     return [
-      toNumericRow('Position X', instance.keyframes.left),
-      toNumericRow('Position Y', instance.keyframes.top),
-      toNumericRow('Scale X', instance.keyframes.scaleX),
-      toNumericRow('Scale Y', instance.keyframes.scaleY),
-      toNumericRow('Opacity', instance.keyframes.opacity),
-      toNumericRow('Rotation', instance.keyframes.angle),
-      toColorRow('Fill', instance.colorKeyframes.fill),
-      toColorRow('Stroke', instance.colorKeyframes.stroke),
+      toNumericRow("Position X", instance.keyframes.left),
+      toNumericRow("Position Y", instance.keyframes.top),
+      toNumericRow("Scale X", instance.keyframes.scaleX),
+      toNumericRow("Scale Y", instance.keyframes.scaleY),
+      toNumericRow("Opacity", instance.keyframes.opacity),
+      toNumericRow("Rotation", instance.keyframes.angle),
+      toColorRow("Fill", instance.colorKeyframes.fill),
+      toColorRow("Stroke", instance.colorKeyframes.stroke),
     ].filter((row): row is DetailRow => Boolean(row));
   }, [getInstanceById, selectedId, selectedItem?.keyframe, revision]);
 
@@ -74,8 +74,8 @@ export function KeyframeDetailsPanel() {
       {!selectedId ? (
         <p
           className={
-            'rounded border border-[var(--wise-border)] ' +
-            'bg-[var(--wise-surface)] px-2 py-1.5 text-xs text-slate-500'
+            "rounded border border-[var(--wise-border)] " +
+            "bg-[var(--wise-surface)] px-2 py-1.5 text-xs text-slate-500"
           }
         >
           Select an item to inspect keyframes.
@@ -85,8 +85,8 @@ export function KeyframeDetailsPanel() {
           {selectedKeyframeTime !== null ? (
             <div
               className={
-                'space-y-2 rounded border border-[var(--wise-border)] ' +
-                'bg-[var(--wise-surface)] px-2 py-2'
+                "space-y-2 rounded border border-[var(--wise-border)] " +
+                "bg-[var(--wise-surface)] px-2 py-2"
               }
             >
               <div className="flex items-center justify-between">
@@ -96,9 +96,9 @@ export function KeyframeDetailsPanel() {
                 <button
                   type="button"
                   className={
-                    'rounded border border-[var(--wise-border)] ' +
-                    'bg-[var(--wise-surface-muted)] px-2 py-1 text-[10px] ' +
-                    'text-slate-300'
+                    "rounded border border-[var(--wise-border)] " +
+                    "bg-[var(--wise-surface-muted)] px-2 py-1 text-[10px] " +
+                    "text-slate-300"
                   }
                   onClick={() => {
                     dispatch(setSelectedKeyframe(null));
@@ -111,22 +111,22 @@ export function KeyframeDetailsPanel() {
                 {`Time ${selectedKeyframeTime.toFixed(2)}s`}
               </p>
               <p className="text-xs text-slate-400">
-                {`Property: ${selectedProperty ?? 'unknown'}`}
+                {`Property: ${selectedProperty ?? "unknown"}`}
               </p>
               <label
                 className={
-                  'flex flex-col gap-1 text-[10px] uppercase tracking-wide ' +
-                  'text-slate-400'
+                  "flex flex-col gap-1 text-[10px] uppercase tracking-wide " +
+                  "text-slate-400"
                 }
               >
                 Easing
                 <select
                   className={
-                    'rounded border border-[var(--wise-border)] ' +
-                    'bg-[var(--wise-surface)] px-2 py-1 text-xs ' +
-                    'text-slate-100 outline-none'
+                    "rounded border border-[var(--wise-border)] " +
+                    "bg-[var(--wise-surface)] px-2 py-1 text-xs " +
+                    "text-slate-100 outline-none"
                   }
-                  value={selectedEasing ?? 'linear'}
+                  value={selectedEasing ?? "linear"}
                   onChange={(event) => {
                     if (!selectedId || !selectedKeyframeId) return;
                     const instance = getInstanceById(selectedId);
@@ -151,8 +151,8 @@ export function KeyframeDetailsPanel() {
           ) : (
             <p
               className={
-                'rounded border border-[var(--wise-border)] ' +
-                'bg-[var(--wise-surface)] px-2 py-1.5 text-xs text-slate-500'
+                "rounded border border-[var(--wise-border)] " +
+                "bg-[var(--wise-surface)] px-2 py-1.5 text-xs text-slate-500"
               }
             >
               Click a keyframe to edit transition.
@@ -162,8 +162,8 @@ export function KeyframeDetailsPanel() {
           {detailRows.length === 0 ? (
             <p
               className={
-                'rounded border border-[var(--wise-border)] ' +
-                'bg-[var(--wise-surface)] px-2 py-1.5 text-xs text-slate-500'
+                "rounded border border-[var(--wise-border)] " +
+                "bg-[var(--wise-surface)] px-2 py-1.5 text-xs text-slate-500"
               }
             >
               No keyframe details available.
@@ -174,8 +174,8 @@ export function KeyframeDetailsPanel() {
                 <div
                   key={row.label}
                   className={
-                    'rounded border border-[var(--wise-border)] ' +
-                    'bg-[var(--wise-surface)] px-2 py-1.5'
+                    "rounded border border-[var(--wise-border)] " +
+                    "bg-[var(--wise-surface)] px-2 py-1.5"
                   }
                 >
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
@@ -199,8 +199,11 @@ function toNumericRow(
   if (!frames || frames.length === 0) return null;
   const value = [...frames]
     .sort((a, b) => a.time - b.time)
-    .map((frame) => `${formatTime(frame.time)}: ${formatNumber(frame.value)} (${frame.easing})`)
-    .join(' • ');
+    .map(
+      (frame) =>
+        `${formatTime(frame.time)}: ${formatNumber(frame.value)} (${frame.easing})`,
+    )
+    .join(" • ");
   return { label, value };
 }
 
@@ -211,8 +214,10 @@ function toColorRow(
   if (!frames || frames.length === 0) return null;
   const value = [...frames]
     .sort((a, b) => a.time - b.time)
-    .map((frame) => `${formatTime(frame.time)}: ${frame.value} (${frame.easing})`)
-    .join(' • ');
+    .map(
+      (frame) => `${formatTime(frame.time)}: ${frame.value} (${frame.easing})`,
+    )
+    .join(" • ");
   return { label, value };
 }
 
@@ -221,7 +226,7 @@ function formatTime(time: number) {
 }
 
 function formatNumber(value: number) {
-  if (!Number.isFinite(value)) return '-';
+  if (!Number.isFinite(value)) return "-";
   return Math.abs(value) >= 100 ? value.toFixed(0) : value.toFixed(2);
 }
 

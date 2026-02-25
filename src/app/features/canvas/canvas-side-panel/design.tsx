@@ -37,7 +37,7 @@ const INPUT_PRECISION = 3;
 /** Design form for editing transform, style, text, and mask settings. */
 export default function CanvasSidePanelDesign() {
   const dispatch = useDispatch<AppDispatch>();
-  const { getInstanceById } = useCanvasAppContext();
+  const { getObjectById: getInstanceById } = useCanvasAppContext();
   const [designForm, setDesignForm] = useState<DesignFormState>(EMPTY_FORM);
   const [activeColorField, setActiveColorField] =
     useState<ColorFieldKey | null>(null);
@@ -130,11 +130,7 @@ export default function CanvasSidePanelDesign() {
     const top = toPrecisionNumber(Number(nextForm.top));
     const scaleX = toPrecisionNumber(Number(nextForm.scaleX));
     const scaleY = toPrecisionNumber(Number(nextForm.scaleY));
-    const opacity = clamp(
-      toPrecisionNumber(Number(nextForm.opacity)),
-      0,
-      1,
-    );
+    const opacity = clamp(toPrecisionNumber(Number(nextForm.opacity)), 0, 1);
     const angle = toPrecisionNumber(Number(nextForm.angle));
     const strokeWidth = clampMin(
       toPrecisionNumber(Number(nextForm.strokeWidth)),
@@ -194,7 +190,7 @@ export default function CanvasSidePanelDesign() {
     if (changedFields.length === 0) return;
 
     const playheadTime = dispatch(
-      dispatchableSelector((state) => state.editor.playheadTime),
+      dispatchableSelector((state) => state.editor.playHeadTime),
     );
     let addedKeyframe = false;
 

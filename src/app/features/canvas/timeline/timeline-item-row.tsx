@@ -12,9 +12,7 @@ import type {
   Keyframe,
 } from "../../shapes/animatable-object/types";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
-import {
-  KEYFRAME_SECTION_HORIZONTAL_PADDING,
-} from "../../../../const";
+import { KEYFRAME_SECTION_HORIZONTAL_PADDING } from "../../../../const";
 
 type TimelineItemRowProps = {
   id: string;
@@ -41,10 +39,12 @@ export default function TimelineItemRow({
   timelineDuration,
 }: TimelineItemRowProps) {
   const dispatch = useDispatch<AppDispatch>();
-  const { getInstanceById } = useCanvasAppContext();
+  const { getObjectById } = useCanvasAppContext();
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const selectedId = useSelector((state: RootState) => state.editor.selectedId);
+  const isSelected = useSelector(
+    (state: RootState) => state.editor.selectedId === id,
+  );
   const name = useSelector(
     (state: RootState) => state.editor.itemsRecord[id]?.name ?? id,
   );
@@ -53,7 +53,7 @@ export default function TimelineItemRow({
   );
 
   const detailRows = useMemo(() => {
-    const instance = getInstanceById(id);
+    const instance = getObjectById(id);
     if (!instance) return [];
 
     const leftFrames = (instance.keyframes.left ?? []) as Keyframe[];
@@ -76,11 +76,12 @@ export default function TimelineItemRow({
       buildColorDetailRow("Fill", "fill", fillFrames),
       buildColorDetailRow("Stroke", "stroke", strokeFrames),
     ].filter((row) => row.entries.length > 0);
-  }, [getInstanceById, id, keyframes]);
+  }, [getObjectById, id]);
 
   const seekToTime = (time: number) => {
     dispatch(setPlayheadTime(Number(time.toFixed(3))));
   };
+
   const selectKeyframe = (entry: DetailEntry) => {
     seekToTime(entry.time);
     dispatch(setSelectedId(id));
@@ -93,6 +94,7 @@ export default function TimelineItemRow({
       }),
     );
   };
+
   const seekOnly = (time: number) => {
     seekToTime(time);
     dispatch(setSelectedId(id));
@@ -104,7 +106,7 @@ export default function TimelineItemRow({
       <div className="grid grid-cols-[210px_1fr]">
         <div
           className={`sticky left-0 z-10 border-r border-[var(--wise-border)] px-3 py-2 text-slate-100 ${
-            selectedId === id
+            isSelected
               ? "bg-[var(--wise-accent)]/16 font-semibold"
               : "bg-[var(--wise-surface)]"
           }`}
@@ -149,7 +151,7 @@ export default function TimelineItemRow({
         >
           <div
             className={`relative h-6 rounded-sm border ${
-              selectedId === id
+              isSelected
                 ? "border-[var(--wise-accent)] shadow-[inset_0_0_0_1px_rgba(56,189,248,0.42)]"
                 : "border-[var(--wise-border)]"
             }`}
@@ -200,56 +202,58 @@ export default function TimelineItemRow({
               </div>
             </div>
           ) : (
-            detailRows.map((row) => (
-              <div
-                key={row.label}
-                className="grid grid-cols-[210px_1fr] border-b border-[var(--wise-border)] last:border-b-0"
-              >
-                <div className="sticky left-0 z-10 border-r border-[var(--wise-border)] bg-[var(--wise-surface)] px-3 py-2 pl-8 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                  {row.label}
-                </div>
+            detailRows.map((row) => {
+              return (
                 <div
-                  className="py-2"
-                  style={{
-                    paddingLeft: KEYFRAME_SECTION_HORIZONTAL_PADDING,
-                    paddingRight: KEYFRAME_SECTION_HORIZONTAL_PADDING,
-                  }}
+                  key={row.label}
+                  className="grid grid-cols-[210px_1fr] border-b border-[var(--wise-border)] last:border-b-0"
                 >
+                  <div className="sticky left-0 z-10 border-r border-[var(--wise-border)] bg-[var(--wise-surface)] px-3 py-2 pl-8 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    {row.label}
+                  </div>
                   <div
-                    className="relative h-6 rounded border border-[var(--wise-border)]"
+                    className="py-2"
                     style={{
-                      background:
-                        "repeating-linear-gradient(45deg, #0f172a, #0f172a 16px, #111827 16px, #111827 32px)",
+                      paddingLeft: KEYFRAME_SECTION_HORIZONTAL_PADDING,
+                      paddingRight: KEYFRAME_SECTION_HORIZONTAL_PADDING,
                     }}
                   >
-                    {row.entries.map((entry, index) => {
-                      const left = clamp(
-                        (entry.time / timelineDuration) * 100,
-                        0,
-                        100,
-                      );
-                      return (
-                        <button
-                          type="button"
-                          key={`${row.label}-${entry.time}-${index}`}
-                          className="absolute top-1/2 z-[60] size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#e8eeff] bg-[var(--wise-accent)]"
-                          style={{ left: `${left}%` }}
-                          title={`${row.label} @ ${entry.time.toFixed(2)}s • ${entry.text}`}
-                          onMouseDown={(event) => {
-                            event.stopPropagation();
-                            selectKeyframe(entry);
-                          }}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            selectKeyframe(entry);
-                          }}
-                        />
-                      );
-                    })}
+                    <div
+                      className="relative h-6 rounded border border-[var(--wise-border)]"
+                      style={{
+                        background:
+                          "repeating-linear-gradient(45deg, #0f172a, #0f172a 16px, #111827 16px, #111827 32px)",
+                      }}
+                    >
+                      {row.entries.map((entry, index) => {
+                        const left = clamp(
+                          (entry.time / timelineDuration) * 100,
+                          0,
+                          100,
+                        );
+                        return (
+                          <button
+                            type="button"
+                            key={`${row.label}-${entry.time}-${index}`}
+                            className="absolute top-1/2 z-[60] size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#e8eeff] bg-[var(--wise-accent)]"
+                            style={{ left: `${left}%` }}
+                            title={`${row.label} @ ${entry.time.toFixed(2)}s • ${entry.text}`}
+                            onMouseDown={(event) => {
+                              event.stopPropagation();
+                              selectKeyframe(entry);
+                            }}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              selectKeyframe(entry);
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       ) : null}

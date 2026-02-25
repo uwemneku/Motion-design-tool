@@ -1,7 +1,7 @@
 /** Timeline Panel.Tsx timeline UI and behavior. */
-import { type MouseEvent, useEffect, useRef, useState } from "react";
+import { type MouseEvent, useCallback, useState } from "react";
 import { Resizable } from "re-resizable";
-import { useDispatch, useSelector, useStore } from "react-redux";
+import { useDispatch } from "react-redux";
 import { AppScrollArea } from "../../../components/app-scroll-area";
 import {
   KEYFRAME_SECTION_HORIZONTAL_PADDING,
@@ -14,107 +14,30 @@ import {
 } from "../../../../const";
 import TimelineItemRow from "./timeline-item-row";
 import TimelinePlayhead from "./timeline-playhead";
-import type { AppDispatch, RootState } from "../../../store";
-import { setIsPaused, setPlayheadTime } from "../../../store/editor-slice";
+import { useAppSelector, type AppDispatch } from "../../../store";
+import { setPlayheadTime } from "../../../store/editor-slice";
+import TimeStampControl from "./timestamp-control";
 
 /** Timeline container with playback loop, labels, and item rows. */
 export default function TimelinePanel() {
   const dispatch = useDispatch<AppDispatch>();
-  const store = useStore<RootState>();
-  const canvasItemIds = useSelector(
-    (state: RootState) => state.editor.canvasItemIds,
-  );
-  const isPaused = useSelector((state: RootState) => state.editor.isPaused);
-  const playheadTime = useSelector(
-    (state: RootState) => state.editor.playheadTime,
-  );
-  const frameRef = useRef<number | null>(null);
-  const lastTickRef = useRef<number | null>(null);
-  const playheadRef = useRef(store.getState().editor.playheadTime);
+  const canvasItemIds = useAppSelector((state) => state.editor.canvasItemIds);
+
   const [timelineHeight, setTimelineHeight] = useState(TIMELINE_DEFAULT_HEIGHT);
 
-  useEffect(() => {
-    const updatePlayhead = () => {
-      playheadRef.current = store.getState().editor.playheadTime;
-    };
-
-    updatePlayhead();
-    const unsubscribe = store.subscribe(updatePlayhead);
-    return unsubscribe;
-  }, [store]);
-
-  const seekFromPointer = (event: MouseEvent<HTMLDivElement>) => {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const x = clamp(event.clientX - bounds.left, 0, bounds.width);
-    const nextTime = (x / bounds.width) * TIMELINE_DURATION;
-    dispatch(setPlayheadTime(Number(nextTime.toFixed(3))));
-  };
-
-  useEffect(() => {
-    const onWindowKeyDown = (event: KeyboardEvent) => {
-      if (event.code !== "Space") return;
-
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.tagName === "SELECT" ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-
-      event.preventDefault();
-      dispatch(setIsPaused(!isPaused));
-    };
-
-    window.addEventListener("keydown", onWindowKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onWindowKeyDown);
-    };
-  }, [dispatch, isPaused]);
-
-  useEffect(() => {
-    if (isPaused) {
-      if (frameRef.current !== null) {
-        cancelAnimationFrame(frameRef.current);
-        frameRef.current = null;
-      }
-      lastTickRef.current = null;
-      return;
-    }
-
-    const tick = (now: number) => {
-      const previous = lastTickRef.current ?? now;
-      const deltaSeconds = (now - previous) / 1000;
-      const rawNextTime = playheadRef.current + deltaSeconds;
-      const nextTime =
-        rawNextTime >= TIMELINE_DURATION
-          ? rawNextTime % TIMELINE_DURATION
-          : rawNextTime;
-
-      lastTickRef.current = now;
-      playheadRef.current = nextTime;
+  const seekFromPointer = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const x = clamp(event.clientX - bounds.left, 0, bounds.width);
+      const nextTime = (x / bounds.width) * TIMELINE_DURATION;
       dispatch(setPlayheadTime(Number(nextTime.toFixed(3))));
-
-      frameRef.current = requestAnimationFrame(tick);
-    };
-
-    frameRef.current = requestAnimationFrame(tick);
-
-    return () => {
-      if (frameRef.current !== null) {
-        cancelAnimationFrame(frameRef.current);
-        frameRef.current = null;
-      }
-      lastTickRef.current = null;
-    };
-  }, [dispatch, isPaused]);
+    },
+    [dispatch],
+  );
 
   return (
     <section
-      className="shrink-0 border-t border-[var(--wise-border)] bg-[var(--wise-surface)] focus-visible:outline-none"
+      className="shrink-0 border-t border-(--wise-border) bg-(--wise-surface) focus-visible:outline-none"
       data-testid="timeline"
     >
       <Resizable
@@ -168,43 +91,7 @@ export default function TimelinePanel() {
                   data-item
                   className="sticky left-0 z-30 border-r border-[var(--wise-border)] bg-[var(--wise-surface-raised)] px-3 py-2"
                 >
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        dispatch(setIsPaused(!isPaused));
-                      }}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] text-slate-200 hover:bg-[var(--wise-surface-muted)]"
-                      title={isPaused ? "Play timeline" : "Pause timeline"}
-                      aria-label={isPaused ? "Play timeline" : "Pause timeline"}
-                    >
-                      {isPaused ? (
-                        <svg
-                          viewBox="0 0 12 12"
-                          className="h-4 w-4 fill-current"
-                        >
-                          <path d="M3 2.2l6 3.8-6 3.8z" />
-                        </svg>
-                      ) : (
-                        <svg
-                          viewBox="0 0 12 12"
-                          className="h-4 w-4 fill-current"
-                        >
-                          <path d="M2.5 2h2v8h-2zM7.5 2h2v8h-2z" />
-                        </svg>
-                      )}
-                    </button>
-
-                    <div className="flex items-center gap-1.5 text-sm text-slate-100">
-                      <span className="rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-1 font-mono text-[12px] tabular-nums">
-                        {formatPreciseTimelineTime(playheadTime)}
-                      </span>
-                      <span className="text-slate-400">/</span>
-                      <span className="rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-1 font-mono text-[12px] tabular-nums">
-                        {formatPreciseTimelineTime(TIMELINE_DURATION, true)}
-                      </span>
-                    </div>
-                  </div>
+                  <TimeStampControl />
                 </div>
                 <div
                   className="relative cursor-pointer px-[20px] py-2"
@@ -278,10 +165,4 @@ function formatTimelineLabel(seconds: number) {
   const minutes = Math.floor(wholeSeconds / 60);
   const remainingSeconds = wholeSeconds % 60;
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-}
-
-function formatPreciseTimelineTime(seconds: number, includeUnit = false) {
-  const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
-  const formatted = safeSeconds.toFixed(2);
-  return includeUnit ? `${formatted} s` : formatted;
 }
