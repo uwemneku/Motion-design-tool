@@ -81,16 +81,16 @@ function useExportVideo(
           renderOnAddRemove: false,
         });
 
-        const exportInstances = new Map<string, AnimatableObject>();
-        const exportObjectsById = new Map<string, FabricObject>();
-        const sourceObjectsById = new Map<string, FabricObject>();
         const sourceObjects = liveCanvas.getObjects();
+        /**Store the instance of the fabric object from the live canvas */
+        const sourceObjectsById = new Map<string, FabricObject>();
+        /**Store the animatable object created from the cloned instance of a fabric object in the live canvas for export */
+        const exportInstances = new Map<string, AnimatableObject>();
+
         for (const sourceObject of sourceObjects) {
+          const customId = sourceObject.customId;
           if (isVideoAreaGuideObject(sourceObject)) {
             continue;
-          }
-          if (sourceObject.customId) {
-            sourceObjectsById.set(sourceObject.customId, sourceObject);
           }
 
           const clonedObject =
@@ -109,11 +109,9 @@ function useExportVideo(
           clonedObject.setCoords();
           exportCanvas.add(clonedObject);
 
-          if (sourceObject.customId) {
-            exportObjectsById.set(sourceObject.customId, clonedObject);
-            const sourceInstance = instancesRef.current.get(
-              sourceObject.customId,
-            );
+          if (customId) {
+            sourceObjectsById.set(customId, sourceObject);
+            const sourceInstance = instancesRef.current.get(customId);
             if (sourceInstance) {
               const exportKeyframes = cloneKeyframesForExport(
                 sourceInstance.keyframes,
@@ -133,7 +131,7 @@ function useExportVideo(
                 ),
               };
               exportInstances.set(
-                sourceObject.customId,
+                customId,
                 new AnimatableObject(
                   clonedObject,
                   exportKeyframes,
@@ -146,7 +144,7 @@ function useExportVideo(
 
         await remapExportClipPaths(
           sourceObjectsById,
-          exportObjectsById,
+          exportInstances,
           videoArea.left,
           videoArea.top,
           scaleX,
@@ -163,9 +161,7 @@ function useExportVideo(
           onFrame: async (timeInSeconds) => {
             exportInstances.forEach((instance) => {
               instance.seek(timeInSeconds);
-            });
-            exportObjectsById.forEach((exportObject) => {
-              syncExportMaskProxyForObject(exportObject);
+              syncExportMaskProxyForObject(instance.fabricObject);
             });
             exportCanvas?.renderAll();
           },
@@ -316,7 +312,7 @@ async function cloneFabricObjectWithCustomId<
  */
 async function remapExportClipPaths(
   sourceObjectsById: Map<string, FabricObject>,
-  exportObjectsById: Map<string, FabricObject>,
+  exportObjectsById: Map<string, AnimatableObject>,
   offsetX: number,
   offsetY: number,
   scaleX: number,
@@ -327,18 +323,19 @@ async function remapExportClipPaths(
     const sourceClipPath = sourceObject.clipPath;
     if (!sourceClipPath) continue;
 
-    const clipPathId =
+    const clipPathCustomIdId =
       "customId" in sourceClipPath &&
       typeof sourceClipPath.customId === "string"
         ? sourceClipPath.customId
         : null;
-    const exportObject = exportObjectsById.get(sourceId);
+    const exportObject = exportObjectsById.get(sourceId)?.fabricObject;
     if (!exportObject) continue;
 
     let exportClipPath: FabricObject | undefined;
     let exportMaskSourceForSync: FabricObject | undefined;
-    if (clipPathId) {
-      const exportMaskSource = exportObjectsById.get(clipPathId);
+    if (clipPathCustomIdId) {
+      const exportMaskSource =
+        exportObjectsById.get(clipPathCustomIdId)?.fabricObject;
       if (exportMaskSource) {
         // Use a dedicated clip-path clone so the visible source object is not reused as mask.
         exportClipPath = await cloneFabricObjectWithCustomId(exportMaskSource);
