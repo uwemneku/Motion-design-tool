@@ -59,8 +59,8 @@ export const AGENT_TARGET_STEPS = 10;
 export const MAX_AGENT_STEPS = 15;
 export const MAX_BORDER_SCALE_FACTOR = 4;
 export const MAX_CANVAS_ZOOM = 4;
-export const MIN_BORDER_SCALE_FACTOR = 0.5;
-export const MIN_CANVAS_ZOOM = 0.25;
+export const MIN_CANVAS_ZOOM = 0.025;
+export const MIN_BORDER_SCALE_FACTOR = 0.05;
 export const NUMERIC_ANIMATABLE_PROPERTIES: (keyof AnimatableProperties)[] = [
   "left",
   "top",

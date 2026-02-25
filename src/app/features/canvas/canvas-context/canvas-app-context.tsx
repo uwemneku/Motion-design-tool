@@ -1,7 +1,9 @@
 /** Canvas App Context.Tsx module implementation. */
 import { Canvas, Point } from "fabric";
+import { AligningGuidelines } from "fabric/extensions";
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   type MutableRefObject,
@@ -255,6 +257,14 @@ export function CanvasAppProvider({ children }: PropsWithChildren) {
     [bindHost],
   );
 
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const disconnect = new AligningGuidelines(canvas, {});
+    return () => {
+      disconnect.dispose();
+    };
+  }, []);
   return (
     <CanvasAppContext.Provider value={value}>
       {children}
