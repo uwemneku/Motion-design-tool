@@ -24,16 +24,22 @@ export default function EditorCanvas() {
             "repeating-linear-gradient(45deg, #262626, #262626 16px, #2c2c2c 16px, #2c2c2c 32px)",
         }}
       >
-        <div className="relative   min-w-0 flex-1 overflow-hidden border border-[var(--wise-border)]  xl:h-full ">
+        <div className="relative min-h-0 flex min-w-0 flex-1 items-stretch border border-[var(--wise-border)] xl:h-full">
+          <div
+            className="relative flex-1 min-w-0 overflow-hidden"
+            style={{
+              background:
+                "repeating-linear-gradient(45deg, #262626, #262626 16px, #2c2c2c 16px, #2c2c2c 32px)",
+            }}
+          >
           <CanvasToolsFab />
-          <div className="pointer-events-none absolute h-full right-3 top-3 z-30  max-h-[calc(100%-24px)] overflow-hidden">
+            <canvas className="h-full w-full" ref={bindHost}></canvas>
+            <VideoWorkAreaOverlay />
+          </div>
+          <div className="pointer-events-auto z-20 flex-shrink-0 border-l border-[var(--wise-border)] bg-[var(--wise-surface-raised)]/80">
             <CanvasSidePanel />
           </div>
-          <div className="h-full w-full">
-            <canvas className="h-full w-full" ref={bindHost}></canvas>
-          </div>
           <CanvasZoomControl />
-          <VideoWorkAreaOverlay />
         </div>
       </div>
 

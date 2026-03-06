@@ -37,7 +37,7 @@ export default function TimelinePanel() {
 
   return (
     <section
-      className="shrink-0 border-t border-(--wise-border) bg-(--wise-surface) focus-visible:outline-none"
+      className="shrink-0 border-t border-(--wise-border) bg-(--wise-surface) focus-visible:outline-none z-30"
       data-testid="timeline"
     >
       <Resizable

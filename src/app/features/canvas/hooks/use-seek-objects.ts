@@ -1,4 +1,4 @@
-import type { FabricObject } from "fabric";
+import { FabricObject } from "fabric";
 import { AI_STEP_COMPLETE_EVENT } from "../../ai/editor-ai-events";
 import { useEffect } from "react";
 
@@ -16,6 +16,13 @@ function useSeekObjects() {
       instancesRef.current.forEach((instance) => {
         instance.seek(playHeadTime);
         syncMaskProxyForObject(instance.fabricObject);
+        const isActive =
+          instance.fabricObject.customId === canvas.getActiveObject()?.customId;
+        if (isActive) {
+          instance.fabricObject.fire("my:custom:seek", {
+            target: instance.fabricObject,
+          });
+        }
       });
       canvas.requestRenderAll();
     };

@@ -34,7 +34,7 @@ export function CanvasItemsListItem({ id }: CanvasItemsListItemProps) {
         type="button"
         className={`w-full rounded-md px-3 py-2 text-left text-sm transition ${
           isSelected
-            ? "bg-[#38bdf8]/18 font-semibold text-[#dcefff]"
+            ? "bg-[#ffffff]/18 font-semibold text-[#e5e7eb]"
             : "text-[#e2e2e2] hover:bg-[var(--wise-surface-muted)]"
         }`}
         onClick={handleClick}

@@ -1,5 +1,6 @@
 /** Editor Slice.Ts store state and reducers. */
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import { INITIAL_CANVAS_ZOOM } from "../../const";
 
 export type EditorItemRecord = {
   name: string;
@@ -56,7 +57,7 @@ const initialState: EditorState = {
     videoBottom: 0,
     videoAspectRatio: 16 / 9,
     videoAspectLabel: "16:9",
-    canvasZoom: 1,
+    canvasZoom: INITIAL_CANVAS_ZOOM,
   },
 };
 

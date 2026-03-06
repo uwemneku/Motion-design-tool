@@ -1,19 +1,19 @@
 /** Fabric Custom module implementation. */
-import 'fabric';
-import type {
-  FabricObjectProps,
-  ObjectEvents,
-  SerializedObjectProps,
-  TFabricObjectProps,
-} from 'fabric';
+import "fabric";
+import type {} from // FabricObjectProps,
+// ObjectEvents,
+// TFabricObjectProps,
+"fabric";
 
-declare module 'fabric' {
-  interface FabricObject<
-    Props extends TFabricObjectProps = Partial<FabricObjectProps>,
-    SProps extends SerializedObjectProps = SerializedObjectProps,
-    EventSpec extends ObjectEvents = ObjectEvents,
-  > {
+declare module "fabric" {
+  interface FabricObject {
     customId?: string;
+  }
+
+  interface ObjectEvents {
+    "my:custom:seek": {
+      target: FabricObject;
+    };
   }
 
   interface SerializedObjectProps {

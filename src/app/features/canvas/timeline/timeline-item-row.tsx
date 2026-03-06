@@ -152,14 +152,14 @@ export default function TimelineItemRow({
           <div
             className={`relative h-6 rounded-sm border ${
               isSelected
-                ? "border-[var(--wise-accent)] shadow-[inset_0_0_0_1px_rgba(56,189,248,0.42)]"
+                ? "border-[var(--wise-accent)] shadow-[inset_0_0_0_1px_rgba(255, 255, 255, 0.42)]"
                 : "border-[var(--wise-border)]"
             }`}
             onClick={onSeekFromPointer}
             title="Click to move playhead"
             style={{
               background:
-                "repeating-linear-gradient(45deg, #0f172a, #0f172a 16px, #111827 16px, #111827 32px)",
+                "repeating-linear-gradient(45deg, #2c2c2c, #2c2c2c 16px, #1f1f1f 16px, #1f1f1f 32px)",
             }}
           >
             {keyframes.map((keyframe) => {
@@ -172,7 +172,7 @@ export default function TimelineItemRow({
                 <button
                   type="button"
                   key={keyframe.id}
-                  className="absolute top-1/2 z-[60] size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#e8eeff] bg-[var(--wise-accent)]"
+                  className="absolute top-1/2 z-[60] size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#e5e7eb] bg-[var(--wise-accent)]"
                   style={{ left: `${left}%` }}
                   title={`${name} @ ${keyframe.timestamp.toFixed(2)}s`}
                   onMouseDown={(event) => {
@@ -222,7 +222,7 @@ export default function TimelineItemRow({
                       className="relative h-6 rounded border border-[var(--wise-border)]"
                       style={{
                         background:
-                          "repeating-linear-gradient(45deg, #0f172a, #0f172a 16px, #111827 16px, #111827 32px)",
+                          "repeating-linear-gradient(45deg, #2c2c2c, #2c2c2c 16px, #1f1f1f 16px, #1f1f1f 32px)",
                       }}
                     >
                       {row.entries.map((entry, index) => {
@@ -235,7 +235,7 @@ export default function TimelineItemRow({
                           <button
                             type="button"
                             key={`${row.label}-${entry.time}-${index}`}
-                            className="absolute top-1/2 z-[60] size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#e8eeff] bg-[var(--wise-accent)]"
+                            className="absolute top-1/2 z-[60] size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#e5e7eb] bg-[var(--wise-accent)]"
                             style={{ left: `${left}%` }}
                             title={`${row.label} @ ${entry.time.toFixed(2)}s • ${entry.text}`}
                             onMouseDown={(event) => {

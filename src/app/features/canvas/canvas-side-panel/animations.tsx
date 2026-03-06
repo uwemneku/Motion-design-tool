@@ -313,7 +313,7 @@ export default function CanvasSidePanelAnimations({
             </div>
 
             <div
-              className={`h-20 w-full  bg-gradient-to-br from-sky-300/90 to-cyan-400/80 ${getPreviewShapeClass(template.id)}`}
+              className={`h-20 w-full  bg-gradient-to-br from-slate-300/90 to-slate-500/80 ${getPreviewShapeClass(template.id)}`}
             />
           </button>
         ))}
@@ -337,7 +337,8 @@ export default function CanvasSidePanelAnimations({
               onClick={() => {
                 applyTextAnimationTemplate(template);
               }}
-              className="group rounded-md border border-slate-700 bg-slate-950 p-2 text-left transition hover:border-sky-500/60 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+              className="group rounded-md border border-slate-700 bg-slate-950 p-2 text-left transition hover:border-slate-500/60 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+              className="group rounded-md border border-slate-700 bg-slate-950 p-2 text-left transition hover:border-slate-500/60 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-sm font-semibold text-slate-200">

@@ -3,12 +3,13 @@ import { syncObjectControlBorderScale } from "./util/fabric-controls";
 import { useCanvasAppContext } from "./hooks/use-canvas-app-context";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { setProjectInfo } from "../../store/editor-slice";
+import { INITIAL_CANVAS_ZOOM } from "../../../const";
 
 /** Floating zoom badge that also resets canvas zoom on click. */
 export default function CanvasZoomControl() {
   const { fabricCanvasRef } = useCanvasAppContext();
   const canvasZoom = useAppSelector(
-    (state) => state.editor.projectInfo.canvasZoom ?? 1,
+    (state) => state.editor.projectInfo.canvasZoom ?? INITIAL_CANVAS_ZOOM,
   );
   const dispatch = useAppDispatch();
 
@@ -25,7 +26,7 @@ export default function CanvasZoomControl() {
     <button
       type="button"
       onClick={resetZoom}
-      className="absolute bottom-3 left-3 z-30 flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900/95 px-2.5 py-1 text-xs font-semibold text-slate-100 shadow-lg hover:border-sky-400/70 hover:text-sky-200"
+      className="absolute bottom-3 left-3 z-30 flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900/95 px-2.5 py-1 text-xs font-semibold text-slate-100 shadow-lg hover:border-slate-400/70 hover:text-slate-200"
       title="Reset zoom to 100%"
       aria-label="Reset canvas zoom"
     >

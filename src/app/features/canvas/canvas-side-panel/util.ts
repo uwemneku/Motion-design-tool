@@ -52,7 +52,7 @@ export function readDesignForm(instance?: AnimatableObject): DesignFormState {
   };
 }
 
-export function normalizeHexColor(value: string, fallback = "#38bdf8") {
+export function normalizeHexColor(value: string, fallback = "#ffffff") {
   // Normalize to long-form lowercase hex and preserve alpha channels when provided.
   const trimmed = value.trim();
   if (!HEX_COLOR_PATTERN.test(trimmed)) return fallback;
@@ -106,7 +106,7 @@ export const labelClass = "space-y-1 text-[11px] text-[#b1b1b1]";
 export const fieldClass =
   "h-7 w-full rounded-md border border-[var(--wise-border)] " +
   "bg-[var(--wise-surface)] px-2 text-[11px] text-[#efefef] " +
-  "outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8]/45";
+  "outline-none focus:border-[#ffffff] focus:ring-1 focus:ring-[#ffffff]/45";
 export const cardClass =
   "space-y-2 rounded-md border border-[var(--wise-border)] " +
   "bg-[var(--wise-surface)] p-2.5";

@@ -8,7 +8,7 @@ type SpinnerStatusRowProps = {
 /** Inline spinner row for short loading/status messages. */
 export function SpinnerStatusRow({ text }: SpinnerStatusRowProps) {
   return (
-    <div className='inline-flex items-center gap-2 rounded px-2 py-1.5 text-xs text-[#9fd7ff]'>
+    <div className='inline-flex items-center gap-2 rounded px-2 py-1.5 text-xs text-[#e5e7eb]'>
       <ReloadIcon className='size-3.5 animate-spin' />
       <span>{text}</span>
     </div>

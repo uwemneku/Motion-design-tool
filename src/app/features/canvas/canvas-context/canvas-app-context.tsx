@@ -30,6 +30,7 @@ import {
 import { dispatchableSelector, useAppDispatch } from "../../../store";
 import {
   CANVAS_KEYFRAME_EPSILON,
+  INITIAL_CANVAS_ZOOM,
   CANVAS_ZOOM_SENSITIVITY,
   MAX_CANVAS_ZOOM,
   MIN_CANVAS_ZOOM,
@@ -76,6 +77,12 @@ export function CanvasAppProvider({ children }: PropsWithChildren) {
         subTargetCheck: true,
       });
       fabricCanvasRef.current = _canvas;
+      _canvas.zoomToPoint(
+        new Point(width / 2, height / 2.5),
+        INITIAL_CANVAS_ZOOM,
+      );
+      syncObjectControlBorderScale(_canvas);
+      dispatch(setProjectInfo({ canvasZoom: INITIAL_CANVAS_ZOOM }));
 
       applyFigmaLikeControls(_canvas);
       _canvas.add(hoverOutlineRect);
@@ -152,18 +159,6 @@ export function CanvasAppProvider({ children }: PropsWithChildren) {
         const action = transform?.action;
         if (!customId || !action) return;
         transformActionById.set(customId, action);
-        // const target = transform?.target;
-        // const instance = instancesRef.current.get(customId);
-        // preTransformSnapshotByIdRef.current.set(customId, {
-        //   transform: readTransformSnapshot(target ?? {}),
-        //   itemRecord: dispatch(
-        //     dispatchableSelector((state) => state.editor.itemsRecord[customId]),
-        //   ),
-        //   instanceKeyframes: structuredClone(instance?.keyframes ?? {}),
-        //   instanceColorKeyframes: structuredClone(
-        //     instance?.colorKeyframes ?? {},
-        //   ),
-        // });
       });
 
       _canvas.on("mouse:wheel", (event) => {

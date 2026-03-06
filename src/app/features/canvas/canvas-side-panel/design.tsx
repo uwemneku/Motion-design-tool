@@ -82,6 +82,7 @@ export default function CanvasSidePanelDesign() {
     object.on("rotating", syncFromCanvas);
     object.on("skewing", syncFromCanvas);
     object.on("modified", syncFromCanvas);
+    object.on("my:custom:seek", syncFromCanvas);
 
     return () => {
       object.off("moving", syncFromCanvas);
@@ -89,6 +90,7 @@ export default function CanvasSidePanelDesign() {
       object.off("rotating", syncFromCanvas);
       object.off("skewing", syncFromCanvas);
       object.off("modified", syncFromCanvas);
+      object.off("my:custom:seek", syncFromCanvas);
     };
   }, [selectedInstance]);
 
@@ -476,7 +478,7 @@ export default function CanvasSidePanelDesign() {
               <div className="space-y-2 rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface-muted)] p-2">
                 <div className="flex items-center gap-2">
                   <HexColorInput
-                    color={normalizeHexColor(designForm.stroke, "#0f172a")}
+                    color={normalizeHexColor(designForm.stroke, "#2c2c2c")}
                     alpha
                     prefixed
                     onFocus={() => {
@@ -492,7 +494,7 @@ export default function CanvasSidePanelDesign() {
                     onBlur={() => {
                       setColorField(
                         "stroke",
-                        normalizeHexColor(designForm.stroke, "#0f172a"),
+                        normalizeHexColor(designForm.stroke, "#2c2c2c"),
                         true,
                       );
                     }}
@@ -507,14 +509,14 @@ export default function CanvasSidePanelDesign() {
                     style={{
                       backgroundColor: normalizeHexColor(
                         designForm.stroke,
-                        "#0f172a",
+                        "#2c2c2c",
                       ),
                     }}
                   />
                 </div>
                 {activeColorField === "stroke" ? (
                   <HexAlphaColorPicker
-                    color={normalizeHexColor(designForm.stroke, "#0f172a")}
+                    color={normalizeHexColor(designForm.stroke, "#2c2c2c")}
                     onChange={(value) => {
                       setColorField("stroke", value, true);
                     }}
@@ -665,7 +667,7 @@ export default function CanvasSidePanelDesign() {
                 }}
                 onBlur={() => commitDesignForm(designForm)}
                 rows={3}
-                className="w-full resize-y rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-1.5 text-[11px] text-[#efefef] outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8]/45"
+                className="w-full resize-y rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-1.5 text-[11px] text-[#efefef] outline-none focus:border-[#ffffff] focus:ring-1 focus:ring-[#ffffff]/45"
               />
             </label>
           </div>

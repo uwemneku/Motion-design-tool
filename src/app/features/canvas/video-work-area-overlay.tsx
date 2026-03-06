@@ -181,7 +181,7 @@ export default function VideoWorkAreaOverlay() {
       >
         <div
           className={
-            "rounded bg-[var(--wise-accent)]/95 px-2 py-0.5 text-[10px] " +
+            "rounded bg-[#7dd3fc] px-2 py-0.5 text-[10px] " +
             "font-semibold uppercase tracking-wide text-white"
           }
         >

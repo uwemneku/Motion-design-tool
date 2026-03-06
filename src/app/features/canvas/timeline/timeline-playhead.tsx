@@ -80,7 +80,7 @@ export default function TimelinePlayhead({
         style={{ left: `${playheadPercent}%` }}
         onMouseDown={startDragging}
       >
-        <div className="absolute z-20 left-1/2 top-0 h-3 w-3 -translate-x-1/2 rounded-full border border-[#e8eeff] bg-[var(--wise-accent)] shadow" />
+        <div className="absolute z-20 left-1/2 top-0 h-3 w-3 -translate-x-1/2 rounded-full border border-[#e5e7eb] bg-[var(--wise-accent)] shadow" />
         <div className="absolute bottom-0 left-1/2 top-0 w-0.5 -translate-x-1/2 bg-[var(--wise-accent)]" />
       </div>
     </div>

@@ -24,7 +24,7 @@ export default function CanvasHeader() {
   return (
     <Tooltip.Provider>
       <div
-        className="flex items-center border-b border-[var(--wise-border)] bg-[var(--wise-surface-raised)] px-2.5 py-2"
+        className=" z-30 flex items-center border-b border-[var(--wise-border)] bg-[var(--wise-surface-raised)] px-2.5 py-2"
         data-testId="header"
       >
         <div
@@ -60,7 +60,7 @@ export default function CanvasHeader() {
                 }}
                 onMouseDown={preventMouseDownFocus}
                 disabled={isExporting}
-                className="rounded-md border border-[var(--wise-accent)]/75 bg-[var(--wise-accent)]/20 px-2.5 py-1.5 text-sm font-medium text-[#dcefff] hover:bg-[var(--wise-accent)]/30 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-md border border-[var(--wise-accent)]/75 bg-[var(--wise-accent)]/20 px-2.5 py-1.5 text-sm font-medium text-[#e5e7eb] hover:bg-[var(--wise-accent)]/30 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Export MP4
               </button>
@@ -68,7 +68,7 @@ export default function CanvasHeader() {
             <Tooltip.Portal>
               <Tooltip.Content
                 sideOffset={8}
-                className="z-50 w-56 rounded-lg border border-[#2f3745] bg-[#121923] p-2.5 text-xs text-[#e6e6e6] shadow-[0_10px_30px_rgba(0,0,0,0.45)]"
+                className="z-50 w-56 rounded-lg border border-[#4a4a4a] bg-[#1f1f1f] p-2.5 text-xs text-[#e6e6e6] shadow-[0_10px_30px_rgba(0,0,0,0.45)]"
               >
                 <SliderPanelControl
                   label="Export quality"
@@ -81,7 +81,7 @@ export default function CanvasHeader() {
                   valueText={`${exportQuality.toFixed(1)}x`}
                   onChange={setExportQuality}
                 />
-                <Tooltip.Arrow className="fill-[#121923]" />
+                <Tooltip.Arrow className="fill-[#1f1f1f]" />
               </Tooltip.Content>
             </Tooltip.Portal>
           </Tooltip.Root>
