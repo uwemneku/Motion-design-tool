@@ -101,11 +101,11 @@ function TimeStampControl() {
       </button>
 
       <div className="flex items-center gap-1.5 text-sm text-slate-100">
-        <span className="rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-1 font-mono text-[12px] tabular-nums">
+        <span className="px-1 font-mono text-[12px] tabular-nums">
           {formatPreciseTimelineTime(playheadTime)}
         </span>
         <span className="text-slate-400">/</span>
-        <span className="rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-1 font-mono text-[12px] tabular-nums">
+        <span className="px-1 font-mono text-[12px] tabular-nums">
           {formatPreciseTimelineTime(TIMELINE_DURATION, true)}
         </span>
       </div>

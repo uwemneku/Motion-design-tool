@@ -1,7 +1,6 @@
 /** Timeline Item Row.Tsx timeline UI and behavior. */
 import { useMemo, useState, type MouseEvent } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import type { AppDispatch, RootState } from "../../../store";
+import { useAppDispatch, useAppSelector } from "../../../store";
 import {
   setPlayheadTime,
   setSelectedId,
@@ -38,21 +37,29 @@ export default function TimelineItemRow({
   onSeekFromPointer,
   timelineDuration,
 }: TimelineItemRowProps) {
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch();
   const { getObjectById } = useCanvasAppContext();
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const isSelected = useSelector(
-    (state: RootState) => state.editor.selectedId === id,
+  const isSelected = useAppSelector(
+    (state) => state.editor.selectedId === id,
   );
-  const name = useSelector(
-    (state: RootState) => state.editor.itemsRecord[id]?.name ?? id,
+  const name = useAppSelector(
+    (state) => state.editor.itemsRecord[id]?.name ?? id,
   );
-  const keyframes = useSelector(
-    (state: RootState) => state.editor.itemsRecord[id]?.keyframe ?? [],
+  const keyframes = useAppSelector(
+    (state) => state.editor.itemsRecord[id]?.keyframe ?? [],
+  );
+  const selectedKeyframe = useAppSelector(
+    (state) => state.editor.selectedKeyframe,
+  );
+  const keyframeSignature = useMemo(
+    () => keyframes.map((frame) => `${frame.id}:${frame.timestamp}`).join("|"),
+    [keyframes],
   );
 
   const detailRows = useMemo(() => {
+    void keyframeSignature;
     const instance = getObjectById(id);
     if (!instance) return [];
 
@@ -76,7 +83,7 @@ export default function TimelineItemRow({
       buildColorDetailRow("Fill", "fill", fillFrames),
       buildColorDetailRow("Stroke", "stroke", strokeFrames),
     ].filter((row) => row.entries.length > 0);
-  }, [getObjectById, id]);
+  }, [getObjectById, id, keyframeSignature]);
 
   const seekToTime = (time: number) => {
     dispatch(setPlayheadTime(Number(time.toFixed(3))));
@@ -105,7 +112,7 @@ export default function TimelineItemRow({
     <div className="border-b border-[var(--wise-border)] text-sm">
       <div className="grid grid-cols-[210px_1fr]">
         <div
-          className={`sticky left-0 z-10 border-r border-[var(--wise-border)] px-3 py-2 text-slate-100 ${
+          className={`sticky left-0 z-20 border-r border-[var(--wise-border)] px-3 py-2 text-slate-100 ${
             isSelected
               ? "bg-[var(--wise-accent)]/16 font-semibold"
               : "bg-[var(--wise-surface)]"
@@ -172,7 +179,7 @@ export default function TimelineItemRow({
                 <button
                   type="button"
                   key={keyframe.id}
-                  className="absolute top-1/2 z-[60] size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#e5e7eb] bg-[var(--wise-accent)]"
+                  className="absolute top-1/2 z-[5] size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#e5e7eb] bg-[var(--wise-accent)]"
                   style={{ left: `${left}%` }}
                   title={`${name} @ ${keyframe.timestamp.toFixed(2)}s`}
                   onMouseDown={(event) => {
@@ -194,7 +201,7 @@ export default function TimelineItemRow({
         <div className="border-t border-[var(--wise-border)] bg-[var(--wise-surface)]/60">
           {detailRows.length === 0 ? (
             <div className="grid grid-cols-[210px_1fr]">
-              <div className="sticky left-0 z-10 border-r border-[var(--wise-border)] bg-[var(--wise-surface)] px-3 py-2 pl-8 text-xs text-slate-500">
+              <div className="sticky left-0 z-20 border-r border-[var(--wise-border)] bg-[var(--wise-surface)] px-3 py-2 pl-8 text-xs text-slate-500">
                 Details
               </div>
               <div className="px-3 py-2 text-xs text-slate-500">
@@ -208,7 +215,7 @@ export default function TimelineItemRow({
                   key={row.label}
                   className="grid grid-cols-[210px_1fr] border-b border-[var(--wise-border)] last:border-b-0"
                 >
-                  <div className="sticky left-0 z-10 border-r border-[var(--wise-border)] bg-[var(--wise-surface)] px-3 py-2 pl-8 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  <div className="sticky left-0 z-20 border-r border-[var(--wise-border)] bg-[var(--wise-surface)] px-3 py-2 pl-8 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                     {row.label}
                   </div>
                   <div
@@ -231,11 +238,18 @@ export default function TimelineItemRow({
                           0,
                           100,
                         );
+                        const isSelectedKeyframe =
+                          selectedKeyframe?.itemId === id &&
+                          selectedKeyframe.keyframeId === entry.keyframeId;
                         return (
                           <button
                             type="button"
                             key={`${row.label}-${entry.time}-${index}`}
-                            className="absolute top-1/2 z-[60] size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#e5e7eb] bg-[var(--wise-accent)]"
+                            className={`absolute top-1/2 z-[5] -translate-x-1/2 -translate-y-1/2 rounded-full border transition ${
+                              isSelectedKeyframe
+                                ? "size-3 border-[#2563eb] bg-[var(--wise-accent)] shadow-[0_0_0_1px_rgba(37,99,235,0.35)]"
+                                : "size-2 border-[#e5e7eb] bg-[var(--wise-accent)]"
+                            }`}
                             style={{ left: `${left}%` }}
                             title={`${row.label} @ ${entry.time.toFixed(2)}s • ${entry.text}`}
                             onMouseDown={(event) => {

@@ -4,14 +4,17 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useState, type MouseEvent } from "react";
 import { useAppSelector } from "../../../store";
 import { SliderPanelControl } from "../../../components/slider-panel-control";
+import type { ExportVideoFormat } from "../../export/export-media";
 import useExportVideo from "../../export/use-export-video";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 
-export const EXPORT_VIDEO_LABEL = "Export MP4";
+export const EXPORT_VIDEO_LABEL = "Export video";
+const EXPORT_FORMAT_OPTIONS: ExportVideoFormat[] = ["mp4", "webm"];
 
 /** Export button and quality controls for the right inspector toolbar. */
 export function CanvasSidePanelExportControls() {
   const [exportQuality, setExportQuality] = useState(1);
+  const [exportFormat, setExportFormat] = useState<ExportVideoFormat>("mp4");
   const activeAspectRatio =
     useAppSelector((state) => state.editor.projectInfo.videoAspectRatio) ?? 1;
   const { fabricCanvasRef } = useCanvasAppContext();
@@ -27,11 +30,13 @@ export function CanvasSidePanelExportControls() {
           <button
             type="button"
             onClick={() => {
-              void exportVideo(exportQuality);
+              void exportVideo(exportQuality, exportFormat);
             }}
             onMouseDown={preventMouseDownFocus}
             disabled={isExporting}
-            className="rounded-md border border-[#2563eb] bg-[#2563eb] px-2.5 py-1.5 text-sm font-medium text-white shadow-[0_0_0_1px_rgba(37,99,235,0.12)] transition hover:bg-[#1d4ed8] hover:border-[#1d4ed8] disabled:cursor-not-allowed disabled:border-[#2563eb]/50 disabled:bg-[#2563eb]/70 disabled:opacity-80"
+            aria-label={EXPORT_VIDEO_LABEL}
+            title={EXPORT_VIDEO_LABEL}
+            className="rounded-md border border-[#2563eb] bg-[#2563eb] px-2.5 py-1.5 text-[12px] font-medium text-white shadow-[0_0_0_1px_rgba(37,99,235,0.12)] transition hover:bg-[#1d4ed8] hover:border-[#1d4ed8] disabled:cursor-not-allowed disabled:border-[#2563eb]/50 disabled:bg-[#2563eb]/70 disabled:opacity-80"
           >
             <motion.span
               layout
@@ -41,7 +46,7 @@ export function CanvasSidePanelExportControls() {
                 ease: "easeOut",
               }}
             >
-              <span>{EXPORT_VIDEO_LABEL}</span>
+              <span>Export</span>
               <AnimatePresence initial={false}>
                 {isExporting ? (
                   <ExportProgressIndicator
@@ -58,6 +63,24 @@ export function CanvasSidePanelExportControls() {
             sideOffset={8}
             className="z-50 w-56 rounded-lg border border-[#4a4a4a] bg-[#1f1f1f] p-2.5 text-xs text-[#e6e6e6] shadow-[0_10px_30px_rgba(0,0,0,0.45)]"
           >
+            <div className="mb-3 space-y-1.5">
+              <div className="text-[11px] font-medium text-[#c9ccd6]">
+                Format
+              </div>
+              <select
+                value={exportFormat}
+                onChange={(event) => {
+                  setExportFormat(event.target.value as ExportVideoFormat);
+                }}
+                className="h-8 w-full rounded-md border border-white/10 bg-[rgba(255,255,255,0.03)] px-2 text-[11px] font-medium uppercase text-[#e6e6e6] outline-none transition focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb]/45"
+              >
+                {EXPORT_FORMAT_OPTIONS.map((format) => (
+                  <option key={format} value={format}>
+                    {format}
+                  </option>
+                ))}
+              </select>
+            </div>
             <SliderPanelControl
               label="Export quality"
               min={0.5}

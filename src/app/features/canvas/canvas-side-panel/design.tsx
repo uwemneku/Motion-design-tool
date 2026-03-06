@@ -337,13 +337,15 @@ export default function CanvasSidePanelDesign() {
             <h4 className={sectionTitleClass}>Transform</h4>
             <div className="grid grid-cols-2 gap-2">
               <label className={labelClass}>
-                <PropertyLabel
-                  isKeyframed={hasKeyframeAtPlayhead("left")}
-                  label="Position X"
-                  onAddKeyframe={() => {
-                    addPropertyKeyframe("left");
-                  }}
-                />
+                <span className="text-[#d5d8e1]">Position X</span>
+                <div className="relative">
+                  <KeyframeActionButton
+                    isKeyframed={hasKeyframeAtPlayhead("left")}
+                    label="Position X"
+                    onAddKeyframe={() => {
+                      addPropertyKeyframe("left");
+                    }}
+                  />
                 <input
                   type="number"
                   step={0.001}
@@ -356,17 +358,20 @@ export default function CanvasSidePanelDesign() {
                   }}
                   onBlur={() => commitDesignForm(designForm, ["left"])}
                   onKeyDown={(event) => onInputKeyDown(event, ["left"])}
-                  className={fieldClass}
+                  className={`${fieldClass} pr-9`}
                 />
+                </div>
               </label>
               <label className={labelClass}>
-                <PropertyLabel
-                  isKeyframed={hasKeyframeAtPlayhead("top")}
-                  label="Position Y"
-                  onAddKeyframe={() => {
-                    addPropertyKeyframe("top");
-                  }}
-                />
+                <span className="text-[#d5d8e1]">Position Y</span>
+                <div className="relative">
+                  <KeyframeActionButton
+                    isKeyframed={hasKeyframeAtPlayhead("top")}
+                    label="Position Y"
+                    onAddKeyframe={() => {
+                      addPropertyKeyframe("top");
+                    }}
+                  />
                 <input
                   type="number"
                   step={0.001}
@@ -379,20 +384,23 @@ export default function CanvasSidePanelDesign() {
                   }}
                   onBlur={() => commitDesignForm(designForm, ["top"])}
                   onKeyDown={(event) => onInputKeyDown(event, ["top"])}
-                  className={fieldClass}
+                  className={`${fieldClass} pr-9`}
                 />
+                </div>
               </label>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <label className={labelClass}>
-                <PropertyLabel
-                  isKeyframed={hasKeyframeAtPlayhead("scaleX")}
-                  label="Scale X"
-                  onAddKeyframe={() => {
-                    addPropertyKeyframe("scaleX");
-                  }}
-                />
+                <span className="text-[#d5d8e1]">Scale X</span>
+                <div className="relative">
+                  <KeyframeActionButton
+                    isKeyframed={hasKeyframeAtPlayhead("scaleX")}
+                    label="Scale X"
+                    onAddKeyframe={() => {
+                      addPropertyKeyframe("scaleX");
+                    }}
+                  />
                 <input
                   type="number"
                   step={0.001}
@@ -405,17 +413,20 @@ export default function CanvasSidePanelDesign() {
                   }}
                   onBlur={() => commitDesignForm(designForm, ["scaleX"])}
                   onKeyDown={(event) => onInputKeyDown(event, ["scaleX"])}
-                  className={fieldClass}
+                  className={`${fieldClass} pr-9`}
                 />
+                </div>
               </label>
               <label className={labelClass}>
-                <PropertyLabel
-                  isKeyframed={hasKeyframeAtPlayhead("scaleY")}
-                  label="Scale Y"
-                  onAddKeyframe={() => {
-                    addPropertyKeyframe("scaleY");
-                  }}
-                />
+                <span className="text-[#d5d8e1]">Scale Y</span>
+                <div className="relative">
+                  <KeyframeActionButton
+                    isKeyframed={hasKeyframeAtPlayhead("scaleY")}
+                    label="Scale Y"
+                    onAddKeyframe={() => {
+                      addPropertyKeyframe("scaleY");
+                    }}
+                  />
                 <input
                   type="number"
                   step={0.001}
@@ -428,20 +439,23 @@ export default function CanvasSidePanelDesign() {
                   }}
                   onBlur={() => commitDesignForm(designForm, ["scaleY"])}
                   onKeyDown={(event) => onInputKeyDown(event, ["scaleY"])}
-                  className={fieldClass}
+                  className={`${fieldClass} pr-9`}
                 />
+                </div>
               </label>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <label className={labelClass}>
-                <PropertyLabel
-                  isKeyframed={hasKeyframeAtPlayhead("opacity")}
-                  label="Opacity"
-                  onAddKeyframe={() => {
-                    addPropertyKeyframe("opacity");
-                  }}
-                />
+                <span className="text-[#d5d8e1]">Opacity</span>
+                <div className="relative">
+                  <KeyframeActionButton
+                    isKeyframed={hasKeyframeAtPlayhead("opacity")}
+                    label="Opacity"
+                    onAddKeyframe={() => {
+                      addPropertyKeyframe("opacity");
+                    }}
+                  />
                 <input
                   type="number"
                   min={0}
@@ -456,17 +470,20 @@ export default function CanvasSidePanelDesign() {
                   }}
                   onBlur={() => commitDesignForm(designForm, ["opacity"])}
                   onKeyDown={(event) => onInputKeyDown(event, ["opacity"])}
-                  className={fieldClass}
+                  className={`${fieldClass} pr-9`}
                 />
+                </div>
               </label>
               <label className={labelClass}>
-                <PropertyLabel
-                  isKeyframed={hasKeyframeAtPlayhead("angle")}
-                  label="Rotation"
-                  onAddKeyframe={() => {
-                    addPropertyKeyframe("angle");
-                  }}
-                />
+                <span className="text-[#d5d8e1]">Rotation</span>
+                <div className="relative">
+                  <KeyframeActionButton
+                    isKeyframed={hasKeyframeAtPlayhead("angle")}
+                    label="Rotation"
+                    onAddKeyframe={() => {
+                      addPropertyKeyframe("angle");
+                    }}
+                  />
                 <input
                   type="number"
                   step={0.001}
@@ -479,8 +496,9 @@ export default function CanvasSidePanelDesign() {
                   }}
                   onBlur={() => commitDesignForm(designForm, ["angle"])}
                   onKeyDown={(event) => onInputKeyDown(event, ["angle"])}
-                  className={fieldClass}
+                  className={`${fieldClass} pr-9`}
                 />
+                </div>
               </label>
             </div>
           </>
@@ -492,15 +510,17 @@ export default function CanvasSidePanelDesign() {
           <h4 className={sectionTitleClass}>Fill</h4>
           {supportsFill ? (
             <label ref={fillColorSectionRef} className={`block ${labelClass}`}>
-              <PropertyLabel
-                isKeyframed={hasKeyframeAtPlayhead("fill")}
-                label="Fill"
-                onAddKeyframe={() => {
-                  addPropertyKeyframe("fill");
-                }}
-              />
+              <span className="text-[#d5d8e1]">Fill</span>
               <div className="space-y-2 rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface-muted)] p-2">
-                <div className="flex items-center gap-2">
+                <div className="relative flex items-center gap-2">
+                  <KeyframeActionButton
+                    isKeyframed={hasKeyframeAtPlayhead("fill")}
+                    label="Fill"
+                    onAddKeyframe={() => {
+                      addPropertyKeyframe("fill");
+                    }}
+                    className="right-8"
+                  />
                   <HexColorInput
                     color={normalizeHexColor(designForm.fill)}
                     alpha
@@ -522,7 +542,7 @@ export default function CanvasSidePanelDesign() {
                         true,
                       );
                     }}
-                    className={`${fieldClass} flex-1`}
+                    className={`${fieldClass} flex-1 pr-9`}
                   />
                   <button
                     type="button"
@@ -553,15 +573,17 @@ export default function CanvasSidePanelDesign() {
               ref={strokeColorSectionRef}
               className={`block ${labelClass}`}
             >
-              <PropertyLabel
-                isKeyframed={hasKeyframeAtPlayhead("stroke")}
-                label="Stroke"
-                onAddKeyframe={() => {
-                  addPropertyKeyframe("stroke");
-                }}
-              />
+              <span className="text-[#d5d8e1]">Stroke</span>
               <div className="space-y-2 rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface-muted)] p-2">
-                <div className="flex items-center gap-2">
+                <div className="relative flex items-center gap-2">
+                  <KeyframeActionButton
+                    isKeyframed={hasKeyframeAtPlayhead("stroke")}
+                    label="Stroke"
+                    onAddKeyframe={() => {
+                      addPropertyKeyframe("stroke");
+                    }}
+                    className="right-8"
+                  />
                   <HexColorInput
                     color={normalizeHexColor(designForm.stroke, "#2c2c2c")}
                     alpha
@@ -583,7 +605,7 @@ export default function CanvasSidePanelDesign() {
                         true,
                       );
                     }}
-                    className={`${fieldClass} flex-1`}
+                    className={`${fieldClass} flex-1 pr-9`}
                   />
                   <button
                     type="button"
@@ -779,40 +801,39 @@ function formatNumberInput(value: number) {
   return Number(value.toFixed(INPUT_PRECISION)).toString();
 }
 
-type PropertyLabelProps = {
+type KeyframeActionButtonProps = {
+  className?: string;
   isKeyframed: boolean;
   label: string;
   onAddKeyframe: () => void;
 };
 
-/** Renders a property label with a compact add-keyframe action button. */
-function PropertyLabel({
+/** Renders a compact add-keyframe action inside a property field. */
+function KeyframeActionButton({
+  className,
   isKeyframed,
   label,
   onAddKeyframe,
-}: PropertyLabelProps) {
+}: KeyframeActionButtonProps) {
   return (
-    <span className="flex items-center justify-between gap-2">
-      <span className="text-[#d5d8e1]">{label}</span>
-      <button
-        type="button"
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onAddKeyframe();
-        }}
-        className={`inline-flex size-5 shrink-0 items-center justify-center rounded-md border transition ${
-          isKeyframed
-            ? "border-[#2563eb] bg-[#2563eb]/18 text-[#93c5fd]"
-            : "border-white/10 bg-[rgba(255,255,255,0.03)] text-[#8f96a3] hover:border-[#2563eb]/70 hover:bg-[#2563eb]/10 hover:text-[#93c5fd]"
-        }`}
-        aria-label={`Add keyframe for ${label}`}
-        title={`Add keyframe for ${label}`}
-      >
-        <svg viewBox="0 0 24 24" className="size-3" fill="currentColor">
-          <path d="M12 4l8 8-8 8-8-8 8-8z" />
-        </svg>
-      </button>
-    </span>
+    <button
+      type="button"
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onAddKeyframe();
+      }}
+      className={`absolute right-2 top-1/2 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-md border transition ${
+        isKeyframed
+          ? "border-[#2563eb] bg-[#2563eb]/18 text-[#93c5fd]"
+          : "border-white/10 bg-[rgba(255,255,255,0.03)] text-[#8f96a3] hover:border-[#2563eb]/70 hover:bg-[#2563eb]/10 hover:text-[#93c5fd]"
+      } ${className ?? ""}`}
+      aria-label={`Add keyframe for ${label}`}
+      title={`Add keyframe for ${label}`}
+    >
+      <svg viewBox="0 0 24 24" className="size-3" fill="currentColor">
+        <path d="M12 4l8 8-8 8-8-8 8-8z" />
+      </svg>
+    </button>
   );
 }

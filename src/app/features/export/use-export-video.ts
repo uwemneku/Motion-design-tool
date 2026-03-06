@@ -17,7 +17,7 @@ import {
 import { getVideoWorkAreaRect } from "./video-work-area";
 import { AnimatableObject } from "../shapes/animatable-object/object";
 import { useCanvasAppContext } from "../canvas/hooks/use-canvas-app-context";
-import { exportCanvasAsMp4 } from "./export-media";
+import { exportCanvasAsVideo, type ExportVideoFormat } from "./export-media";
 import type { KeyframesByProperty } from "../shapes/animatable-object/types";
 import { toast } from "sonner";
 
@@ -28,7 +28,7 @@ type ExportMaskTrackingObject = FabricObject & {
 };
 
 /**
- * Exports the current canvas scene to MP4 using the active video work area.
+ * Exports the current canvas scene to the selected format using the video work area.
  */
 function useExportVideo(
   fabricCanvas: MutableRefObject<Canvas | null>,
@@ -39,7 +39,7 @@ function useExportVideo(
   const [exportProgress, setExportProgress] = useState(0);
 
   const exportVideo = useCallback(
-    async (quality: number) => {
+    async (quality: number, format: ExportVideoFormat) => {
       const liveCanvas = fabricCanvas.current;
       if (!liveCanvas) return;
       liveCanvas.discardActiveObject();
@@ -74,12 +74,15 @@ function useExportVideo(
         const exportElement = document.createElement("canvas");
         exportElement.width = exportWidth;
         exportElement.height = exportHeight;
+        ensureTransparentCanvasFrame(exportElement, exportWidth, exportHeight);
         exportCanvas = new StaticCanvas(exportElement, {
           width: exportWidth,
           height: exportHeight,
-          backgroundColor: "transparent",
+          backgroundColor: "rgba(0,0,0,0)",
           renderOnAddRemove: false,
         });
+        exportCanvas.backgroundImage = undefined;
+        exportCanvas.overlayImage = undefined;
 
         const sourceObjects = liveCanvas.getObjects();
         /**Store the instance of the fabric object from the live canvas */
@@ -150,19 +153,26 @@ function useExportVideo(
           scaleX,
           scaleY,
         );
+        ensureTransparentCanvasFrame(exportElement, exportWidth, exportHeight);
         exportCanvas.renderAll();
 
-        const blob = await exportCanvasAsMp4({
+        const blob = await exportCanvasAsVideo({
           canvas: exportElement,
           width: exportWidth,
           height: exportHeight,
           durationInSeconds: EXPORT_DURATION_SECONDS,
+          format,
           fps: EXPORT_FPS,
           onFrame: async (timeInSeconds) => {
             exportInstances.forEach((instance) => {
               instance.seek(timeInSeconds);
               syncExportMaskProxyForObject(instance.fabricObject);
             });
+            ensureTransparentCanvasFrame(
+              exportElement,
+              exportWidth,
+              exportHeight,
+            );
             exportCanvas?.renderAll();
           },
           onProgress: (progress) => {
@@ -175,7 +185,7 @@ function useExportVideo(
         const anchor = document.createElement("a");
         const timestamp = new Date().toISOString().replaceAll(":", "-");
         anchor.href = url;
-        anchor.download = `motion-export-${timestamp}.mp4`;
+        anchor.download = `motion-export-${timestamp}.${format}`;
         anchor.click();
         window.setTimeout(() => {
           URL.revokeObjectURL(url);
@@ -197,6 +207,17 @@ function useExportVideo(
 }
 
 export default useExportVideo;
+
+/** Clears the export surface so every rendered frame starts from transparent pixels. */
+function ensureTransparentCanvasFrame(
+  canvas: HTMLCanvasElement,
+  width: number,
+  height: number,
+) {
+  const context = canvas.getContext("2d", { alpha: true });
+  if (!context) return;
+  context.clearRect(0, 0, width, height);
+}
 
 function isVideoAreaGuideObject(object: FabricObject) {
   return Boolean((object as ExportMaskTrackingObject).isVideoAreaGuide);

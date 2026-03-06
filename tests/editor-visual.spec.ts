@@ -4,7 +4,7 @@ import { EXPORT_VIDEO_LABEL } from "../src/app/features/canvas/canvas-side-panel
 /** Waits for the editor shell to finish initial render. */
 async function gotoEditor(page: Page) {
   await page.goto("/");
-  await expect(page.getByText("Layers", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Layers" })).toBeVisible();
   await expect(page.getByTestId("timeline")).toBeVisible();
   await expect(page.getByRole("button", { name: EXPORT_VIDEO_LABEL })).toBeVisible();
 }
@@ -69,6 +69,56 @@ test.describe("Editor visual review", () => {
       fullPage: true,
       maxDiffPixelRatio: 0.02,
     });
+  });
+
+  test("captures timeline zoom review state", async ({ page }) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add rectangle");
+    await addCanvasItem(page, "Add circle");
+    await page.getByRole("button", { name: "Zoom in timeline" }).click();
+    await page.getByRole("button", { name: "Zoom in timeline" }).click();
+
+    await page.screenshot({
+      fullPage: true,
+      path: "test-results/playwright/timeline-zoom-review.png",
+    });
+  });
+
+  test("keeps the timeline toolbar fixed while zoomed content scrolls", async ({
+    page,
+  }, testInfo) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add rectangle");
+    await addCanvasItem(page, "Add circle");
+
+    const zoomInButton = page.getByRole("button", { name: "Zoom in timeline" });
+    await zoomInButton.click();
+    await zoomInButton.click();
+    await zoomInButton.click();
+    await zoomInButton.click();
+
+    const toolbar = page.getByTestId("timeline-toolbar");
+    const toolbarBefore = await toolbar.boundingBox();
+    if (!toolbarBefore) {
+      throw new Error("Timeline toolbar was not measurable before scroll.");
+    }
+
+    const timelineViewport = page
+      .getByTestId("timeline")
+      .locator(".timeline-scroll-viewport");
+    await timelineViewport.evaluate((element) => {
+      element.scrollLeft = 480;
+      element.dispatchEvent(new Event("scroll"));
+    });
+
+    await saveShot(page, testInfo, "timeline-toolbar-scroll.png");
+
+    const toolbarAfter = await toolbar.boundingBox();
+    if (!toolbarAfter) {
+      throw new Error("Timeline toolbar was not measurable after scroll.");
+    }
+
+    expect(Math.abs(toolbarAfter.x - toolbarBefore.x)).toBeLessThan(1);
   });
 });
 
