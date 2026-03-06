@@ -147,14 +147,7 @@ export default function AIChatPanel() {
   };
 
   return (
-    <section className="flex min-h-0 max-h-[50dvh] flex-1 flex-col border-t border-[var(--wise-border)] pt-3">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-100">AI Scene Chat</h3>
-        <span className="rounded-full border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-0.5 text-[10px] text-slate-400">
-          Agent loop
-        </span>
-      </div>
-
+    <section className="flex min-h-0 flex-1 flex-col border-[var(--wise-border)]">
       <AppScrollArea
         rootClassName="min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--wise-border)] bg-[var(--wise-surface-raised)]"
         viewportClassName="h-full w-full p-2"

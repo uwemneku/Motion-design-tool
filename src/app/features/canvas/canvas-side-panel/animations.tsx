@@ -284,7 +284,7 @@ export default function CanvasSidePanelAnimations({
           @keyframes preview-text-char-rise { 0% { opacity: 0; transform: translateY(8px); letter-spacing: -0.08em; } 100% { opacity: 1; transform: translateY(0); letter-spacing: 0; } }`}
       </style>
 
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
         Animation Templates
       </h3>
 
@@ -294,7 +294,7 @@ export default function CanvasSidePanelAnimations({
         </p>
       )}
 
-      <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2 overflow-y-auto pr-1">
+      <div className="grid min-h-0 flex-1 grid-cols-2 gap-2 overflow-y-auto pr-1">
         {animationTemplates.map((template) => (
           <button
             key={template.id}
@@ -303,24 +303,26 @@ export default function CanvasSidePanelAnimations({
             onClick={() => {
               applyAnimationTemplate(template);
             }}
-            className="group aspect-square flex flex-col rounded-md  bg-(--wise-surface) p-2 text-left transition   disabled:cursor-not-allowed disabled:opacity-50"
+            className="group flex min-h-[116px] flex-col rounded-xl border border-white/8 bg-[rgba(255,255,255,0.02)] p-2.5 text-left transition hover:border-[#2563eb]/35 hover:bg-[rgba(255,255,255,0.04)] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs  text-slate-200">{template.name}</p>
+            <div className="mb-2 flex items-start justify-between gap-2">
+              <p className="text-[11px] leading-4 text-slate-200">
+                {template.name}
+              </p>
               <span className="text-[10px] uppercase tracking-wide text-slate-500">
                 {template.duration.toFixed(1)}s
               </span>
             </div>
 
             <div
-              className={`h-20 w-full  bg-gradient-to-br from-slate-300/90 to-slate-500/80 ${getPreviewShapeClass(template.id)}`}
+              className={`h-14 w-full rounded-lg bg-gradient-to-br from-slate-300/90 to-slate-500/80 ${getPreviewShapeClass(template.id)}`}
             />
           </button>
         ))}
       </div>
 
       <div className="pt-1">
-        <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
           Text Effects
         </h4>
         {!isTextSelected ? (
@@ -328,7 +330,7 @@ export default function CanvasSidePanelAnimations({
             Select a text item to enable special text effects.
           </p>
         ) : null}
-        <div className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2">
+        <div className="mt-2 grid grid-cols-2 gap-2">
           {textAnimationTemplates.map((template) => (
             <button
               key={template.id}
@@ -337,18 +339,17 @@ export default function CanvasSidePanelAnimations({
               onClick={() => {
                 applyTextAnimationTemplate(template);
               }}
-              className="group rounded-md border border-slate-700 bg-slate-950 p-2 text-left transition hover:border-slate-500/60 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-              className="group rounded-md border border-slate-700 bg-slate-950 p-2 text-left transition hover:border-slate-500/60 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+              className="group rounded-xl border border-white/8 bg-[rgba(255,255,255,0.02)] p-2.5 text-left transition hover:border-[#2563eb]/35 hover:bg-[rgba(255,255,255,0.04)] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-200">
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <p className="text-[11px] font-semibold leading-4 text-slate-200">
                   {template.name}
                 </p>
                 <span className="text-[10px] uppercase tracking-wide text-slate-500">
                   {template.duration.toFixed(2)}s
                 </span>
               </div>
-              <div className="mb-2 h-14 rounded border border-slate-800 bg-slate-900/70 p-2">
+              <div className="mb-2 h-12 rounded-lg border border-slate-800 bg-slate-900/70 p-2">
                 <div
                   className={`h-full bg-(--wise-raised) ${getTextPreviewShapeClass(template.id)}`}
                 ></div>

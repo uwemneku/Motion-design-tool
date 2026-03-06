@@ -1,5 +1,4 @@
 import { Canvas, Point, Rect, util, type FabricObject } from "fabric";
-import { FIGMA_BLUE } from "../../../../const";
 import type { VideoWorkAreaRect } from "../../export/video-work-area";
 
 export type AspectOption = {
@@ -141,7 +140,7 @@ export function getViewportBounds(canvas: Canvas): ViewportBounds {
 export const guides: VideoGuideSet = {
   border: createVideoGuideRect({
     fill: "transparent",
-    stroke: FIGMA_BLUE,
+    stroke: "#2563eb",
     strokeWidth: 2,
   }),
   dimTop: createVideoGuideRect({

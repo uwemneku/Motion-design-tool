@@ -1,25 +1,24 @@
 /** Canvas Items List Item.Tsx module implementation. */
 import { Reorder } from "framer-motion";
-import { useDispatch, useSelector } from "react-redux";
-import type { AppDispatch, RootState } from "../../../store";
+import { useAppDispatch, useAppSelector } from "../../../store";
 import { setSelectedId } from "../../../store/editor-slice";
 
 type CanvasItemsListItemProps = {
   id: string;
+  index: number;
 };
 
 /**
  * Single draggable canvas-item row with local selectors for item metadata.
  */
-export function CanvasItemsListItem({ id }: CanvasItemsListItemProps) {
-  const dispatch = useDispatch<AppDispatch>();
-  const item = useSelector(
-    (state: RootState) => state.editor.itemsRecord?.[id],
-  );
-  const selectedId = useSelector((state: RootState) => state.editor.selectedId);
+export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
+  const dispatch = useAppDispatch();
+  const item = useAppSelector((state) => state.editor.itemsRecord?.[id]);
+  const selectedId = useAppSelector((state) => state.editor.selectedId);
   const name = item?.name ?? id;
   const isSelected = selectedId === id;
 
+  /** Selects the clicked canvas item in the editor store. */
   const handleClick = () => {
     dispatch(setSelectedId(id));
   };
@@ -27,8 +26,9 @@ export function CanvasItemsListItem({ id }: CanvasItemsListItemProps) {
   return (
     <Reorder.Item
       value={id}
-      className="cursor-grab active:cursor-grabbing"
+      className="cursor-grab active:cursor-grabbing relative"
       whileDrag={{ scale: 1.01 }}
+      style={{ zIndex: index }}
     >
       <button
         type="button"

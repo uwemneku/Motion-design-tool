@@ -11,13 +11,18 @@ import { useDispatch } from "react-redux";
 import { toast } from "sonner";
 import { AnimatableObject } from "../../shapes/animatable-object/object";
 import type { KeyframeEasing } from "../../shapes/animatable-object/types";
+import { getVideoWorkAreaRect } from "../../export/video-work-area";
 import {
   removeItemRecord,
   setCanvasItemIds,
   setSelectedId,
   upsertItemRecord,
 } from "../../../store/editor-slice";
-import { dispatchableSelector, type AppDispatch } from "../../../store";
+import {
+  dispatchableSelector,
+  type AppDispatch,
+  useAppSelector,
+} from "../../../store";
 import {
   CircleObject,
   ImageObject,
@@ -175,7 +180,21 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     addCanvasObject: registerInstance,
     deleteCanvasObject: unregisterInstance,
   } = useCanvasAppContext();
+  const activeAspectRatio =
+    useAppSelector((state) => state.editor.projectInfo.videoAspectRatio) ?? 1;
   const placeholderCleanupByIdRef = useRef<Map<string, () => void>>(new Map());
+
+  const getVideoCenter = (canvas: Canvas) => {
+    const videoArea = getVideoWorkAreaRect(
+      canvas.getWidth(),
+      canvas.getHeight(),
+      activeAspectRatio,
+    );
+    return {
+      left: videoArea.left + videoArea.width / 2,
+      top: videoArea.top + videoArea.height / 2,
+    };
+  };
 
   const addObjectToCanvas = (
     instance: AnimatableObject,
@@ -518,9 +537,15 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
   };
 
   const addCircle = (options: AddItemOptions = {}) => {
+    const canvas = fabricCanvas.current;
+    if (!canvas) return;
+    const { left, top } = getVideoCenter(canvas);
+
     const circle = new CircleObject({
-      left: 0,
-      top: 0,
+      left,
+      top,
+      originX: "center",
+      originY: "center",
       radius:
         typeof options.radius === "number" && Number.isFinite(options.radius)
           ? Math.max(1, options.radius)
@@ -536,10 +561,15 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
   };
 
   const addPolygon = (options: AddItemOptions = {}) => {
+    const canvas = fabricCanvas.current;
+    if (!canvas) return;
+    const { left, top } = getVideoCenter(canvas);
     const sides = Math.max(3, Math.round(options.sides ?? 5));
     const polygon = new PolygonObject(createRegularPolygonPoints(sides, 70), {
-      left: 360,
-      top: 140,
+      left,
+      top,
+      originX: "center",
+      originY: "center",
       fill: options.color ?? "#ffffff",
       stroke: "#4b5563",
       strokeWidth: 0,
@@ -551,9 +581,14 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
   };
 
   const addLine = (options: AddItemOptions = {}) => {
+    const canvas = fabricCanvas.current;
+    if (!canvas) return;
+    const { left, top } = getVideoCenter(canvas);
     const line = new LineObject([0, 0, 180, 0], {
-      left: 220,
-      top: 180,
+      left,
+      top,
+      originX: "center",
+      originY: "center",
       stroke: options.color ?? "#ffffff",
       strokeWidth: 2,
       strokeLineCap: "round",
@@ -565,9 +600,14 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
   };
 
   const addRectangle = (options: AddItemOptions = {}) => {
+    const canvas = fabricCanvas.current;
+    if (!canvas) return;
+    const { left, top } = getVideoCenter(canvas);
     const rectangle = new RectangleObject({
-      left: 380,
-      top: 180,
+      left,
+      top,
+      originX: "center",
+      originY: "center",
       width: 180,
       height: 110,
       fill: options.color ?? "#ffffff",
@@ -583,6 +623,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
   const addImageFromURL = async (url: string, options: AddItemOptions = {}) => {
     const canvas = fabricCanvas.current;
     if (!canvas) return;
+    const { left, top } = getVideoCenter(canvas);
 
     await validateImageUrl(url);
 
@@ -598,8 +639,10 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     const scale = Math.min(1, widthScale, heightScale);
 
     imageObject.fabricObject.set({
-      left: 520,
-      top: 220,
+      left,
+      top,
+      originX: "center",
+      originY: "center",
       scaleX: scale,
       scaleY: scale,
       ...options,
@@ -659,9 +702,14 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
   };
 
   const addText = (content = "Edit text", options: AddItemOptions = {}) => {
+    const canvas = fabricCanvas.current;
+    if (!canvas) return;
+    const { left, top } = getVideoCenter(canvas);
     const text = new TextObject(content, {
-      left: 240,
-      top: 260,
+      left,
+      top,
+      originX: "center",
+      originY: "center",
       fontSize: 44,
       fill: options.color ?? "#ffffff",
       fontWeight: 700,

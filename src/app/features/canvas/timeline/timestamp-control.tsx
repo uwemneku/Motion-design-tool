@@ -6,6 +6,7 @@ import {
   setPlayheadTime as setPlayHeadTime,
 } from "../../../store/editor-slice";
 
+/** Playback transport with play state and precise current/duration readouts. */
 function TimeStampControl() {
   const playheadTime = useAppSelector((state) => state.editor.playHeadTime);
   const playheadRef = useRef(playheadTime);
@@ -114,6 +115,7 @@ function TimeStampControl() {
 
 export default TimeStampControl;
 
+/** Formats a seconds value for the transport readout. */
 function formatPreciseTimelineTime(seconds: number, includeUnit = false) {
   const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
   const formatted = safeSeconds.toFixed(2);

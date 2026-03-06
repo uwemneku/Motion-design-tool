@@ -101,15 +101,15 @@ import type {
 } from "../../../../types";
 
 export const sectionTitleClass =
-  "text-[11px] font-semibold uppercase tracking-wide text-[#b8b8b8]";
-export const labelClass = "space-y-1 text-[11px] text-[#b1b1b1]";
+  "text-[11px] font-semibold uppercase tracking-[0.18em] text-[#c9ccd6]";
+export const labelClass = "space-y-1.5 text-[11px] text-[#b8bdc9]";
 export const fieldClass =
-  "h-7 w-full rounded-md border border-[var(--wise-border)] " +
-  "bg-[var(--wise-surface)] px-2 text-[11px] text-[#efefef] " +
-  "outline-none focus:border-[#ffffff] focus:ring-1 focus:ring-[#ffffff]/45";
+  "h-8 w-full rounded-lg border border-white/10 " +
+  "bg-[rgba(255,255,255,0.03)] px-2.5 text-[11px] text-[#efefef] " +
+  "outline-none transition focus:border-[#ffffff] focus:ring-1 focus:ring-[#ffffff]/45";
 export const cardClass =
-  "space-y-2 rounded-md border border-[var(--wise-border)] " +
-  "bg-[var(--wise-surface)] p-2.5";
+  "space-y-3 rounded-xl border border-white/10 " +
+  "bg-[rgba(255,255,255,0.02)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]";
 
 export const animationTemplates: AnimationTemplate[] = [
   {

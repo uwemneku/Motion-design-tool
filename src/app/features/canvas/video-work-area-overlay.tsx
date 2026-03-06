@@ -181,9 +181,10 @@ export default function VideoWorkAreaOverlay() {
       >
         <div
           className={
-            "rounded bg-[#7dd3fc] px-2 py-0.5 text-[10px] " +
+            "rounded px-2 py-0.5 text-[10px] " +
             "font-semibold uppercase tracking-wide text-white"
           }
+          style={{ backgroundColor: "#2563eb" }}
         >
           Video Area
         </div>
@@ -202,7 +203,7 @@ export default function VideoWorkAreaOverlay() {
             }
           }}
           className={
-            "appearance-none rounded border border-[var(--wise-border)] " +
+            "appearance-none rounded border " +
             "bg-[var(--wise-surface-raised)]/95 px-2 py-0.5 text-[10px] " +
             "font-semibold uppercase tracking-wide text-[#d4d4d4] outline-none " +
             "ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none " +
@@ -212,6 +213,7 @@ export default function VideoWorkAreaOverlay() {
             WebkitAppearance: "none",
             MozAppearance: "none",
             backgroundImage: "none",
+            borderColor: "#2563eb",
           }}
           aria-label="Change video aspect ratio"
         >

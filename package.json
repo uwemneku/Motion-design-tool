@@ -9,7 +9,11 @@
     "typecheck": "tsc -b",
     "typecheck:watch": "tsc -b --watch --preserveWatchOutput",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:ui": "playwright test --project=chromium",
+    "test:ui:headed": "playwright test --project=chromium --headed",
+    "test:ui:update": "playwright test --project=chromium --update-snapshots",
+    "test:ui:visual": "playwright test tests/editor-visual.spec.ts --project=chromium"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.29",

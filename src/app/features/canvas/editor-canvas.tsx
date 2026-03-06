@@ -1,5 +1,4 @@
 /** Editor Canvas.Tsx module implementation. */
-import CanvasHeader from "./canvas-header/canvas-header";
 import CanvasSidePanel from "./canvas-side-panel";
 import CanvasToolsFab from "./canvas-tools-fab";
 import CanvasZoomControl from "./canvas-zoom-control";
@@ -14,8 +13,6 @@ export default function EditorCanvas() {
 
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden border border-[var(--wise-border)] bg-[var(--wise-surface-raised)] ">
-      <CanvasHeader />
-
       <div
         data-canvas_container
         className="flex min-h-0 flex-1 flex-col"

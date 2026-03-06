@@ -1,0 +1,78 @@
+import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { EXPORT_VIDEO_LABEL } from "../src/app/features/canvas/canvas-side-panel/export-controls";
+
+/** Waits for the editor shell to finish initial render. */
+async function gotoEditor(page: Page) {
+  await page.goto("/");
+  await expect(page.getByText("Layers", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("timeline")).toBeVisible();
+  await expect(page.getByRole("button", { name: EXPORT_VIDEO_LABEL })).toBeVisible();
+}
+
+/** Adds a canvas item through the floating canvas tools. */
+async function addCanvasItem(page: Page, label: string) {
+  await page.getByRole("button", { name: label }).click();
+}
+
+/** Selects a layer row by its exact name. */
+async function selectLayer(page: Page, name: string) {
+  await page.getByRole("button", { name: new RegExp(`^${escapeRegex(name)}$`) }).click();
+}
+
+/** Saves a screenshot into the test output folder for visual review. */
+async function saveShot(page: Page, testInfo: TestInfo, name: string) {
+  await page.screenshot({
+    fullPage: true,
+    path: testInfo.outputPath(name),
+  });
+}
+
+test.describe("Editor visual review", () => {
+  test("captures the default editor shell", async ({ page }, testInfo) => {
+    await gotoEditor(page);
+
+    await saveShot(page, testInfo, "editor-shell.png");
+    await expect(page).toHaveScreenshot("editor-shell-baseline.png", {
+      fullPage: true,
+      maxDiffPixelRatio: 0.02,
+    });
+  });
+
+  test("captures a populated design state", async ({ page }, testInfo) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add rectangle");
+    await addCanvasItem(page, "Add text");
+    await selectLayer(page, "rectangle");
+
+    await expect(page.getByRole("button", { name: "Design" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Add keyframe for Position X" }),
+    ).toBeVisible();
+
+    await saveShot(page, testInfo, "editor-design-panel.png");
+    await expect(page).toHaveScreenshot("editor-design-panel-baseline.png", {
+      fullPage: true,
+      maxDiffPixelRatio: 0.02,
+    });
+  });
+
+  test("captures the animation template panel", async ({ page }, testInfo) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add rectangle");
+    await selectLayer(page, "rectangle");
+    await page.getByRole("button", { name: "Anim" }).click();
+
+    await expect(page.getByText("Animation Templates")).toBeVisible();
+
+    await saveShot(page, testInfo, "editor-animation-panel.png");
+    await expect(page).toHaveScreenshot("editor-animation-panel-baseline.png", {
+      fullPage: true,
+      maxDiffPixelRatio: 0.02,
+    });
+  });
+});
+
+/** Escapes text for safe use inside a RegExp constructor. */
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

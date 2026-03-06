@@ -1,20 +1,18 @@
 /** Canvas Items List.Tsx module implementation. */
 import { Reorder } from "framer-motion";
-import { useDispatch, useSelector } from "react-redux";
-import type { AppDispatch, RootState } from "../../../store";
+import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
+import { useAppDispatch, useAppSelector } from "../../../store";
 import { setCanvasItemIds } from "../../../store/editor-slice";
 import { CanvasItemsListItem } from "./canvas-items-list-item";
-import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 
 /** Reorderable list of canvas items shown from top-most to bottom-most. */
 export default function CanvasItemsList() {
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch();
   const { getObjectById: getInstanceById } = useCanvasAppContext();
-  const canvasItemIds = useSelector(
-    (state: RootState) => state.editor.canvasItemIds,
-  );
+  const canvasItemIds = useAppSelector((state) => state.editor.canvasItemIds);
   const displayItemIds = canvasItemIds;
 
+  /** Syncs the visual list order back into the Fabric canvas stacking order. */
   const syncCanvasStackOrder = (idsInOrder: string[]) => {
     // Apply top-to-bottom UI order to Fabric z-index (bottom is index 0).
     const itemCount = idsInOrder.length;
@@ -35,6 +33,7 @@ export default function CanvasItemsList() {
     }
   };
 
+  /** Persists the reordered list and applies the equivalent canvas z-order. */
   const onReorder = (nextDisplayIds: string[]) => {
     // Reorder payload from UI remains top-to-bottom in state.
     dispatch(setCanvasItemIds(nextDisplayIds));
@@ -43,10 +42,6 @@ export default function CanvasItemsList() {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-[#d0d0d0]">
-        Canvas Items
-      </h2>
-
       {canvasItemIds.length === 0 ? (
         <p className="text-sm text-[#8f8f8f]">No items on canvas</p>
       ) : (
@@ -56,8 +51,8 @@ export default function CanvasItemsList() {
           onReorder={onReorder}
           className="space-y-1 rounded-lg border border-[var(--wise-border)] bg-[var(--wise-surface)] p-1"
         >
-          {displayItemIds.map((id) => (
-            <CanvasItemsListItem key={id} id={id} />
+          {displayItemIds.map((id, index) => (
+            <CanvasItemsListItem key={id} id={id} index={index} />
           ))}
         </Reorder.Group>
       )}
