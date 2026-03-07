@@ -32,12 +32,12 @@ export function SliderPanelControl({
   return (
     <>
       <div className="mb-2 flex items-center justify-between">
-        <span className="font-medium text-[#9ca9bb]">{label}</span>
-        <span className="rounded border border-[#2f5c80] bg-[#38bdf8]/20 px-1.5 py-0.5 text-[11px] font-semibold text-[#9fd7ff]">
+        <span className="font-medium text-[#9ca3af]">{label}</span>
+        <span className="rounded border border-[#6b7280] bg-[#ffffff]/20 px-1.5 py-0.5 text-[11px] font-semibold text-[#e5e7eb]">
           {valueText}
         </span>
       </div>
-      <div className="mb-1 rounded-md border border-[#263348] bg-[#0f1724] px-2 py-2">
+      <div className="mb-1 rounded-md border border-[#4a4a4a] bg-[#2c2c2c] px-2 py-2">
         <input
           type="range"
           min={min}
@@ -48,12 +48,12 @@ export function SliderPanelControl({
             onChange(Number(event.target.value));
           }}
           style={{
-            background: `linear-gradient(90deg, #38bdf8 0%, #38bdf8 ${percent}%, #1a2638 ${percent}%, #1a2638 100%)`,
+            background: `linear-gradient(90deg, #ffffff 0%, #ffffff ${percent}%, #111111 ${percent}%, #111111 100%)`,
           }}
           className={TOOL_SLIDER_CLASS}
         />
       </div>
-      <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-[#73839a]">
+      <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-[#9ca3af]">
         <span>{minLabel}</span>
         <span>{maxLabel}</span>
       </div>

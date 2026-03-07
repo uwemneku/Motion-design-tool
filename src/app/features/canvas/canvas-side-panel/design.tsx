@@ -2,12 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
-import { useDispatch, useSelector } from "react-redux";
-import {
-  dispatchableSelector,
-  type AppDispatch,
-  type RootState,
-} from "../../../store";
+import { useAppDispatch, useAppSelector } from "../../../store";
 import { upsertItemRecord } from "../../../store/editor-slice";
 import { appendUniqueMarkerTimes } from "../util/animations-utils";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
@@ -32,11 +27,20 @@ import {
 
 type ColorFieldKey = "fill" | "stroke";
 type KeyframeField = keyof Omit<DesignFormState, "text">;
+type SupportedKeyframeField =
+  | "left"
+  | "top"
+  | "scaleX"
+  | "scaleY"
+  | "opacity"
+  | "angle"
+  | "fill"
+  | "stroke";
 const INPUT_PRECISION = 3;
 
 /** Design form for editing transform, style, text, and mask settings. */
 export default function CanvasSidePanelDesign() {
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch();
   const { getObjectById: getInstanceById } = useCanvasAppContext();
   const [designForm, setDesignForm] = useState<DesignFormState>(EMPTY_FORM);
   const [activeColorField, setActiveColorField] =
@@ -44,10 +48,11 @@ export default function CanvasSidePanelDesign() {
   const fillColorSectionRef = useRef<HTMLLabelElement>(null);
   const strokeColorSectionRef = useRef<HTMLLabelElement>(null);
 
-  const selectedId = useSelector((state: RootState) => state.editor.selectedId);
-  const selectedItem = useSelector((state: RootState) =>
+  const selectedId = useAppSelector((state) => state.editor.selectedId);
+  const selectedItem = useAppSelector((state) =>
     selectedId ? state.editor.itemsRecord[selectedId] : null,
   );
+  const playheadTime = useAppSelector((state) => state.editor.playHeadTime);
 
   const prevSelectedId = useRef<string>(null);
 
@@ -82,6 +87,7 @@ export default function CanvasSidePanelDesign() {
     object.on("rotating", syncFromCanvas);
     object.on("skewing", syncFromCanvas);
     object.on("modified", syncFromCanvas);
+    object.on("my:custom:seek", syncFromCanvas);
 
     return () => {
       object.off("moving", syncFromCanvas);
@@ -89,6 +95,7 @@ export default function CanvasSidePanelDesign() {
       object.off("rotating", syncFromCanvas);
       object.off("skewing", syncFromCanvas);
       object.off("modified", syncFromCanvas);
+      object.off("my:custom:seek", syncFromCanvas);
     };
   }, [selectedInstance]);
 
@@ -189,15 +196,23 @@ export default function CanvasSidePanelDesign() {
 
     if (changedFields.length === 0) return;
 
-    const playheadTime = dispatch(
-      dispatchableSelector((state) => state.editor.playHeadTime),
-    );
+    addKeyframesForFields(changedFields, nextForm, true);
+  };
+
+  /** Adds keyframes for the requested properties at the current playhead time. */
+  const addKeyframesForFields = (
+    fields: KeyframeField[],
+    nextForm: DesignFormState,
+    includeScalePositionCompanions = false,
+  ) => {
+    if (!selectedId || !selectedItem || !selectedInstance) return;
+
     let addedKeyframe = false;
 
     const numericFieldsToCapture = new Set<
       "left" | "top" | "scaleX" | "scaleY" | "opacity" | "angle"
     >();
-    changedFields.forEach((field) => {
+    fields.forEach((field) => {
       if (
         field === "left" ||
         field === "top" ||
@@ -211,8 +226,8 @@ export default function CanvasSidePanelDesign() {
     });
 
     const isScaleChanged =
-      changedFields.includes("scaleX") || changedFields.includes("scaleY");
-    if (isScaleChanged) {
+      fields.includes("scaleX") || fields.includes("scaleY");
+    if (includeScalePositionCompanions && isScaleChanged) {
       numericFieldsToCapture.add("left");
       numericFieldsToCapture.add("top");
       numericFieldsToCapture.add("scaleX");
@@ -231,7 +246,7 @@ export default function CanvasSidePanelDesign() {
       addedKeyframe = true;
     });
 
-    changedFields.forEach((field) => {
+    fields.forEach((field) => {
       if (field === "fill" || field === "stroke") {
         const colorValue = nextForm[field].trim();
         if (!colorValue) return;
@@ -261,6 +276,29 @@ export default function CanvasSidePanelDesign() {
           keyframe: nextMarkers,
         },
       }),
+    );
+  };
+
+  /** Commits the current field value and adds a keyframe for that property. */
+  const addPropertyKeyframe = (field: SupportedKeyframeField) => {
+    commitDesignForm(designForm);
+    addKeyframesForFields([field], designForm, false);
+  };
+
+  /** Reports whether the selected item already has a keyframe for a field now. */
+  const hasKeyframeAtPlayhead = (field: SupportedKeyframeField) => {
+    if (!selectedInstance) return false;
+
+    const frames =
+      field === "fill" || field === "stroke"
+        ? selectedInstance.colorKeyframes[field]
+        : selectedInstance.keyframes[field];
+
+    return Boolean(
+      frames?.some(
+        (frame) =>
+          Math.abs(frame.time - playheadTime) <= CANVAS_KEYFRAME_EPSILON,
+      ),
     );
   };
 
@@ -296,116 +334,171 @@ export default function CanvasSidePanelDesign() {
           </p>
         ) : (
           <>
+            <h4 className={sectionTitleClass}>Transform</h4>
             <div className="grid grid-cols-2 gap-2">
               <label className={labelClass}>
-                <span>Position X</span>
-                <input
-                  type="number"
-                  step={0.001}
-                  value={designForm.left}
-                  onChange={(event) => {
-                    setDesignForm((prev) => ({
-                      ...prev,
-                      left: event.target.value,
-                    }));
-                  }}
-                  onBlur={() => commitDesignForm(designForm, ["left"])}
-                  onKeyDown={(event) => onInputKeyDown(event, ["left"])}
-                  className={fieldClass}
-                />
+                <span className="text-[#d5d8e1]">Position X</span>
+                <div className="relative">
+                  <KeyframeActionButton
+                    isKeyframed={hasKeyframeAtPlayhead("left")}
+                    label="Position X"
+                    onAddKeyframe={() => {
+                      addPropertyKeyframe("left");
+                    }}
+                  />
+                  <input
+                    type="number"
+                    step={0.001}
+                    value={designForm.left}
+                    onChange={(event) => {
+                      setDesignForm((prev) => ({
+                        ...prev,
+                        left: event.target.value,
+                      }));
+                    }}
+                    onBlur={() => commitDesignForm(designForm, ["left"])}
+                    onKeyDown={(event) => onInputKeyDown(event, ["left"])}
+                    className={`${fieldClass} pr-9`}
+                  />
+                </div>
               </label>
               <label className={labelClass}>
-                <span>Position Y</span>
-                <input
-                  type="number"
-                  step={0.001}
-                  value={designForm.top}
-                  onChange={(event) => {
-                    setDesignForm((prev) => ({
-                      ...prev,
-                      top: event.target.value,
-                    }));
-                  }}
-                  onBlur={() => commitDesignForm(designForm, ["top"])}
-                  onKeyDown={(event) => onInputKeyDown(event, ["top"])}
-                  className={fieldClass}
-                />
+                <span className="text-[#d5d8e1]">Position Y</span>
+                <div className="relative">
+                  <KeyframeActionButton
+                    isKeyframed={hasKeyframeAtPlayhead("top")}
+                    label="Position Y"
+                    onAddKeyframe={() => {
+                      addPropertyKeyframe("top");
+                    }}
+                  />
+                  <input
+                    type="number"
+                    step={0.001}
+                    value={designForm.top}
+                    onChange={(event) => {
+                      setDesignForm((prev) => ({
+                        ...prev,
+                        top: event.target.value,
+                      }));
+                    }}
+                    onBlur={() => commitDesignForm(designForm, ["top"])}
+                    onKeyDown={(event) => onInputKeyDown(event, ["top"])}
+                    className={`${fieldClass} pr-9`}
+                  />
+                </div>
               </label>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <label className={labelClass}>
-                <span>Scale X</span>
-                <input
-                  type="number"
-                  step={0.001}
-                  value={designForm.scaleX}
-                  onChange={(event) => {
-                    setDesignForm((prev) => ({
-                      ...prev,
-                      scaleX: event.target.value,
-                    }));
-                  }}
-                  onBlur={() => commitDesignForm(designForm, ["scaleX"])}
-                  onKeyDown={(event) => onInputKeyDown(event, ["scaleX"])}
-                  className={fieldClass}
-                />
+                <span className="text-[#d5d8e1]">Scale X</span>
+                <div className="relative">
+                  <KeyframeActionButton
+                    isKeyframed={hasKeyframeAtPlayhead("scaleX")}
+                    label="Scale X"
+                    onAddKeyframe={() => {
+                      addPropertyKeyframe("scaleX");
+                    }}
+                  />
+                  <input
+                    type="number"
+                    step={0.001}
+                    value={designForm.scaleX}
+                    onChange={(event) => {
+                      setDesignForm((prev) => ({
+                        ...prev,
+                        scaleX: event.target.value,
+                      }));
+                    }}
+                    onBlur={() => commitDesignForm(designForm, ["scaleX"])}
+                    onKeyDown={(event) => onInputKeyDown(event, ["scaleX"])}
+                    className={`${fieldClass} pr-9`}
+                  />
+                </div>
               </label>
               <label className={labelClass}>
-                <span>Scale Y</span>
-                <input
-                  type="number"
-                  step={0.001}
-                  value={designForm.scaleY}
-                  onChange={(event) => {
-                    setDesignForm((prev) => ({
-                      ...prev,
-                      scaleY: event.target.value,
-                    }));
-                  }}
-                  onBlur={() => commitDesignForm(designForm, ["scaleY"])}
-                  onKeyDown={(event) => onInputKeyDown(event, ["scaleY"])}
-                  className={fieldClass}
-                />
+                <span className="text-[#d5d8e1]">Scale Y</span>
+                <div className="relative">
+                  <KeyframeActionButton
+                    isKeyframed={hasKeyframeAtPlayhead("scaleY")}
+                    label="Scale Y"
+                    onAddKeyframe={() => {
+                      addPropertyKeyframe("scaleY");
+                    }}
+                  />
+                  <input
+                    type="number"
+                    step={0.001}
+                    value={designForm.scaleY}
+                    onChange={(event) => {
+                      setDesignForm((prev) => ({
+                        ...prev,
+                        scaleY: event.target.value,
+                      }));
+                    }}
+                    onBlur={() => commitDesignForm(designForm, ["scaleY"])}
+                    onKeyDown={(event) => onInputKeyDown(event, ["scaleY"])}
+                    className={`${fieldClass} pr-9`}
+                  />
+                </div>
               </label>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <label className={labelClass}>
-                <span>Opacity</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={1}
-                  step={0.001}
-                  value={designForm.opacity}
-                  onChange={(event) => {
-                    setDesignForm((prev) => ({
-                      ...prev,
-                      opacity: event.target.value,
-                    }));
-                  }}
-                  onBlur={() => commitDesignForm(designForm, ["opacity"])}
-                  onKeyDown={(event) => onInputKeyDown(event, ["opacity"])}
-                  className={fieldClass}
-                />
+                <span className="text-[#d5d8e1]">Opacity</span>
+                <div className="relative">
+                  <KeyframeActionButton
+                    isKeyframed={hasKeyframeAtPlayhead("opacity")}
+                    label="Opacity"
+                    onAddKeyframe={() => {
+                      addPropertyKeyframe("opacity");
+                    }}
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.001}
+                    value={designForm.opacity}
+                    onChange={(event) => {
+                      setDesignForm((prev) => ({
+                        ...prev,
+                        opacity: event.target.value,
+                      }));
+                    }}
+                    onBlur={() => commitDesignForm(designForm, ["opacity"])}
+                    onKeyDown={(event) => onInputKeyDown(event, ["opacity"])}
+                    className={`${fieldClass} pr-9`}
+                  />
+                </div>
               </label>
               <label className={labelClass}>
-                <span>Rotation</span>
-                <input
-                  type="number"
-                  step={0.001}
-                  value={designForm.angle}
-                  onChange={(event) => {
-                    setDesignForm((prev) => ({
-                      ...prev,
-                      angle: event.target.value,
-                    }));
-                  }}
-                  onBlur={() => commitDesignForm(designForm, ["angle"])}
-                  onKeyDown={(event) => onInputKeyDown(event, ["angle"])}
-                  className={fieldClass}
-                />
+                <span className="text-[#d5d8e1]">Rotation</span>
+                <div className="relative">
+                  <KeyframeActionButton
+                    isKeyframed={hasKeyframeAtPlayhead("angle")}
+                    label="Rotation"
+                    onAddKeyframe={() => {
+                      addPropertyKeyframe("angle");
+                    }}
+                  />
+                  <input
+                    type="number"
+                    step={0.001}
+                    value={designForm.angle}
+                    onChange={(event) => {
+                      setDesignForm((prev) => ({
+                        ...prev,
+                        angle: event.target.value,
+                      }));
+                    }}
+                    onBlur={() => commitDesignForm(designForm, ["angle"])}
+                    onKeyDown={(event) => onInputKeyDown(event, ["angle"])}
+                    className={`${fieldClass} pr-9`}
+                  />
+                </div>
               </label>
             </div>
           </>
@@ -417,9 +510,17 @@ export default function CanvasSidePanelDesign() {
           <h4 className={sectionTitleClass}>Fill</h4>
           {supportsFill ? (
             <label ref={fillColorSectionRef} className={`block ${labelClass}`}>
-              <span>Fill</span>
+              <span className="text-[#d5d8e1]">Fill</span>
               <div className="space-y-2 rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface-muted)] p-2">
-                <div className="flex items-center gap-2">
+                <div className="relative flex items-center gap-2">
+                  <KeyframeActionButton
+                    isKeyframed={hasKeyframeAtPlayhead("fill")}
+                    label="Fill"
+                    onAddKeyframe={() => {
+                      addPropertyKeyframe("fill");
+                    }}
+                    className="right-8"
+                  />
                   <HexColorInput
                     color={normalizeHexColor(designForm.fill)}
                     alpha
@@ -441,7 +542,7 @@ export default function CanvasSidePanelDesign() {
                         true,
                       );
                     }}
-                    className={`${fieldClass} flex-1`}
+                    className={`${fieldClass} flex-1 pr-9`}
                   />
                   <button
                     type="button"
@@ -472,11 +573,19 @@ export default function CanvasSidePanelDesign() {
               ref={strokeColorSectionRef}
               className={`block ${labelClass}`}
             >
-              <span>Stroke</span>
+              <span className="text-[#d5d8e1]">Stroke</span>
               <div className="space-y-2 rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface-muted)] p-2">
-                <div className="flex items-center gap-2">
+                <div className="relative flex items-center gap-2">
+                  <KeyframeActionButton
+                    isKeyframed={hasKeyframeAtPlayhead("stroke")}
+                    label="Stroke"
+                    onAddKeyframe={() => {
+                      addPropertyKeyframe("stroke");
+                    }}
+                    className="right-8"
+                  />
                   <HexColorInput
-                    color={normalizeHexColor(designForm.stroke, "#0f172a")}
+                    color={normalizeHexColor(designForm.stroke, "#2c2c2c")}
                     alpha
                     prefixed
                     onFocus={() => {
@@ -492,11 +601,11 @@ export default function CanvasSidePanelDesign() {
                     onBlur={() => {
                       setColorField(
                         "stroke",
-                        normalizeHexColor(designForm.stroke, "#0f172a"),
+                        normalizeHexColor(designForm.stroke, "#2c2c2c"),
                         true,
                       );
                     }}
-                    className={`${fieldClass} flex-1`}
+                    className={`${fieldClass} flex-1 pr-9`}
                   />
                   <button
                     type="button"
@@ -507,14 +616,14 @@ export default function CanvasSidePanelDesign() {
                     style={{
                       backgroundColor: normalizeHexColor(
                         designForm.stroke,
-                        "#0f172a",
+                        "#2c2c2c",
                       ),
                     }}
                   />
                 </div>
                 {activeColorField === "stroke" ? (
                   <HexAlphaColorPicker
-                    color={normalizeHexColor(designForm.stroke, "#0f172a")}
+                    color={normalizeHexColor(designForm.stroke, "#2c2c2c")}
                     onChange={(value) => {
                       setColorField("stroke", value, true);
                     }}
@@ -665,7 +774,7 @@ export default function CanvasSidePanelDesign() {
                 }}
                 onBlur={() => commitDesignForm(designForm)}
                 rows={3}
-                className="w-full resize-y rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-1.5 text-[11px] text-[#efefef] outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8]/45"
+                className="w-full resize-y rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-1.5 text-[11px] text-[#efefef] outline-none focus:border-[#ffffff] focus:ring-1 focus:ring-[#ffffff]/45"
               />
             </label>
           </div>
@@ -690,4 +799,41 @@ function toPrecisionNumber(value: number) {
 
 function formatNumberInput(value: number) {
   return Number(value.toFixed(INPUT_PRECISION)).toString();
+}
+
+type KeyframeActionButtonProps = {
+  className?: string;
+  isKeyframed: boolean;
+  label: string;
+  onAddKeyframe: () => void;
+};
+
+/** Renders a compact add-keyframe action inside a property field. */
+function KeyframeActionButton({
+  className,
+  isKeyframed,
+  label,
+  onAddKeyframe,
+}: KeyframeActionButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onAddKeyframe();
+      }}
+      className={`absolute right-2 top-1/2 inline-flex size-4 -translate-y-1/2 items-center justify-center rounded-md border transition ${
+        isKeyframed
+          ? "border-[#2563eb] bg-[#2563eb]/18 text-[#93c5fd]"
+          : "border-white/10 bg-[rgba(255,255,255,0.03)] text-[#8f96a3] hover:border-[#2563eb]/70 hover:bg-[#2563eb]/10 hover:text-[#93c5fd]"
+      } ${className ?? ""}`}
+      aria-label={`Add keyframe for ${label}`}
+      title={`Add keyframe for ${label}`}
+    >
+      <svg viewBox="0 0 24 24" className="size-3" fill="currentColor">
+        <path d="M12 4l8 8-8 8-8-8 8-8z" />
+      </svg>
+    </button>
+  );
 }

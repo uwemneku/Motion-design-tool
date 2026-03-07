@@ -113,7 +113,7 @@ export const hoverOutlineRect = new Rect({
   originX: "center",
   originY: "center",
   selectable: false,
-  stroke: "rgba(56, 189, 248, 0.9)",
+  stroke: "rgba(255, 255, 255, 0.9)",
   strokeDashArray: [6, 4],
   strokeWidth: 3,
   visible: false,

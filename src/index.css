@@ -3,21 +3,24 @@
 @layer base {
   :root {
     font-family:
-      'Inter',
-      'Segoe UI',
-      'Helvetica Neue',
-      'Arial',
+      "SF Pro Display",
+      "SF Pro Text",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      "Helvetica Neue",
+      "Arial",
       sans-serif;
     color-scheme: dark;
-    --wise-accent: #38bdf8;
-    --wise-primary: #1e1e1e;
-    --wise-content-primary: #f5f5f5;
-    --wise-content-secondary: #b3b3b3;
-    --wise-border: rgba(255, 255, 255, 0.11);
-    --wise-surface: #1f1f1f;
-    --wise-surface-raised: #252526;
-    --wise-surface-muted: #2c2c2c;
-    --wise-focus: rgba(56, 189, 248, 0.34);
+    --wise-accent: #0a84ff;
+    --wise-primary: #02040a;
+    --wise-content-primary: #f5f7fb;
+    --wise-content-secondary: #c7d1df;
+    --wise-border: rgba(255, 255, 255, 0.12);
+    --wise-surface: rgba(13, 17, 24, 0.74);
+    --wise-surface-raised: rgba(22, 27, 37, 0.82);
+    --wise-surface-muted: rgba(255, 255, 255, 0.08);
+    --wise-focus: rgba(10, 132, 255, 0.28);
   }
 
   html,
@@ -28,8 +31,11 @@
   }
 
   body {
-    background: #1e1e1e;
-    color: #f5f5f5;
+    background:
+      radial-gradient(circle at top, rgba(68, 93, 134, 0.28), transparent 34%),
+      radial-gradient(circle at bottom left, rgba(10, 132, 255, 0.16), transparent 28%),
+      linear-gradient(180deg, #070a10 0%, #030507 100%);
+    color: #ffffff;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }

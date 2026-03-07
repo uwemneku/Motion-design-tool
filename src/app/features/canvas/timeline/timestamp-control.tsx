@@ -6,6 +6,7 @@ import {
   setPlayheadTime as setPlayHeadTime,
 } from "../../../store/editor-slice";
 
+/** Playback transport with play state and precise current/duration readouts. */
 function TimeStampControl() {
   const playheadTime = useAppSelector((state) => state.editor.playHeadTime);
   const playheadRef = useRef(playheadTime);
@@ -100,11 +101,11 @@ function TimeStampControl() {
       </button>
 
       <div className="flex items-center gap-1.5 text-sm text-slate-100">
-        <span className="rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-1 font-mono text-[12px] tabular-nums">
+        <span className="px-1 font-mono text-[12px] tabular-nums">
           {formatPreciseTimelineTime(playheadTime)}
         </span>
         <span className="text-slate-400">/</span>
-        <span className="rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-1 font-mono text-[12px] tabular-nums">
+        <span className="px-1 font-mono text-[12px] tabular-nums">
           {formatPreciseTimelineTime(TIMELINE_DURATION, true)}
         </span>
       </div>
@@ -114,6 +115,7 @@ function TimeStampControl() {
 
 export default TimeStampControl;
 
+/** Formats a seconds value for the transport readout. */
 function formatPreciseTimelineTime(seconds: number, includeUnit = false) {
   const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
   const formatted = safeSeconds.toFixed(2);

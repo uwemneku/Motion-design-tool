@@ -1,17 +1,27 @@
 /** Index.Tsx canvas side panel UI logic. */
 import { useMemo, useState } from "react";
-import { useSelector } from "react-redux";
-import { type RootState } from "../../../store";
+import { useAppSelector } from "../../../store";
+import CanvasHistoryControls from "../canvas-header/canvas-history-controls";
 import CanvasSidePanelAnimations from "./animations";
 import CanvasSidePanelDesign from "./design";
+import { CanvasSidePanelExportControls } from "./export-controls";
 import { KeyframeDetailsPanel } from "./keyframe-details";
+
 export type PanelTab = "design" | "animations";
 
+type CanvasSidePanelProps = {
+  floating?: boolean;
+  showToolbar?: boolean;
+};
+
 /** Right-side inspector panel for design edits and animation templates. */
-export default function CanvasSidePanel() {
+export default function CanvasSidePanel({
+  floating = false,
+  showToolbar = true,
+}: CanvasSidePanelProps) {
   const [activeTab, setActiveTab] = useState<PanelTab>("design");
-  const selectedId = useSelector((state: RootState) => state.editor.selectedId);
-  const selectedItem = useSelector((state: RootState) =>
+  const selectedId = useAppSelector((state) => state.editor.selectedId);
+  const selectedItem = useAppSelector((state) =>
     selectedId ? state.editor.itemsRecord[selectedId] : null,
   );
 
@@ -25,52 +35,89 @@ export default function CanvasSidePanel() {
   }, [selectedItem]);
 
   return (
-    <aside className="pointer-events-auto flex h-full max-h-full  shrink-0 flex-col overflow-hidden border-t   w-[320px] xl:rounded-2xl xl:border border-[rgba(255,255,255,0.14)] bg-[rgba(12,12,15,0.9)] shadow-[0_18px_40px_rgba(0,0,0,0.42)] backdrop-blur">
-      <div className="flex border-b border-(--wise-border) bg-(--wise-surface)/90 px-2 pt-2">
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab("design");
-          }}
-          className={`flex-1 border-b-2 px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide transition ${
-            activeTab === "design"
-              ? "border-[var(--wise-accent)] text-[#edf2ff]"
-              : "border-transparent text-[#a8a8a8] hover:text-[#e2e2e2]"
+    <aside
+      className={`pointer-events-auto border-l flex h-full max-h-full w-[240px] max-w-[240px] min-w-[240px] shrink-0 flex-col overflow-hidden ${
+        floating
+          ? " border-white/10 bg-[rgba(16,20,28,0.72)] shadow-[0_16px_34px_rgba(0,0,0,0.26)] backdrop-blur-2xl"
+          : " border-[var(--wise-border)] bg-[rgba(12,12,15,0.96)]"
+      }`}
+    >
+      <div className="shrink-0 border-b border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))]">
+        {showToolbar ? (
+          <>
+            <div className="flex items-center justify-between gap-2 px-2.5 py-2.5">
+              <CanvasHistoryControls />
+              <CanvasSidePanelExportControls />
+            </div>
+            <div className="border-t border-white/10" />
+          </>
+        ) : null}
+        <div
+          className={`grid grid-cols-2 ${
+            showToolbar ? "border-t border-white/10" : ""
           }`}
         >
-          Design
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab("animations");
-          }}
-          className={`flex-1 border-b-2 px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide transition ${
-            activeTab === "animations"
-              ? "border-[var(--wise-accent)] text-[#edf2ff]"
-              : "border-transparent text-[#a8a8a8] hover:text-[#e2e2e2]"
-          }`}
-        >
-          Animations
-        </button>
-      </div>
-
-      <div
-        className="min-h-0 flex-1 overflow-y-auto p-2.5 xl:p-3"
-        data-container
-      >
-        <div className="space-y-4">
-          {activeTab === "design" ? (
-            <CanvasSidePanelDesign />
-          ) : (
-            <CanvasSidePanelAnimations
-              canApplyAnimation={canApplyAnimation}
-              keyframeTimesText={keyframeTimesText}
-            />
-          )}
-          <KeyframeDetailsPanel />
+          <PanelTabButton
+            active={activeTab === "design"}
+            label="Design"
+            onClick={() => {
+              setActiveTab("design");
+            }}
+          />
+          <PanelTabButton
+            active={activeTab === "animations"}
+            label="Anim"
+            onClick={() => {
+              setActiveTab("animations");
+            }}
+          />
         </div>
       </div>
+
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <div
+          className="min-h-0 h-full max-h-full overflow-y-auto px-2.5 py-2.5"
+          data-container
+        >
+          <div className="space-y-2.5 pb-3">
+            {activeTab === "design" ? (
+              <CanvasSidePanelDesign />
+            ) : (
+              <CanvasSidePanelAnimations
+                canApplyAnimation={canApplyAnimation}
+                keyframeTimesText={keyframeTimesText}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+      <KeyframeDetailsPanel />
     </aside>
+  );
+}
+
+type PanelTabButtonProps = {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+};
+
+/** Top tab-style button used to switch between inspector sections. */
+function PanelTabButton({ active, label, onClick }: PanelTabButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group flex h-8 w-full items-center justify-center gap-1.5 px-2 text-sm font-medium transition ${
+        active
+          ? "bg-[rgba(10,132,255,0.18)] text-[#f5f7fb] shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.05)]"
+          : "text-[#aab6c8] hover:bg-white/5 hover:text-[#eef4ff]"
+      }`}
+      aria-pressed={active}
+    >
+      <span className="text-[10px] font-semibold tracking-[0.02em]">
+        {label}
+      </span>
+    </button>
   );
 }

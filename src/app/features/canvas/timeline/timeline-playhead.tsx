@@ -6,14 +6,15 @@ import {
   useState,
   type MouseEvent,
 } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import type { AppDispatch, RootState } from "../../../store";
+import { useAppDispatch, useAppSelector } from "../../../store";
 import { setPlayheadTime } from "../../../store/editor-slice";
 
 type TimelinePlayheadProps = {
   duration: number;
   keyframeSectionOffset: number;
   keyframeSectionRightOffset?: number;
+  topOffset?: number;
+  rulerHeight?: number;
 };
 
 /** Draggable timeline playhead constrained to the keyframe section. */
@@ -21,11 +22,11 @@ export default function TimelinePlayhead({
   duration,
   keyframeSectionOffset,
   keyframeSectionRightOffset = 0,
+  topOffset = 0,
+  rulerHeight = 36,
 }: TimelinePlayheadProps) {
-  const dispatch = useDispatch<AppDispatch>();
-  const playheadTime = useSelector(
-    (state: RootState) => state.editor.playHeadTime,
-  );
+  const dispatch = useAppDispatch();
+  const playheadTime = useAppSelector((state) => state.editor.playHeadTime);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const playheadPercent = clamp(playheadTime / duration, 0, 1) * 100;
@@ -68,20 +69,37 @@ export default function TimelinePlayhead({
     };
   }, [isDragging, seekFromClientX]);
 
+  const handleHeight = Math.min(18, Math.max(14, rulerHeight - 12));
+  const handleTop = Math.max(3, Math.floor((rulerHeight - handleHeight) / 2) - 6);
+  const lineTop = handleTop + handleHeight - 2;
+
   return (
     <div
       ref={containerRef}
       className="pointer-events-none absolute top-0 bottom-0 h-full min-h-[160px] z-40"
-      style={{ left: keyframeSectionOffset, right: keyframeSectionRightOffset }}
+      style={{
+        top: topOffset,
+        left: keyframeSectionOffset,
+        right: keyframeSectionRightOffset,
+      }}
       aria-hidden
     >
       <div
-        className="pointer-events-auto absolute top-0 bottom-0 w-4 -translate-x-1/2 cursor-ew-resize"
+        className="pointer-events-auto absolute top-0 bottom-0 z-40 w-4 -translate-x-1/2 cursor-ew-resize"
         style={{ left: `${playheadPercent}%` }}
         onMouseDown={startDragging}
       >
-        <div className="absolute z-20 left-1/2 top-0 h-3 w-3 -translate-x-1/2 rounded-full border border-[#e8eeff] bg-[var(--wise-accent)] shadow" />
-        <div className="absolute bottom-0 left-1/2 top-0 w-0.5 -translate-x-1/2 bg-[var(--wise-accent)]" />
+        <div
+          className="absolute left-1/2 z-40 w-3 -translate-x-1/2 rounded-full border border-[#e5e7eb] bg-[var(--wise-accent)] shadow"
+          style={{
+            top: handleTop,
+            height: handleHeight,
+          }}
+        />
+        <div
+          className="absolute bottom-0 left-1/2 z-40 w-0.5 -translate-x-1/2 bg-[var(--wise-accent)]"
+          style={{ top: lineTop }}
+        />
       </div>
     </div>
   );

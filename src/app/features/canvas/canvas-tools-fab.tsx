@@ -57,7 +57,7 @@ export default function CanvasToolsFab() {
         if (!previous || !hasUserMovedRef.current) {
           return clampWithinCanvas(
             (parentWidth - fabWidth) / 2,
-            FAB_EDGE_PADDING,
+            parentHeight - fabHeight - FAB_EDGE_PADDING - 28,
             parentWidth,
             parentHeight,
             fabWidth,
@@ -144,12 +144,12 @@ export default function CanvasToolsFab() {
           top: position?.y ?? FAB_EDGE_PADDING,
         }}
       >
-        <div className="flex items-center gap-1.5 rounded-xl border border-[var(--wise-border)] bg-[var(--wise-surface-raised)]/95 p-1.5 shadow-[0_8px_20px_rgba(0,0,0,0.35)] backdrop-blur">
+        <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-[rgba(20,24,33,0.72)] p-1 shadow-[0_16px_34px_rgba(0,0,0,0.26)] backdrop-blur-2xl">
           <button
             type="button"
             aria-label="Move tools"
             onMouseDown={onHandleMouseDown}
-            className="grid h-8 w-5 place-items-center rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] text-[#a3a3a3] hover:bg-[var(--wise-surface-muted)]"
+            className="grid h-8 w-5 place-items-center rounded-sm border border-white/10 bg-[rgba(255,255,255,0.05)] text-[#c6d0de] hover:bg-[rgba(255,255,255,0.09)]"
             title="Drag to move tools"
           >
             <svg

@@ -31,6 +31,7 @@ export const AGENT_STEP_INSTRUCTION_PROMPT =
   "exactly one JSON object matching the step schema. Return done only when the " +
   "objective is met.";
 export const CANVAS_KEYFRAME_EPSILON = 0.001;
+export const INITIAL_CANVAS_ZOOM = 0.7;
 export const CANVAS_ZOOM_SENSITIVITY = 0.05;
 export const EASING_OPTIONS: KeyframeEasing[] = [
   "linear",
@@ -45,8 +46,8 @@ export const EXPORT_DURATION_SECONDS = 10;
 export const EXPORT_FPS = 30;
 export const EXPORT_PIXEL_DENSITY = 1;
 export const FAB_EDGE_PADDING = 12;
-export const FIGMA_BLUE = "#38bdf8";
-export const FIGMA_BLUE_LIGHT = "rgba(56, 189, 248, 0.12)";
+export const FIGMA_BLUE = "#7dd3fc";
+export const FIGMA_BLUE_LIGHT = "rgba(125, 211, 252, 0.15)";
 export const IMAGE_PLACEHOLDER_HEIGHT_RATIO = 0.32;
 export const IMAGE_PLACEHOLDER_MIN_SIZE = 140;
 export const IMAGE_PLACEHOLDER_PULSE_DURATION_MS = 900;
@@ -89,12 +90,12 @@ export const TOOL_SLIDER_CLASS =
   "[&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 " +
   "[&::-webkit-slider-thumb]:appearance-none " +
   "[&::-webkit-slider-thumb]:rounded-[4px] " +
-  "[&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-[#9fd7ff] " +
-  "[&::-webkit-slider-thumb]:bg-[#38bdf8] " +
-  "[&::-webkit-slider-thumb]:shadow-[0_0_0_3px_rgba(56,189,248,0.24)] " +
+  "[&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-[#e5e7eb] " +
+  "[&::-webkit-slider-thumb]:bg-[#ffffff] " +
+  "[&::-webkit-slider-thumb]:shadow-[0_0_0_3px_rgba(255, 255, 255, 0.24)] " +
   "[&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 " +
   "[&::-moz-range-thumb]:rounded-[4px] [&::-moz-range-thumb]:border " +
-  "[&::-moz-range-thumb]:border-[#9fd7ff] [&::-moz-range-thumb]:bg-[#38bdf8]";
+  "[&::-moz-range-thumb]:border-[#e5e7eb] [&::-moz-range-thumb]:bg-[#ffffff]";
 export const VIDEO_ASPECT_PRESETS = [
   { label: "16:9", ratio: 16 / 9 },
   { label: "9:16", ratio: 9 / 16 },

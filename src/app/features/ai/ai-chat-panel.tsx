@@ -147,14 +147,7 @@ export default function AIChatPanel() {
   };
 
   return (
-    <section className="flex min-h-0 max-h-[50dvh] flex-1 flex-col border-t border-[var(--wise-border)] pt-3">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-100">AI Scene Chat</h3>
-        <span className="rounded-full border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-0.5 text-[10px] text-slate-400">
-          Agent loop
-        </span>
-      </div>
-
+    <section className="flex min-h-0 flex-1 flex-col border-[var(--wise-border)]">
       <AppScrollArea
         rootClassName="min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--wise-border)] bg-[var(--wise-surface-raised)]"
         viewportClassName="h-full w-full p-2"
@@ -168,7 +161,7 @@ export default function AIChatPanel() {
                 className={`rounded px-2 py-1.5 text-xs ${
                   message.role === "assistant"
                     ? "bg-[var(--wise-surface-muted)] text-slate-100"
-                    : "bg-[var(--wise-accent)]/15 text-[#dbe5ff]"
+                    : "bg-[var(--wise-accent)]/15 text-[#e5e7eb]"
                 }`}
               >
                 <ChatMarkdown content={message.text} />
@@ -196,7 +189,7 @@ export default function AIChatPanel() {
         </div>
       </AppScrollArea>
 
-      <div className="mt-2 rounded-2xl border border-[var(--wise-border)] bg-[var(--wise-surface-raised)] p-2 shadow-[0_6px_22px_rgba(2,6,23,0.35)]">
+      <div className="mt-2 rounded-2xl border border-[var(--wise-border)] bg-[var(--wise-surface-raised)] p-2 shadow-[0_6px_22px_rgba(0, 0, 0, 0.35)]">
         <div className="flex items-end gap-2">
           <textarea
             disabled={isGenerating}
@@ -218,7 +211,7 @@ export default function AIChatPanel() {
             onClick={() => {
               void send();
             }}
-            className="mb-0.5 inline-flex size-9 items-center justify-center rounded-full border border-[var(--wise-accent)]/60 bg-[var(--wise-accent)]/20 text-[#dbe5ff] transition-colors hover:bg-[var(--wise-accent)]/30 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mb-0.5 inline-flex size-9 items-center justify-center rounded-full border border-[var(--wise-accent)]/60 bg-[var(--wise-accent)]/20 text-[#e5e7eb] transition-colors hover:bg-[var(--wise-accent)]/30 disabled:cursor-not-allowed disabled:opacity-50"
             aria-label="Send message"
           >
             <PaperPlaneIcon className="size-4" />
@@ -261,7 +254,7 @@ function ChatMarkdown({ content }: ChatMarkdownProps) {
             href={href}
             target="_blank"
             rel="noreferrer"
-            className="text-[#afc6ff] underline underline-offset-2"
+            className="text-[#9ca3af] underline underline-offset-2"
           >
             {children}
           </a>

@@ -52,7 +52,7 @@ export function readDesignForm(instance?: AnimatableObject): DesignFormState {
   };
 }
 
-export function normalizeHexColor(value: string, fallback = "#38bdf8") {
+export function normalizeHexColor(value: string, fallback = "#ffffff") {
   // Normalize to long-form lowercase hex and preserve alpha channels when provided.
   const trimmed = value.trim();
   if (!HEX_COLOR_PATTERN.test(trimmed)) return fallback;
@@ -101,15 +101,14 @@ import type {
 } from "../../../../types";
 
 export const sectionTitleClass =
-  "text-[11px] font-semibold uppercase tracking-wide text-[#b8b8b8]";
-export const labelClass = "space-y-1 text-[11px] text-[#b1b1b1]";
+  "text-[10px] font-semibold uppercase tracking-[0.2em] text-[#bfc7d4]";
+export const labelClass = "space-y-1.5 text-[11px] text-[#b8bdc9]";
 export const fieldClass =
-  "h-7 w-full rounded-md border border-[var(--wise-border)] " +
-  "bg-[var(--wise-surface)] px-2 text-[11px] text-[#efefef] " +
-  "outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8]/45";
+  "h-8 w-full rounded-sm border border-white/10 " +
+  "bg-[rgba(255,255,255,0.03)] px-2.5 text-[11px] text-[#efefef] " +
+  "outline-none transition focus:border-[#ffffff] focus:ring-1 focus:ring-[#ffffff]/45";
 export const cardClass =
-  "space-y-2 rounded-md border border-[var(--wise-border)] " +
-  "bg-[var(--wise-surface)] p-2.5";
+  "space-y-2 rounded-[10px] bg-[rgba(255,255,255,0.015)] px-2 py-2.5";
 
 export const animationTemplates: AnimationTemplate[] = [
   {

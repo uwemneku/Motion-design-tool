@@ -24,7 +24,7 @@ function CanvasPreviewButton() {
   return (
     <div>
       <button onClick={getScreenShot}>
-        <span className="rounded-md border border-[var(--wise-accent)]/75 bg-[var(--wise-accent)]/20 px-2.5 py-1.5 text-sm font-medium text-[#dcefff] hover:bg-[var(--wise-accent)]/30">
+        <span className="rounded-md border border-[var(--wise-accent)]/75 bg-[var(--wise-accent)]/20 px-2.5 py-1.5 text-sm font-medium text-[#e5e7eb] hover:bg-[var(--wise-accent)]/30">
           Preview
         </span>
       </button>

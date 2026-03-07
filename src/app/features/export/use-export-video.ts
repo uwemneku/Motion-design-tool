@@ -17,7 +17,7 @@ import {
 import { getVideoWorkAreaRect } from "./video-work-area";
 import { AnimatableObject } from "../shapes/animatable-object/object";
 import { useCanvasAppContext } from "../canvas/hooks/use-canvas-app-context";
-import { exportCanvasAsMp4 } from "./export-media";
+import { exportCanvasAsVideo, type ExportVideoFormat } from "./export-media";
 import type { KeyframesByProperty } from "../shapes/animatable-object/types";
 import { toast } from "sonner";
 
@@ -28,7 +28,7 @@ type ExportMaskTrackingObject = FabricObject & {
 };
 
 /**
- * Exports the current canvas scene to MP4 using the active video work area.
+ * Exports the current canvas scene to the selected format using the video work area.
  */
 function useExportVideo(
   fabricCanvas: MutableRefObject<Canvas | null>,
@@ -39,7 +39,7 @@ function useExportVideo(
   const [exportProgress, setExportProgress] = useState(0);
 
   const exportVideo = useCallback(
-    async (quality: number) => {
+    async (quality: number, format: ExportVideoFormat) => {
       const liveCanvas = fabricCanvas.current;
       if (!liveCanvas) return;
       liveCanvas.discardActiveObject();
@@ -74,23 +74,26 @@ function useExportVideo(
         const exportElement = document.createElement("canvas");
         exportElement.width = exportWidth;
         exportElement.height = exportHeight;
+        ensureTransparentCanvasFrame(exportElement, exportWidth, exportHeight);
         exportCanvas = new StaticCanvas(exportElement, {
           width: exportWidth,
           height: exportHeight,
-          backgroundColor: "transparent",
+          backgroundColor: "rgba(0,0,0,0)",
           renderOnAddRemove: false,
         });
+        exportCanvas.backgroundImage = undefined;
+        exportCanvas.overlayImage = undefined;
 
-        const exportInstances = new Map<string, AnimatableObject>();
-        const exportObjectsById = new Map<string, FabricObject>();
-        const sourceObjectsById = new Map<string, FabricObject>();
         const sourceObjects = liveCanvas.getObjects();
+        /**Store the instance of the fabric object from the live canvas */
+        const sourceObjectsById = new Map<string, FabricObject>();
+        /**Store the animatable object created from the cloned instance of a fabric object in the live canvas for export */
+        const exportInstances = new Map<string, AnimatableObject>();
+
         for (const sourceObject of sourceObjects) {
+          const customId = sourceObject.customId;
           if (isVideoAreaGuideObject(sourceObject)) {
             continue;
-          }
-          if (sourceObject.customId) {
-            sourceObjectsById.set(sourceObject.customId, sourceObject);
           }
 
           const clonedObject =
@@ -109,11 +112,9 @@ function useExportVideo(
           clonedObject.setCoords();
           exportCanvas.add(clonedObject);
 
-          if (sourceObject.customId) {
-            exportObjectsById.set(sourceObject.customId, clonedObject);
-            const sourceInstance = instancesRef.current.get(
-              sourceObject.customId,
-            );
+          if (customId) {
+            sourceObjectsById.set(customId, sourceObject);
+            const sourceInstance = instancesRef.current.get(customId);
             if (sourceInstance) {
               const exportKeyframes = cloneKeyframesForExport(
                 sourceInstance.keyframes,
@@ -133,7 +134,7 @@ function useExportVideo(
                 ),
               };
               exportInstances.set(
-                sourceObject.customId,
+                customId,
                 new AnimatableObject(
                   clonedObject,
                   exportKeyframes,
@@ -146,27 +147,32 @@ function useExportVideo(
 
         await remapExportClipPaths(
           sourceObjectsById,
-          exportObjectsById,
+          exportInstances,
           videoArea.left,
           videoArea.top,
           scaleX,
           scaleY,
         );
+        ensureTransparentCanvasFrame(exportElement, exportWidth, exportHeight);
         exportCanvas.renderAll();
 
-        const blob = await exportCanvasAsMp4({
+        const blob = await exportCanvasAsVideo({
           canvas: exportElement,
           width: exportWidth,
           height: exportHeight,
           durationInSeconds: EXPORT_DURATION_SECONDS,
+          format,
           fps: EXPORT_FPS,
           onFrame: async (timeInSeconds) => {
             exportInstances.forEach((instance) => {
               instance.seek(timeInSeconds);
+              syncExportMaskProxyForObject(instance.fabricObject);
             });
-            exportObjectsById.forEach((exportObject) => {
-              syncExportMaskProxyForObject(exportObject);
-            });
+            ensureTransparentCanvasFrame(
+              exportElement,
+              exportWidth,
+              exportHeight,
+            );
             exportCanvas?.renderAll();
           },
           onProgress: (progress) => {
@@ -179,7 +185,7 @@ function useExportVideo(
         const anchor = document.createElement("a");
         const timestamp = new Date().toISOString().replaceAll(":", "-");
         anchor.href = url;
-        anchor.download = `motion-export-${timestamp}.mp4`;
+        anchor.download = `motion-export-${timestamp}.${format}`;
         anchor.click();
         window.setTimeout(() => {
           URL.revokeObjectURL(url);
@@ -201,6 +207,17 @@ function useExportVideo(
 }
 
 export default useExportVideo;
+
+/** Clears the export surface so every rendered frame starts from transparent pixels. */
+function ensureTransparentCanvasFrame(
+  canvas: HTMLCanvasElement,
+  width: number,
+  height: number,
+) {
+  const context = canvas.getContext("2d", { alpha: true });
+  if (!context) return;
+  context.clearRect(0, 0, width, height);
+}
 
 function isVideoAreaGuideObject(object: FabricObject) {
   return Boolean((object as ExportMaskTrackingObject).isVideoAreaGuide);
@@ -316,7 +333,7 @@ async function cloneFabricObjectWithCustomId<
  */
 async function remapExportClipPaths(
   sourceObjectsById: Map<string, FabricObject>,
-  exportObjectsById: Map<string, FabricObject>,
+  exportObjectsById: Map<string, AnimatableObject>,
   offsetX: number,
   offsetY: number,
   scaleX: number,
@@ -327,18 +344,19 @@ async function remapExportClipPaths(
     const sourceClipPath = sourceObject.clipPath;
     if (!sourceClipPath) continue;
 
-    const clipPathId =
+    const clipPathCustomIdId =
       "customId" in sourceClipPath &&
       typeof sourceClipPath.customId === "string"
         ? sourceClipPath.customId
         : null;
-    const exportObject = exportObjectsById.get(sourceId);
+    const exportObject = exportObjectsById.get(sourceId)?.fabricObject;
     if (!exportObject) continue;
 
     let exportClipPath: FabricObject | undefined;
     let exportMaskSourceForSync: FabricObject | undefined;
-    if (clipPathId) {
-      const exportMaskSource = exportObjectsById.get(clipPathId);
+    if (clipPathCustomIdId) {
+      const exportMaskSource =
+        exportObjectsById.get(clipPathCustomIdId)?.fabricObject;
       if (exportMaskSource) {
         // Use a dedicated clip-path clone so the visible source object is not reused as mask.
         exportClipPath = await cloneFabricObjectWithCustomId(exportMaskSource);

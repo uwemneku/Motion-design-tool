@@ -25,7 +25,17 @@
 
 - Group imports: external, internal, relative.
 - Keep imports sorted alphabetically inside groups.
-- Prefer project store hooks (`useAppSelector`, `useAppDispatch`) over raw Redux hooks where available.
+- Always use project store hooks (`useAppSelector`, `useAppDispatch`) instead of raw Redux hooks.
+
+## UI Testing
+
+- Use Playwright for Chromium-based UI and visual testing.
+- Run `npm run test:ui` for the default Chromium suite.
+- Run `npm run test:ui:visual` to capture design review screenshots for the editor.
+- Run `npm run test:ui:headed` when you need to watch the browser while iterating on UI.
+- Run `npm run test:ui:update` only when intentionally accepting new visual baselines.
+- Visual screenshots are emitted under `test-results/playwright/**`; review those images before making UI follow-up changes.
+- When working on layout or styling, prefer this loop: run visual test, inspect screenshots, adjust UI, rerun.
 
 ## Safety
 

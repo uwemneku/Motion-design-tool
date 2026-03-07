@@ -45,7 +45,7 @@ export function AddPolygonButton({
         <Tooltip.Content
           side="bottom"
           sideOffset={8}
-          className="z-50 w-56 rounded-lg border border-[#2f3745] bg-[#121923] p-2.5 text-xs text-[#e6e6e6] shadow-[0_10px_30px_rgba(0,0,0,0.45)]"
+          className="z-50 w-56 rounded-lg border border-[#4a4a4a] bg-[#1f1f1f] p-2.5 text-xs text-[#e6e6e6] shadow-[0_10px_30px_rgba(0,0,0,0.45)]"
         >
           <SliderPanelControl
             label="Polygon sides"
@@ -57,7 +57,7 @@ export function AddPolygonButton({
             valueText={String(polygonSides)}
             onChange={setPolygonSides}
           />
-          <Tooltip.Arrow className="fill-[#121923]" />
+          <Tooltip.Arrow className="fill-[#1f1f1f]" />
         </Tooltip.Content>
       </Tooltip.Portal>
     </Tooltip.Root>
