@@ -2,8 +2,8 @@
 export type AnimatableProperties = {
   left: number;
   top: number;
-  scaleX: number;
-  scaleY: number;
+  width: number;
+  height: number;
   opacity: number;
   angle: number;
 };

@@ -116,6 +116,12 @@ const editorSlice = createSlice({
         state.canvasItemIds.unshift(action.payload.id);
       }
     },
+    updateItemName(state, action: PayloadAction<{ id: string; name: string }>) {
+      const record = state.itemsRecord[action.payload.id];
+      if (record) {
+        record.name = action.payload.name;
+      }
+    },
     removeItemRecord(state, action: PayloadAction<string>) {
       delete state.itemsRecord[action.payload];
       state.canvasItemIds = state.canvasItemIds.filter(
@@ -167,6 +173,7 @@ export const {
   setSelectedId,
   setSelectedKeyframe,
   setProjectInfo,
+  updateItemName,
 } = editorSlice.actions;
 
 export default editorSlice.reducer;

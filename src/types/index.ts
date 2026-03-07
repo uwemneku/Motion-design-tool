@@ -2,9 +2,6 @@
 export type AnimationTemplateId =
   | "fade_in"
   | "fade_out"
-  | "zoom_in"
-  | "zoom_out"
-  | "text_pop_in"
   | "text_flicker"
   | "text_wiggle";
 
@@ -27,8 +24,8 @@ export type TextAnimationTemplate = {
 export type DesignFormState = {
   left: string;
   top: string;
-  scaleX: string;
-  scaleY: string;
+  width: string;
+  height: string;
   opacity: string;
   angle: string;
   fill: string;

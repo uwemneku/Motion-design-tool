@@ -66,8 +66,8 @@ export default function TimelineItemRow({
 
     const leftFrames = (instance.keyframes.left ?? []) as Keyframe[];
     const topFrames = (instance.keyframes.top ?? []) as Keyframe[];
-    const scaleXFrames = (instance.keyframes.scaleX ?? []) as Keyframe[];
-    const scaleYFrames = (instance.keyframes.scaleY ?? []) as Keyframe[];
+    const widthFrames = (instance.keyframes.width ?? []) as Keyframe[];
+    const heightFrames = (instance.keyframes.height ?? []) as Keyframe[];
     const opacityFrames = (instance.keyframes.opacity ?? []) as Keyframe[];
     const angleFrames = (instance.keyframes.angle ?? []) as Keyframe[];
     const fillFrames = (instance.colorKeyframes.fill ?? []) as ColorKeyframe[];
@@ -77,8 +77,8 @@ export default function TimelineItemRow({
     return [
       buildSingleDetailRow("Position X", "left", leftFrames),
       buildSingleDetailRow("Position Y", "top", topFrames),
-      buildSingleDetailRow("Scale X", "scaleX", scaleXFrames),
-      buildSingleDetailRow("Scale Y", "scaleY", scaleYFrames),
+      buildSingleDetailRow("Width", "width", widthFrames),
+      buildSingleDetailRow("Height", "height", heightFrames),
       buildSingleDetailRow("Opacity", "opacity", opacityFrames),
       buildSingleDetailRow("Rotation", "angle", angleFrames),
       buildColorDetailRow("Fill", "fill", fillFrames),

@@ -63,12 +63,6 @@ export default function CanvasSidePanelAnimations({
       toSnapshot.opacity = Math.max(baseSnapshot.opacity, 1);
     } else if (template.id === "fade_out") {
       toSnapshot.opacity = 0;
-    } else if (template.id === "zoom_in") {
-      fromSnapshot.scaleX = Math.max(baseSnapshot.scaleX * 0.4, 0.05);
-      fromSnapshot.scaleY = Math.max(baseSnapshot.scaleY * 0.4, 0.05);
-    } else if (template.id === "zoom_out") {
-      toSnapshot.scaleX = Math.max(baseSnapshot.scaleX * 0.4, 0.05);
-      toSnapshot.scaleY = Math.max(baseSnapshot.scaleY * 0.4, 0.05);
     }
 
     const startTime = dispatch(
@@ -77,25 +71,7 @@ export default function CanvasSidePanelAnimations({
     const endTime = startTime + template.duration;
     const keyframeTimes = [startTime, endTime];
 
-    if (template.id === "text_pop_in") {
-      const midTime = startTime + template.duration * 0.42;
-      const startSnapshot = {
-        ...baseSnapshot,
-        opacity: 0,
-        scaleX: Math.max(baseSnapshot.scaleX * 0.65, 0.05),
-        scaleY: Math.max(baseSnapshot.scaleY * 0.65, 0.05),
-      };
-      const midSnapshot = {
-        ...baseSnapshot,
-        opacity: 1,
-        scaleX: baseSnapshot.scaleX * 1.12,
-        scaleY: baseSnapshot.scaleY * 1.12,
-      };
-      instance.addSnapshotKeyframe(startTime, startSnapshot);
-      instance.addSnapshotKeyframe(midTime, midSnapshot);
-      instance.addSnapshotKeyframe(endTime, baseSnapshot);
-      keyframeTimes.push(midTime);
-    } else if (template.id === "text_flicker") {
+    if (template.id === "text_flicker") {
       const step1 = startTime + template.duration * 0.18;
       const step2 = startTime + template.duration * 0.36;
       const step3 = startTime + template.duration * 0.54;
@@ -168,8 +144,6 @@ export default function CanvasSidePanelAnimations({
       const originY = sourceObject.originY ?? "top";
       const baseLeft = sourceObject.left ?? 0;
       const baseTop = sourceObject.top ?? 0;
-      const baseScaleX = sourceObject.scaleX ?? 1;
-      const baseScaleY = sourceObject.scaleY ?? 1;
       const baseAngle = sourceObject.angle ?? 0;
       const baseOpacity = sourceObject.opacity ?? 1;
       const fontSize = sourceObject.fontSize ?? 24;
@@ -211,8 +185,6 @@ export default function CanvasSidePanelAnimations({
           opacity: baseOpacity,
           editable: false,
           strokeUniform: true,
-          scaleX: baseScaleX,
-          scaleY: baseScaleY,
         });
 
         const charCustomId = createUniqueId("text-char");
@@ -228,18 +200,18 @@ export default function CanvasSidePanelAnimations({
         charObject.addSnapshotKeyframe(charStart, {
           left: baseLeft + cursorX,
           top: baseTop + 18,
-          scaleX: baseScaleX * 0.9,
-          scaleY: baseScaleY * 0.9,
           opacity: 0,
           angle: baseAngle,
+          width: charObject.getSnapshot().width,
+          height: charObject.getSnapshot().height,
         });
         charObject.addSnapshotKeyframe(charEnd, {
           left: baseLeft + cursorX,
           top: baseTop,
-          scaleX: baseScaleX,
-          scaleY: baseScaleY,
           opacity: baseOpacity,
           angle: baseAngle,
+          width: charObject.getSnapshot().width,
+          height: charObject.getSnapshot().height,
         });
         charObject.seek(startTime);
 

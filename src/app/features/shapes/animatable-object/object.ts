@@ -33,8 +33,8 @@ export class AnimatableObject {
   static animatableProperties: (keyof AnimatableProperties)[] = [
     "left",
     "top",
-    "scaleX",
-    "scaleY",
+    "width",
+    "height",
     "opacity",
     "angle",
   ];
@@ -78,8 +78,8 @@ export class AnimatableObject {
     return {
       left: getNumeric(this.fabricObject.left, 0),
       top: getNumeric(this.fabricObject.top, 0),
-      scaleX: getNumeric(this.fabricObject.scaleX, 1),
-      scaleY: getNumeric(this.fabricObject.scaleY, 1),
+      width: Math.max(1, this.fabricObject.getScaledWidth()),
+      height: Math.max(1, this.fabricObject.getScaledHeight()),
       opacity: clamp(getNumeric(this.fabricObject.opacity, 1), 0, 1),
       angle: getNumeric(this.fabricObject.angle, 0),
     };
@@ -319,6 +319,28 @@ export class AnimatableObject {
     property: K,
     value: AnimatableProperties[K],
   ) {
+    if (property === "width") {
+      const currentWidth = this.fabricObject.getScaledWidth();
+      const currentScaleX = this.fabricObject.scaleX ?? 1;
+      if (currentWidth > 0) {
+        this.fabricObject.set(
+          "scaleX",
+          currentScaleX * ((value as number) / currentWidth),
+        );
+      }
+      return;
+    }
+    if (property === "height") {
+      const currentHeight = this.fabricObject.getScaledHeight();
+      const currentScaleY = this.fabricObject.scaleY ?? 1;
+      if (currentHeight > 0) {
+        this.fabricObject.set(
+          "scaleY",
+          currentScaleY * ((value as number) / currentHeight),
+        );
+      }
+      return;
+    }
     this.fabricObject.set(property, value as number);
   }
 

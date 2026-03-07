@@ -30,6 +30,7 @@ export default function VideoWorkAreaOverlay() {
     height: 0,
   });
   const [labelPosition, setLabelPosition] = useState({ left: 0, top: -9999 });
+  const [isVideoOnlyOverlay, setIsVideoOnlyOverlay] = useState(false);
   const aspectRation = useAppSelector(
     (state) => state.editor.projectInfo.videoAspectRatio,
   );
@@ -68,7 +69,7 @@ export default function VideoWorkAreaOverlay() {
       const viewport = getViewportBounds(canvas);
       rectRef.current = rect;
 
-      updateGuideObjects(activeGuides, rect, viewport);
+      updateGuideObjects(activeGuides, rect, viewport, isVideoOnlyOverlay);
       const nextLabelPosition = computeVideoAreaLabelPosition(canvas, rect);
       setLabelPosition((previous) =>
         Math.abs(previous.left - nextLabelPosition.left) > 0.5 ||
@@ -109,7 +110,7 @@ export default function VideoWorkAreaOverlay() {
       canvas.off("before:render", onBeforeRender);
       window.removeEventListener("resize", onWindowResize);
     };
-  }, [activeAspectPreset.ratio, fabricCanvasRef]);
+  }, [activeAspectPreset.ratio, fabricCanvasRef, isVideoOnlyOverlay]);
 
   // Update project info in the store when canvas or aspect ratio changes.
   useEffect(() => {
@@ -170,6 +171,9 @@ export default function VideoWorkAreaOverlay() {
     };
   }, [fabricCanvasRef]);
 
+  /** Captures the current video work area as a still preview image. */
+  const openVideoAreaPreview = () => {};
+
   return (
     <div className="pointer-events-none absolute inset-0 z-20">
       <div
@@ -188,6 +192,85 @@ export default function VideoWorkAreaOverlay() {
         >
           Video Area
         </div>
+        <button
+          type="button"
+          onClick={openVideoAreaPreview}
+          className={
+            "grid h-5 w-5 place-items-center rounded border " +
+            "bg-[var(--wise-surface-raised)]/95 text-[#d4d4d4] transition-colors " +
+            "hover:bg-[var(--wise-surface-muted)]"
+          }
+          style={{ borderColor: "#2563eb" }}
+          aria-label="Preview video area screenshot"
+          title="Preview video area"
+        >
+          <svg
+            viewBox="0 0 16 16"
+            className="h-3.5 w-3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M1.75 4.75a2 2 0 0 1 2-2h8.5a2 2 0 0 1 2 2v6.5a2 2 0 0 1-2 2h-8.5a2 2 0 0 1-2-2z" />
+            <path d="m6.25 6 3.5 2-3.5 2z" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setIsVideoOnlyOverlay((previous) => !previous);
+          }}
+          className={
+            "grid h-5 w-5 place-items-center rounded border " +
+            "bg-[var(--wise-surface-raised)]/95 text-[#d4d4d4] transition-colors " +
+            "hover:bg-[var(--wise-surface-muted)]"
+          }
+          style={{ borderColor: "#2563eb" }}
+          aria-label={
+            isVideoOnlyOverlay
+              ? "Show standard video overlay"
+              : "Show only video area"
+          }
+          title={
+            isVideoOnlyOverlay
+              ? "Show standard overlay"
+              : "Show only video area"
+          }
+        >
+          {isVideoOnlyOverlay ? (
+            <svg
+              viewBox="0 0 16 16"
+              className="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M2.5 3.5h11v9h-11z" />
+              <path d="M5 5.5h6v5H5z" />
+              <path d="m3 3 10 10" />
+            </svg>
+          ) : (
+            <svg
+              viewBox="0 0 16 16"
+              className="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M2.5 3.5h11v9h-11z" />
+              <path d="M5 5.5h6v5H5z" />
+            </svg>
+          )}
+        </button>
         <select
           value={activeAspectPreset.label}
           onChange={(event) => {

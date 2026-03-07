@@ -62,22 +62,21 @@ type CanvasItemKeyframeInput = {
   angle?: number;
   easing?: KeyframeEasing;
   fill?: string;
+  height?: number;
   left?: number;
   opacity?: number;
-  scaleX?: number;
-  scaleY?: number;
   stroke?: string;
   time: number;
   top?: number;
+  width?: number;
 };
 
 type UpdateItemProps = {
   angle?: number;
   fill?: string;
+  height?: number;
   left?: number;
   opacity?: number;
-  scaleX?: number;
-  scaleY?: number;
   stroke?: string;
   text?: string;
   top?: number;
@@ -294,18 +293,18 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
           easing: keyframe.easing ?? "linear",
         });
       }
-      if (typeof keyframe.scaleX === "number") {
+      if (typeof keyframe.width === "number") {
         instance.addKeyframe({
-          property: "scaleX",
-          value: keyframe.scaleX,
+          property: "width",
+          value: keyframe.width,
           time: keyframe.time,
           easing: keyframe.easing ?? "linear",
         });
       }
-      if (typeof keyframe.scaleY === "number") {
+      if (typeof keyframe.height === "number") {
         instance.addKeyframe({
-          property: "scaleY",
-          value: keyframe.scaleY,
+          property: "height",
+          value: keyframe.height,
           time: keyframe.time,
           easing: keyframe.easing ?? "linear",
         });
@@ -629,24 +628,6 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
           easing: "linear",
         });
       }
-      if (typeof nextProps.scaleX === "number") {
-        object.set("scaleX", nextProps.scaleX);
-        instance.addKeyframe({
-          property: "scaleX",
-          value: nextProps.scaleX,
-          time: playheadTime,
-          easing: "linear",
-        });
-      }
-      if (typeof nextProps.scaleY === "number") {
-        object.set("scaleY", nextProps.scaleY);
-        instance.addKeyframe({
-          property: "scaleY",
-          value: nextProps.scaleY,
-          time: playheadTime,
-          easing: "linear",
-        });
-      }
       if (typeof nextProps.opacity === "number") {
         object.set("opacity", nextProps.opacity);
         instance.addKeyframe({
@@ -673,10 +654,25 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
             "scaleX",
             currentScaleX * (Number(nextProps.width) / currentScaledWidth),
           );
-          const scaleX = Number(object.scaleX ?? 1);
           instance.addKeyframe({
-            property: "scaleX",
-            value: scaleX,
+            property: "width",
+            value: object.getScaledWidth(),
+            time: playheadTime,
+            easing: "linear",
+          });
+        }
+      }
+      if (typeof nextProps.height === "number") {
+        const currentScaleY = object.scaleY ?? 1;
+        const currentScaledHeight = object.getScaledHeight();
+        if (currentScaledHeight > 0) {
+          object.set(
+            "scaleY",
+            currentScaleY * (Number(nextProps.height) / currentScaledHeight),
+          );
+          instance.addKeyframe({
+            property: "height",
+            value: object.getScaledHeight(),
             time: playheadTime,
             easing: "linear",
           });
@@ -728,18 +724,18 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
           easing: keyframe.easing ?? "linear",
         });
       }
-      if (typeof keyframe.scaleX === "number") {
+      if (typeof keyframe.width === "number") {
         instance.addKeyframe({
-          property: "scaleX",
-          value: keyframe.scaleX,
+          property: "width",
+          value: keyframe.width,
           time: keyframe.time,
           easing: keyframe.easing ?? "linear",
         });
       }
-      if (typeof keyframe.scaleY === "number") {
+      if (typeof keyframe.height === "number") {
         instance.addKeyframe({
-          property: "scaleY",
-          value: keyframe.scaleY,
+          property: "height",
+          value: keyframe.height,
           time: keyframe.time,
           easing: keyframe.easing ?? "linear",
         });

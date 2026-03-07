@@ -74,7 +74,12 @@ export function updateGuideObjects(
   guides: VideoGuideSet,
   rect: VideoWorkAreaRect,
   viewport: ViewportBounds,
+  isVideoOnlyOverlay: boolean = false,
 ) {
+  const opacity = isVideoOnlyOverlay
+    ? "rgba(0, 0, 0, 0.92)"
+    : "rgba(0, 0, 0, 0.42)";
+
   const rectBottom = rect.top + rect.height;
   const rectRight = rect.left + rect.width;
   const rowTop = Math.max(rect.top, viewport.top);
@@ -82,24 +87,28 @@ export function updateGuideObjects(
   const rowHeight = Math.max(0, rowBottom - rowTop);
 
   guides.dimTop.set({
+    fill: opacity,
     height: Math.max(0, rect.top - viewport.top),
     left: viewport.left,
     top: viewport.top,
     width: viewport.width,
   });
   guides.dimBottom.set({
+    fill: opacity,
     height: Math.max(0, viewport.bottom - rectBottom),
     left: viewport.left,
     top: rectBottom,
     width: viewport.width,
   });
   guides.dimLeft.set({
+    fill: opacity,
     height: rowHeight,
     left: viewport.left,
     top: rowTop,
     width: Math.max(0, rect.left - viewport.left),
   });
   guides.dimRight.set({
+    fill: opacity,
     height: rowHeight,
     left: rectRight,
     top: rowTop,

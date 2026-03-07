@@ -58,12 +58,7 @@ export function getPropertiesForTransformAction(action?: string) {
     return ["left", "top"] as (keyof AnimatableProperties)[];
   if (action === "rotate") return ["angle"] as (keyof AnimatableProperties)[];
   if (action === "scale" || action === "scaleX" || action === "scaleY") {
-    return [
-      "left",
-      "top",
-      "scaleX",
-      "scaleY",
-    ] as (keyof AnimatableProperties)[];
+    return ["left", "top", "width", "height"] as (keyof AnimatableProperties)[];
   }
   return NUMERIC_ANIMATABLE_PROPERTIES;
 }
@@ -94,11 +89,11 @@ export type ItemMutationSnapshot = {
 
 export type TransformSnapshot = {
   angle: number;
+  height: number;
   left: number;
   opacity: number;
-  scaleX: number;
-  scaleY: number;
   top: number;
+  width: number;
 };
 
 export const hoverOutlineRect = new Rect({
@@ -135,17 +130,17 @@ export function showGlobalHoverOutlineForObject(hoveredObject: FabricObject) {
 
 export function readTransformSnapshot(object: {
   angle?: number;
+  height?: number;
   left?: number;
   opacity?: number;
-  scaleX?: number;
-  scaleY?: number;
   top?: number;
+  width?: number;
 }): TransformSnapshot {
   return {
     left: Number.isFinite(object.left) ? Number(object.left) : 0,
     top: Number.isFinite(object.top) ? Number(object.top) : 0,
-    scaleX: Number.isFinite(object.scaleX) ? Number(object.scaleX) : 1,
-    scaleY: Number.isFinite(object.scaleY) ? Number(object.scaleY) : 1,
+    width: Number.isFinite(object.width) ? Number(object.width) : 1,
+    height: Number.isFinite(object.height) ? Number(object.height) : 1,
     opacity: Number.isFinite(object.opacity) ? Number(object.opacity) : 1,
     angle: Number.isFinite(object.angle) ? Number(object.angle) : 0,
   };

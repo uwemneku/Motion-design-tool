@@ -47,19 +47,13 @@ export function getPreviewShapeClass(templateId: AnimationTemplateId) {
   if (templateId === "fade_out") {
     return "group-hover:[animation:preview-fade-out_0.9s_ease-out_1]";
   }
-  if (templateId === "zoom_in") {
-    return "group-hover:[animation:preview-zoom-in_0.9s_ease-out_1]";
-  }
-  if (templateId === "text_pop_in") {
-    return "group-hover:[animation:preview-text-pop_0.8s_ease-out_1]";
-  }
   if (templateId === "text_flicker") {
     return "group-hover:[animation:preview-text-flicker_0.8s_steps(2,end)_1]";
   }
   if (templateId === "text_wiggle") {
     return "group-hover:[animation:preview-text-wiggle_0.8s_ease-in-out_1]";
   }
-  return "group-hover:[animation:preview-zoom-out_0.9s_ease-out_1]";
+  return "";
 }
 
 export function getTextPreviewShapeClass(templateId: TextAnimationTemplateId) {

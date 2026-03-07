@@ -19,8 +19,8 @@ export function readDesignForm(instance?: AnimatableObject): DesignFormState {
   return {
     left: toNumberInput(object.left, 0),
     top: toNumberInput(object.top, 0),
-    scaleX: toNumberInput(object.scaleX, 1),
-    scaleY: toNumberInput(object.scaleY, 1),
+    width: toNumberInput(object.getScaledWidth(), 1),
+    height: toNumberInput(object.getScaledHeight(), 1),
     opacity: toNumberInput(object.opacity, 1),
     angle: toNumberInput(object.angle, 0),
     fill:
@@ -122,24 +122,6 @@ export const animationTemplates: AnimationTemplate[] = [
     name: "Fade Out",
     description: "Opacity 100% to 0",
     duration: 0.8,
-  },
-  {
-    id: "zoom_in",
-    name: "Zoom In",
-    description: "Scale up into frame",
-    duration: 0.9,
-  },
-  {
-    id: "zoom_out",
-    name: "Zoom Out",
-    description: "Scale down out of frame",
-    duration: 0.9,
-  },
-  {
-    id: "text_pop_in",
-    name: "Pop In",
-    description: "Quick scale-up with settle",
-    duration: 0.55,
   },
   {
     id: "text_flicker",

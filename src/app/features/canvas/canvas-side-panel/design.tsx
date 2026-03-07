@@ -30,8 +30,8 @@ type KeyframeField = keyof Omit<DesignFormState, "text">;
 type SupportedKeyframeField =
   | "left"
   | "top"
-  | "scaleX"
-  | "scaleY"
+  | "width"
+  | "height"
   | "opacity"
   | "angle"
   | "fill"
@@ -135,8 +135,8 @@ export default function CanvasSidePanelDesign() {
     const object = selectedInstance.fabricObject;
     const left = toPrecisionNumber(Number(nextForm.left));
     const top = toPrecisionNumber(Number(nextForm.top));
-    const scaleX = toPrecisionNumber(Number(nextForm.scaleX));
-    const scaleY = toPrecisionNumber(Number(nextForm.scaleY));
+    const width = clampMin(toPrecisionNumber(Number(nextForm.width)), 0);
+    const height = clampMin(toPrecisionNumber(Number(nextForm.height)), 0);
     const opacity = clamp(toPrecisionNumber(Number(nextForm.opacity)), 0, 1);
     const angle = toPrecisionNumber(Number(nextForm.angle));
     const strokeWidth = clampMin(
@@ -146,8 +146,20 @@ export default function CanvasSidePanelDesign() {
 
     if (Number.isFinite(left)) object.set("left", left);
     if (Number.isFinite(top)) object.set("top", top);
-    if (Number.isFinite(scaleX)) object.set("scaleX", scaleX);
-    if (Number.isFinite(scaleY)) object.set("scaleY", scaleY);
+    if (Number.isFinite(width) && width > 0) {
+      const currentWidth = object.getScaledWidth();
+      const currentScaleX = object.scaleX ?? 1;
+      if (currentWidth > 0) {
+        object.set("scaleX", currentScaleX * (width / currentWidth));
+      }
+    }
+    if (Number.isFinite(height) && height > 0) {
+      const currentHeight = object.getScaledHeight();
+      const currentScaleY = object.scaleY ?? 1;
+      if (currentHeight > 0) {
+        object.set("scaleY", currentScaleY * (height / currentHeight));
+      }
+    }
     if (Number.isFinite(opacity)) object.set("opacity", opacity);
     if (Number.isFinite(angle)) object.set("angle", angle);
     if (Number.isFinite(strokeWidth)) object.set("strokeWidth", strokeWidth);
@@ -177,8 +189,8 @@ export default function CanvasSidePanelDesign() {
       ...prev,
       left: Number.isFinite(left) ? formatNumberInput(left) : prev.left,
       top: Number.isFinite(top) ? formatNumberInput(top) : prev.top,
-      scaleX: Number.isFinite(scaleX) ? formatNumberInput(scaleX) : prev.scaleX,
-      scaleY: Number.isFinite(scaleY) ? formatNumberInput(scaleY) : prev.scaleY,
+      width: formatNumberInput(object.getScaledWidth()),
+      height: formatNumberInput(object.getScaledHeight()),
       opacity: Number.isFinite(opacity)
         ? formatNumberInput(opacity)
         : prev.opacity,
@@ -196,28 +208,24 @@ export default function CanvasSidePanelDesign() {
 
     if (changedFields.length === 0) return;
 
-    addKeyframesForFields(changedFields, nextForm, true);
+    addKeyframesForFields(changedFields, nextForm);
   };
 
   /** Adds keyframes for the requested properties at the current playhead time. */
-  const addKeyframesForFields = (
-    fields: KeyframeField[],
-    nextForm: DesignFormState,
-    includeScalePositionCompanions = false,
-  ) => {
+  const addKeyframesForFields = (fields: KeyframeField[], nextForm: DesignFormState) => {
     if (!selectedId || !selectedItem || !selectedInstance) return;
 
     let addedKeyframe = false;
 
     const numericFieldsToCapture = new Set<
-      "left" | "top" | "scaleX" | "scaleY" | "opacity" | "angle"
+      "left" | "top" | "width" | "height" | "opacity" | "angle"
     >();
     fields.forEach((field) => {
       if (
         field === "left" ||
         field === "top" ||
-        field === "scaleX" ||
-        field === "scaleY" ||
+        field === "width" ||
+        field === "height" ||
         field === "opacity" ||
         field === "angle"
       ) {
@@ -225,17 +233,13 @@ export default function CanvasSidePanelDesign() {
       }
     });
 
-    const isScaleChanged =
-      fields.includes("scaleX") || fields.includes("scaleY");
-    if (includeScalePositionCompanions && isScaleChanged) {
-      numericFieldsToCapture.add("left");
-      numericFieldsToCapture.add("top");
-      numericFieldsToCapture.add("scaleX");
-      numericFieldsToCapture.add("scaleY");
-    }
-
     numericFieldsToCapture.forEach((field) => {
-      const numericValue = Number(selectedInstance.fabricObject.get(field));
+      const numericValue =
+        field === "width"
+          ? selectedInstance.fabricObject.getScaledWidth()
+          : field === "height"
+            ? selectedInstance.fabricObject.getScaledHeight()
+            : Number(selectedInstance.fabricObject.get(field));
       if (!Number.isFinite(numericValue)) return;
       selectedInstance.addKeyframe({
         property: field,
@@ -282,7 +286,7 @@ export default function CanvasSidePanelDesign() {
   /** Commits the current field value and adds a keyframe for that property. */
   const addPropertyKeyframe = (field: SupportedKeyframeField) => {
     commitDesignForm(designForm);
-    addKeyframesForFields([field], designForm, false);
+    addKeyframesForFields([field], designForm);
   };
 
   /** Reports whether the selected item already has a keyframe for a field now. */
@@ -392,53 +396,55 @@ export default function CanvasSidePanelDesign() {
 
             <div className="grid grid-cols-2 gap-2">
               <label className={labelClass}>
-                <span className="text-[#d5d8e1]">Scale X</span>
+                <span className="text-[#d5d8e1]">Width</span>
                 <div className="relative">
                   <KeyframeActionButton
-                    isKeyframed={hasKeyframeAtPlayhead("scaleX")}
-                    label="Scale X"
+                    isKeyframed={hasKeyframeAtPlayhead("width")}
+                    label="Width"
                     onAddKeyframe={() => {
-                      addPropertyKeyframe("scaleX");
+                      addPropertyKeyframe("width");
                     }}
                   />
                   <input
                     type="number"
+                    min={0.001}
                     step={0.001}
-                    value={designForm.scaleX}
+                    value={designForm.width}
                     onChange={(event) => {
                       setDesignForm((prev) => ({
                         ...prev,
-                        scaleX: event.target.value,
+                        width: event.target.value,
                       }));
                     }}
-                    onBlur={() => commitDesignForm(designForm, ["scaleX"])}
-                    onKeyDown={(event) => onInputKeyDown(event, ["scaleX"])}
+                    onBlur={() => commitDesignForm(designForm, ["width"])}
+                    onKeyDown={(event) => onInputKeyDown(event, ["width"])}
                     className={`${fieldClass} pr-9`}
                   />
                 </div>
               </label>
               <label className={labelClass}>
-                <span className="text-[#d5d8e1]">Scale Y</span>
+                <span className="text-[#d5d8e1]">Height</span>
                 <div className="relative">
                   <KeyframeActionButton
-                    isKeyframed={hasKeyframeAtPlayhead("scaleY")}
-                    label="Scale Y"
+                    isKeyframed={hasKeyframeAtPlayhead("height")}
+                    label="Height"
                     onAddKeyframe={() => {
-                      addPropertyKeyframe("scaleY");
+                      addPropertyKeyframe("height");
                     }}
                   />
                   <input
                     type="number"
+                    min={0.001}
                     step={0.001}
-                    value={designForm.scaleY}
+                    value={designForm.height}
                     onChange={(event) => {
                       setDesignForm((prev) => ({
                         ...prev,
-                        scaleY: event.target.value,
+                        height: event.target.value,
                       }));
                     }}
-                    onBlur={() => commitDesignForm(designForm, ["scaleY"])}
-                    onKeyDown={(event) => onInputKeyDown(event, ["scaleY"])}
+                    onBlur={() => commitDesignForm(designForm, ["height"])}
+                    onKeyDown={(event) => onInputKeyDown(event, ["height"])}
                     className={`${fieldClass} pr-9`}
                   />
                 </div>

@@ -249,9 +249,9 @@ function cloneKeyframesForExport(
         value = (keyframe.value - offsetX) * scaleX;
       } else if (keyframe.property === "top") {
         value = (keyframe.value - offsetY) * scaleY;
-      } else if (keyframe.property === "scaleX") {
+      } else if (keyframe.property === "width") {
         value = keyframe.value * scaleX;
-      } else if (keyframe.property === "scaleY") {
+      } else if (keyframe.property === "height") {
         value = keyframe.value * scaleY;
       }
 

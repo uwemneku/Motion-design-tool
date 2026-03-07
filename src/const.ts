@@ -65,8 +65,8 @@ export const MIN_BORDER_SCALE_FACTOR = 0.05;
 export const NUMERIC_ANIMATABLE_PROPERTIES: (keyof AnimatableProperties)[] = [
   "left",
   "top",
-  "scaleX",
-  "scaleY",
+  "width",
+  "height",
   "opacity",
   "angle",
 ];
@@ -108,8 +108,8 @@ export const HEX_COLOR_PATTERN = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 export const EMPTY_FORM: DesignFormState = {
   left: "0",
   top: "0",
-  scaleX: "1",
-  scaleY: "1",
+  width: "1",
+  height: "1",
   opacity: "1",
   angle: "0",
   fill: "",
