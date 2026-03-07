@@ -1,7 +1,7 @@
 /** Tools.Ts AI tool-call schemas and command mapping. */
-import { z } from 'zod';
-import type { AIEditorCommand } from './editor-ai-events';
-import type { OpenAISceneContext } from './openai-chat';
+import { z } from "zod";
+import type { AIEditorCommand } from "./editor-ai-events";
+import type { OpenAISceneContext } from "./openai-chat";
 
 const addCircleToolCallSchema = z
   .object({
@@ -14,7 +14,7 @@ const addCircleToolCallSchema = z
         top: z.number().nullable(),
       })
       .strict(),
-    tool: z.literal('add_circle'),
+    tool: z.literal("add_circle"),
   })
   .strict();
 
@@ -30,7 +30,7 @@ const addRectangleToolCallSchema = z
         width: z.number().nullable(),
       })
       .strict(),
-    tool: z.literal('add_rectangle'),
+    tool: z.literal("add_rectangle"),
   })
   .strict();
 
@@ -46,7 +46,7 @@ const addTextToolCallSchema = z
         width: z.number().nullable(),
       })
       .strict(),
-    tool: z.literal('add_text'),
+    tool: z.literal("add_text"),
   })
   .strict();
 
@@ -63,7 +63,7 @@ const addPolygonToolCallSchema = z
         width: z.number().nullable(),
       })
       .strict(),
-    tool: z.literal('add_polygon'),
+    tool: z.literal("add_polygon"),
   })
   .strict();
 
@@ -79,7 +79,7 @@ const addLineToolCallSchema = z
         width: z.number().nullable(),
       })
       .strict(),
-    tool: z.literal('add_line'),
+    tool: z.literal("add_line"),
   })
   .strict();
 
@@ -97,16 +97,16 @@ const addImageToolCallSchema = z
       })
       .strict()
       .refine((args) => args.prompt || args.url, {
-        message: 'Either prompt or url is required.',
+        message: "Either prompt or url is required.",
       }),
-    tool: z.literal('add_image'),
+    tool: z.literal("add_image"),
   })
   .strict();
 
 const getLayerOrderToolCallSchema = z
   .object({
     args: z.object({}).strict(),
-    tool: z.literal('get_layer_order'),
+    tool: z.literal("get_layer_order"),
   })
   .strict();
 
@@ -120,7 +120,7 @@ const findTextSlotToolCallSchema = z
         width: z.number().nullable(),
       })
       .strict(),
-    tool: z.literal('find_text_slot'),
+    tool: z.literal("find_text_slot"),
   })
   .strict();
 
@@ -131,7 +131,7 @@ const analyzeSceneOverlapsToolCallSchema = z
         padding: z.number().nullable(),
       })
       .strict(),
-    tool: z.literal('analyze_scene_overlaps'),
+    tool: z.literal("analyze_scene_overlaps"),
   })
   .strict();
 
@@ -142,7 +142,7 @@ const getItemsInVideoAreaToolCallSchema = z
         visibleOnly: z.boolean().nullable(),
       })
       .strict(),
-    tool: z.literal('get_items_in_video_area'),
+    tool: z.literal("get_items_in_video_area"),
   })
   .strict();
 
@@ -153,7 +153,7 @@ const getItemGeometryToolCallSchema = z
         ids: z.array(z.string().min(1)).nullable(),
       })
       .strict(),
-    tool: z.literal('get_item_geometry'),
+    tool: z.literal("get_item_geometry"),
   })
   .strict();
 
@@ -164,7 +164,7 @@ const reorderLayersToolCallSchema = z
         ids: z.array(z.string().min(1)),
       })
       .strict(),
-    tool: z.literal('reorder_layers'),
+    tool: z.literal("reorder_layers"),
   })
   .strict();
 
@@ -174,13 +174,13 @@ const modifyKeyframeByIdToolCallSchema = z
       .object({
         easing: z
           .enum([
-            'linear',
-            'step',
-            'easeIn',
-            'easeOut',
-            'easeInOut',
-            'elastic',
-            'bounce',
+            "linear",
+            "step",
+            "easeIn",
+            "easeOut",
+            "easeInOut",
+            "elastic",
+            "bounce",
           ])
           .nullable(),
         keyframeId: z.string().min(1),
@@ -189,7 +189,7 @@ const modifyKeyframeByIdToolCallSchema = z
         valueString: z.string().nullable(),
       })
       .strict(),
-    tool: z.literal('modify_keyframe_by_id'),
+    tool: z.literal("modify_keyframe_by_id"),
   })
   .strict();
 
@@ -200,7 +200,7 @@ const deleteKeyframeByIdToolCallSchema = z
         keyframeId: z.string().min(1),
       })
       .strict(),
-    tool: z.literal('delete_keyframe_by_id'),
+    tool: z.literal("delete_keyframe_by_id"),
   })
   .strict();
 
@@ -211,7 +211,7 @@ const deleteItemByIdToolCallSchema = z
         id: z.string().min(1),
       })
       .strict(),
-    tool: z.literal('delete_item_by_id'),
+    tool: z.literal("delete_item_by_id"),
   })
   .strict();
 
@@ -219,10 +219,10 @@ const setVideoAspectRatioToolCallSchema = z
   .object({
     args: z
       .object({
-        aspectLabel: z.enum(['16:9', '9:16', '1:1', '4:5']),
+        aspectLabel: z.enum(["16:9", "9:16", "1:1", "4:5"]),
       })
       .strict(),
-    tool: z.literal('set_video_aspect_ratio'),
+    tool: z.literal("set_video_aspect_ratio"),
   })
   .strict();
 
@@ -238,13 +238,13 @@ const updateItemByIdToolCallSchema = z
                 angle: z.number().nullable(),
                 easing: z
                   .enum([
-                    'linear',
-                    'step',
-                    'easeIn',
-                    'easeOut',
-                    'easeInOut',
-                    'elastic',
-                    'bounce',
+                    "linear",
+                    "step",
+                    "easeIn",
+                    "easeOut",
+                    "easeInOut",
+                    "elastic",
+                    "bounce",
                   ])
                   .nullable(),
                 fill: z.string().nullable(),
@@ -276,7 +276,7 @@ const updateItemByIdToolCallSchema = z
           .nullable(),
       })
       .strict(),
-    tool: z.literal('update_item_by_id'),
+    tool: z.literal("update_item_by_id"),
   })
   .strict();
 
@@ -295,13 +295,13 @@ const batchUpdateItemsToolCallSchema = z
                       angle: z.number().nullable(),
                       easing: z
                         .enum([
-                          'linear',
-                          'step',
-                          'easeIn',
-                          'easeOut',
-                          'easeInOut',
-                          'elastic',
-                          'bounce',
+                          "linear",
+                          "step",
+                          "easeIn",
+                          "easeOut",
+                          "easeInOut",
+                          "elastic",
+                          "bounce",
                         ])
                         .nullable(),
                       fill: z.string().nullable(),
@@ -336,7 +336,7 @@ const batchUpdateItemsToolCallSchema = z
         ),
       })
       .strict(),
-    tool: z.literal('batch_update_items'),
+    tool: z.literal("batch_update_items"),
   })
   .strict();
 
@@ -362,7 +362,7 @@ const createTextLayoutToolCallSchema = z
           .nullable(),
       })
       .strict(),
-    tool: z.literal('create_text_layout'),
+    tool: z.literal("create_text_layout"),
   })
   .strict();
 
@@ -371,10 +371,10 @@ const resolveOverlapsToolCallSchema = z
     args: z
       .object({
         padding: z.number().nullable(),
-        strategy: z.enum(['opacity_stage', 'none']),
+        strategy: z.enum(["opacity_stage", "none"]),
       })
       .strict(),
-    tool: z.literal('resolve_overlaps'),
+    tool: z.literal("resolve_overlaps"),
   })
   .strict();
 
@@ -387,7 +387,7 @@ const duplicateItemToolCallSchema = z
         top: z.number().nullable(),
       })
       .strict(),
-    tool: z.literal('duplicate_item'),
+    tool: z.literal("duplicate_item"),
   })
   .strict();
 
@@ -399,7 +399,7 @@ const timelineShiftToolCallSchema = z
         ids: z.array(z.string().min(1)),
       })
       .strict(),
-    tool: z.literal('timeline_shift'),
+    tool: z.literal("timeline_shift"),
   })
   .strict();
 
@@ -433,66 +433,66 @@ export type ToolBackedCommand = Extract<
   AIEditorCommand,
   {
     type:
-      | 'add_circle'
-      | 'add_line'
-      | 'add_image'
-      | 'add_polygon'
-      | 'add_rectangle'
-      | 'add_text'
-      | 'delete_item'
-      | 'delete_keyframe'
-      | 'modify_keyframe'
-      | 'reorder_layers'
-      | 'update_item'
-      | 'set_aspect_ratio'
-      | 'batch_update_items'
-      | 'timeline_shift';
+      | "add_circle"
+      | "add_line"
+      | "add_image"
+      | "add_polygon"
+      | "add_rectangle"
+      | "add_text"
+      | "delete_item"
+      | "delete_keyframe"
+      | "modify_keyframe"
+      | "reorder_layers"
+      | "update_item"
+      | "set_aspect_ratio"
+      | "batch_update_items"
+      | "timeline_shift";
   }
 >;
 
 export const AVAILABLE_TOOLS_PROMPT_TEXT =
-  'add_circle(color?, left?, right?, top?, radius?), ' +
-  'add_polygon(color?, left?, right?, top?, width?, height?, sides?), ' +
-  'add_line(color?, left?, right?, top?, width?, height?), ' +
-  'add_image(prompt?, url?, left?, right?, top?, width?, height?), ' +
-  'get_layer_order(), ' +
-  'analyze_scene_overlaps(padding?), ' +
-  'get_items_in_video_area(visibleOnly?), ' +
-  'get_item_geometry(ids?), ' +
-  'find_text_slot(width?, height?, preferredTop?, padding?), ' +
-  'create_text_layout(blocks, region?), ' +
-  'add_rectangle(color?, left?, right?, top?, width?, height?), ' +
-  'delete_item_by_id(id), ' +
-  'modify_keyframe_by_id(keyframeId, valueNumber?, valueString?, easing?, time?), ' +
-  'delete_keyframe_by_id(keyframeId), ' +
-  'reorder_layers(ids), ' +
-  'duplicate_item(id, left?, top?), ' +
-  'resolve_overlaps(strategy, padding?), ' +
-  'batch_update_items(updates), ' +
-  'timeline_shift(ids, deltaSeconds), ' +
-  'add_text(text?, color?, left?, right?, top?, width?), ' +
-  'update_item_by_id(id, props?, keyframes?), ' +
-  'set_video_aspect_ratio(aspectLabel)';
+  "add_circle(color?, left?, right?, top?, radius?), " +
+  "add_polygon(color?, left?, right?, top?, width?, height?, sides?), " +
+  "add_line(color?, left?, right?, top?, width?, height?), " +
+  "add_image(prompt?, url?, left?, right?, top?, width?, height?), " +
+  "get_layer_order(), " +
+  "analyze_scene_overlaps(padding?), " +
+  "get_items_in_video_area(visibleOnly?), " +
+  "get_item_geometry(ids?), " +
+  "find_text_slot(width?, height?, preferredTop?, padding?), " +
+  "create_text_layout(blocks, region?), " +
+  "add_rectangle(color?, left?, right?, top?, width?, height?), " +
+  "delete_item_by_id(id), " +
+  "modify_keyframe_by_id(keyframeId, valueNumber?, valueString?, easing?, time?), " +
+  "delete_keyframe_by_id(keyframeId), " +
+  "reorder_layers(ids), " +
+  "duplicate_item(id, left?, top?), " +
+  "resolve_overlaps(strategy, padding?), " +
+  "batch_update_items(updates), " +
+  "timeline_shift(ids, deltaSeconds), " +
+  "add_text(text?, color?, left?, right?, top?, width?), " +
+  "update_item_by_id(id, props?, keyframes?), " +
+  "set_video_aspect_ratio(aspectLabel)";
 
 /** Runtime guard for commands supported by the current tool layer. */
 export function isToolBackedCommand(
   command: AIEditorCommand,
 ): command is ToolBackedCommand {
   return (
-    command.type === 'add_circle' ||
-    command.type === 'add_image' ||
-    command.type === 'add_line' ||
-    command.type === 'add_polygon' ||
-    command.type === 'add_rectangle' ||
-    command.type === 'delete_item' ||
-    command.type === 'delete_keyframe' ||
-    command.type === 'modify_keyframe' ||
-    command.type === 'reorder_layers' ||
-    command.type === 'add_text' ||
-    command.type === 'update_item' ||
-    command.type === 'set_aspect_ratio' ||
-    command.type === 'batch_update_items' ||
-    command.type === 'timeline_shift'
+    command.type === "add_circle" ||
+    command.type === "add_image" ||
+    command.type === "add_line" ||
+    command.type === "add_polygon" ||
+    command.type === "add_rectangle" ||
+    command.type === "delete_item" ||
+    command.type === "delete_keyframe" ||
+    command.type === "modify_keyframe" ||
+    command.type === "reorder_layers" ||
+    command.type === "add_text" ||
+    command.type === "update_item" ||
+    command.type === "set_aspect_ratio" ||
+    command.type === "batch_update_items" ||
+    command.type === "timeline_shift"
   );
 }
 
@@ -529,7 +529,10 @@ export function findTextSlotFromScene(
   }
 
   const padding = Math.max(0, sanitizeNumber(args.padding) ?? 16);
-  const width = Math.max(40, sanitizeNumber(args.width) ?? project.videoWidth * 0.4);
+  const width = Math.max(
+    40,
+    sanitizeNumber(args.width) ?? project.videoWidth * 0.4,
+  );
   const height = Math.max(20, sanitizeNumber(args.height) ?? 64);
 
   const safeLeftBound = project.videoLeft + padding + width / 2;
@@ -545,7 +548,7 @@ export function findTextSlotFromScene(
   }
 
   const textRects: Rect[] = workingScene.items
-    .filter((item) => item.name === 'text' || Boolean(item.text))
+    .filter((item) => item.name === "text" || Boolean(item.text))
     .map((item) => {
       const bounds = item.current?.bounds;
       if (bounds) {
@@ -564,8 +567,8 @@ export function findTextSlotFromScene(
       const itemHeight =
         item.current?.scaledHeight ?? item.current?.height ?? height;
       if (
-        typeof centerX !== 'number' ||
-        typeof centerY !== 'number' ||
+        typeof centerX !== "number" ||
+        typeof centerY !== "number" ||
         !Number.isFinite(centerX) ||
         !Number.isFinite(centerY)
       ) {
@@ -589,7 +592,7 @@ export function findTextSlotFromScene(
   const rightX = project.videoLeft + project.videoWidth * 0.7;
 
   const yCandidates = [
-    ...(typeof preferredTop === 'number' && Number.isFinite(preferredTop)
+    ...(typeof preferredTop === "number" && Number.isFinite(preferredTop)
       ? [preferredTop]
       : []),
     topY,
@@ -608,7 +611,10 @@ export function findTextSlotFromScene(
   });
 
   const intersects = (a: Rect, b: Rect) =>
-    a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    a.left < b.right &&
+    a.right > b.left &&
+    a.top < b.bottom &&
+    a.bottom > b.top;
 
   const clampCenter = (x: number, y: number) => ({
     left: Math.max(safeLeftBound, Math.min(safeRightBound, x)),
@@ -628,7 +634,10 @@ export function findTextSlotFromScene(
 
   return {
     left: centerX,
-    top: Math.max(safeTopBound, Math.min(safeBottomBound, preferredTop ?? midY)),
+    top: Math.max(
+      safeTopBound,
+      Math.min(safeBottomBound, preferredTop ?? midY),
+    ),
   };
 }
 
@@ -655,14 +664,14 @@ export function analyzeSceneOverlapsFromScene(
   padding: number = 0,
 ): OverlapResult {
   const pad = Math.max(0, Number.isFinite(padding) ? padding : 0);
-  const overlaps: OverlapResult['overlaps'] = [];
+  const overlaps: OverlapResult["overlaps"] = [];
 
   const visualItems = workingScene.items
     .map((item) => {
       const bounds = item.current?.bounds;
       if (!bounds) return null;
       const opacityNow =
-        typeof item.current?.opacity === 'number' ? item.current.opacity : 1;
+        typeof item.current?.opacity === "number" ? item.current.opacity : 1;
       if (opacityNow <= 0.01) return null;
 
       const opacityFrames = item.keyframes?.opacity ?? [];
@@ -695,7 +704,10 @@ export function analyzeSceneOverlapsFromScene(
     );
 
   const intersects = (a: Rect, b: Rect) =>
-    a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    a.left < b.right &&
+    a.right > b.left &&
+    a.top < b.bottom &&
+    a.bottom > b.top;
 
   for (let i = 0; i < visualItems.length; i += 1) {
     for (let j = i + 1; j < visualItems.length; j += 1) {
@@ -738,7 +750,10 @@ export function getItemsInVideoAreaFromScene(
   };
 
   const intersects = (a: Rect, b: Rect) =>
-    a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    a.left < b.right &&
+    a.right > b.left &&
+    a.top < b.bottom &&
+    a.bottom > b.top;
 
   const ids = workingScene.items
     .filter((item) => {
@@ -771,8 +786,8 @@ export function getItemGeometryFromScene(
         name: item.name,
         opacity: item.current?.opacity ?? 1,
         ...(getItemBounds(item) ? { bounds: getItemBounds(item) } : {}),
-        ...(typeof item.current?.left === 'number' &&
-        typeof item.current?.top === 'number'
+        ...(typeof item.current?.left === "number" &&
+        typeof item.current?.top === "number"
           ? {
               center: {
                 x: item.current.left,
@@ -809,8 +824,8 @@ export function createTextLayoutFromScene(
       height: block.height ?? 64,
       padding: regionPadding,
       preferredTop:
-        typeof workingScene.project?.videoTop === 'number' &&
-        typeof workingScene.project?.videoHeight === 'number'
+        typeof workingScene.project?.videoTop === "number" &&
+        typeof workingScene.project?.videoHeight === "number"
           ? workingScene.project.videoTop +
             workingScene.project.videoHeight *
               Math.min(0.9, Math.max(0.1, topBias + index * 0.2))
@@ -831,7 +846,7 @@ export function createTextLayoutFromScene(
 }
 
 /** Resolves rectangular bounds for an item from explicit bounds or size/center. */
-function getItemBounds(item: OpenAISceneContext['items'][number]) {
+function getItemBounds(item: OpenAISceneContext["items"][number]) {
   const bounds = item.current?.bounds;
   if (bounds) {
     return {
@@ -847,10 +862,10 @@ function getItemBounds(item: OpenAISceneContext['items'][number]) {
   const scaledWidth = item.current?.scaledWidth ?? item.current?.width;
   const scaledHeight = item.current?.scaledHeight ?? item.current?.height;
   if (
-    typeof centerX !== 'number' ||
-    typeof centerY !== 'number' ||
-    typeof scaledWidth !== 'number' ||
-    typeof scaledHeight !== 'number'
+    typeof centerX !== "number" ||
+    typeof centerY !== "number" ||
+    typeof scaledWidth !== "number" ||
+    typeof scaledHeight !== "number"
   ) {
     return null;
   }
@@ -869,7 +884,7 @@ export function applyToolCallToWorkingScene(
   nextGeneratedId: () => string,
   workingScene: OpenAISceneContext,
 ): ToolBackedCommand | null {
-  if (toolCall.tool === 'modify_keyframe_by_id') {
+  if (toolCall.tool === "modify_keyframe_by_id") {
     const keyframeId = toolCall.args.keyframeId.trim();
     if (keyframeId.length === 0) return null;
 
@@ -878,7 +893,7 @@ export function applyToolCallToWorkingScene(
     const valueNumber = sanitizeNumber(toolCall.args.valueNumber);
     const valueString = sanitizeText(toolCall.args.valueString);
     const value =
-      typeof valueNumber === 'number'
+      typeof valueNumber === "number"
         ? valueNumber
         : valueString
           ? valueString
@@ -887,30 +902,30 @@ export function applyToolCallToWorkingScene(
     if (
       value === undefined &&
       easing === undefined &&
-      typeof time !== 'number'
+      typeof time !== "number"
     ) {
       return null;
     }
 
     return {
-      type: 'modify_keyframe',
+      type: "modify_keyframe",
       ...(easing ? { easing } : {}),
       keyframeId,
-      ...(typeof time === 'number' ? { time } : {}),
+      ...(typeof time === "number" ? { time } : {}),
       ...(value !== undefined ? { value } : {}),
     };
   }
 
-  if (toolCall.tool === 'delete_keyframe_by_id') {
+  if (toolCall.tool === "delete_keyframe_by_id") {
     const keyframeId = toolCall.args.keyframeId.trim();
     if (keyframeId.length === 0) return null;
     return {
-      type: 'delete_keyframe',
+      type: "delete_keyframe",
       keyframeId,
     };
   }
 
-  if (toolCall.tool === 'delete_item_by_id') {
+  if (toolCall.tool === "delete_item_by_id") {
     const itemId = toolCall.args.id.trim();
     if (itemId.length === 0) return null;
     const nextItems = workingScene.items.filter((item) => item.id !== itemId);
@@ -920,17 +935,21 @@ export function applyToolCallToWorkingScene(
       workingScene.selectedId = null;
     }
     return {
-      type: 'delete_item',
+      type: "delete_item",
       target: {
         id: itemId,
       },
     };
   }
 
-  if (toolCall.tool === 'reorder_layers') {
-    const ids = toolCall.args.ids.map((id) => id.trim()).filter((id) => id.length > 0);
+  if (toolCall.tool === "reorder_layers") {
+    const ids = toolCall.args.ids
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0);
     const knownIds = new Set(workingScene.items.map((item) => item.id));
-    const uniqueKnownIds = ids.filter((id, index) => ids.indexOf(id) === index && knownIds.has(id));
+    const uniqueKnownIds = ids.filter(
+      (id, index) => ids.indexOf(id) === index && knownIds.has(id),
+    );
     if (uniqueKnownIds.length === 0) return null;
 
     const seen = new Set(uniqueKnownIds);
@@ -943,12 +962,12 @@ export function applyToolCallToWorkingScene(
       .filter((item): item is NonNullable<typeof item> => Boolean(item));
 
     return {
-      type: 'reorder_layers',
+      type: "reorder_layers",
       ids: nextOrder,
     };
   }
 
-  if (toolCall.tool === 'update_item_by_id') {
+  if (toolCall.tool === "update_item_by_id") {
     const itemId = toolCall.args.id.trim();
     if (itemId.length === 0) return null;
     const existingItem = workingScene.items.find((item) => item.id === itemId);
@@ -958,7 +977,7 @@ export function applyToolCallToWorkingScene(
     const keyframes = sanitizeItemKeyframes(toolCall.args.keyframes ?? []);
 
     return {
-      type: 'update_item',
+      type: "update_item",
       target: {
         id: itemId,
       },
@@ -967,7 +986,7 @@ export function applyToolCallToWorkingScene(
     };
   }
 
-  if (toolCall.tool === 'batch_update_items') {
+  if (toolCall.tool === "batch_update_items") {
     const updates = toolCall.args.updates.reduce<
       Array<{
         id: string;
@@ -975,32 +994,32 @@ export function applyToolCallToWorkingScene(
         props?: SanitizedItemPatch;
       }>
     >((accumulator, update) => {
-        const id = update.id.trim();
-        if (id.length === 0) return accumulator;
-        const existingItem = workingScene.items.find((item) => item.id === id);
-        if (!existingItem) return accumulator;
+      const id = update.id.trim();
+      if (id.length === 0) return accumulator;
+      const existingItem = workingScene.items.find((item) => item.id === id);
+      if (!existingItem) return accumulator;
 
-        const keyframes = sanitizeItemKeyframes(update.keyframes ?? []);
-        const props = sanitizeItemPatch(update.props);
-        if (!props && keyframes.length === 0) return accumulator;
+      const keyframes = sanitizeItemKeyframes(update.keyframes ?? []);
+      const props = sanitizeItemPatch(update.props);
+      if (!props && keyframes.length === 0) return accumulator;
 
-        accumulator.push({
-          id,
-          ...(keyframes.length > 0 ? { keyframes } : {}),
-          ...(props ? { props } : {}),
-        });
-        return accumulator;
-      }, []);
+      accumulator.push({
+        id,
+        ...(keyframes.length > 0 ? { keyframes } : {}),
+        ...(props ? { props } : {}),
+      });
+      return accumulator;
+    }, []);
 
     if (updates.length === 0) return null;
     return {
-      type: 'batch_update_items',
+      type: "batch_update_items",
       updates,
     };
   }
 
-  if (toolCall.tool === 'resolve_overlaps') {
-    if (toolCall.args.strategy !== 'opacity_stage') {
+  if (toolCall.tool === "resolve_overlaps") {
+    if (toolCall.args.strategy !== "opacity_stage") {
       return null;
     }
 
@@ -1022,8 +1041,8 @@ export function applyToolCallToWorkingScene(
     const updates = idsToStage.map((id) => ({
       id,
       keyframes: [
-        { easing: 'step', opacity: 0, time: 0 },
-        { easing: 'step', opacity: 1, time: 0.2 },
+        { easing: "step" as const, opacity: 0, time: 0 },
+        { easing: "step" as const, opacity: 1, time: 0.2 },
       ],
       props: {
         opacity: 0,
@@ -1031,26 +1050,28 @@ export function applyToolCallToWorkingScene(
     }));
 
     return {
-      type: 'batch_update_items',
+      type: "batch_update_items",
       updates,
     };
   }
 
-  if (toolCall.tool === 'timeline_shift') {
-    const ids = toolCall.args.ids.map((id) => id.trim()).filter((id) => id.length > 0);
+  if (toolCall.tool === "timeline_shift") {
+    const ids = toolCall.args.ids
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0);
     const uniqueIds = ids.filter((id, index) => ids.indexOf(id) === index);
     if (uniqueIds.length === 0) return null;
     const deltaSeconds = sanitizeNumber(toolCall.args.deltaSeconds);
-    if (typeof deltaSeconds !== 'number') return null;
+    if (typeof deltaSeconds !== "number") return null;
 
     return {
-      type: 'timeline_shift',
+      type: "timeline_shift",
       deltaSeconds,
       ids: uniqueIds,
     };
   }
 
-  if (toolCall.tool === 'duplicate_item') {
+  if (toolCall.tool === "duplicate_item") {
     const sourceId = toolCall.args.id.trim();
     if (sourceId.length === 0) return null;
     const sourceItem = workingScene.items.find((item) => item.id === sourceId);
@@ -1061,15 +1082,15 @@ export function applyToolCallToWorkingScene(
     const top = sanitizeNumber(toolCall.args.top);
     const sourceCurrent = sourceItem.current;
     const duplicateLeft =
-      typeof left === 'number'
+      typeof left === "number"
         ? left
-        : typeof sourceCurrent?.left === 'number'
+        : typeof sourceCurrent?.left === "number"
           ? sourceCurrent.left + 32
           : undefined;
     const duplicateTop =
-      typeof top === 'number'
+      typeof top === "number"
         ? top
-        : typeof sourceCurrent?.top === 'number'
+        : typeof sourceCurrent?.top === "number"
           ? sourceCurrent.top + 32
           : undefined;
 
@@ -1084,25 +1105,25 @@ export function applyToolCallToWorkingScene(
       );
     }
 
-    if (sourceItem.name === 'text' || sourceItem.text) {
+    if (sourceItem.name === "text" || sourceItem.text) {
       workingScene.items.unshift({
         id,
         keyframeTimes: [0],
-        name: 'text',
+        name: "text",
         ...(sourceItem.text ? { text: sourceItem.text } : {}),
       });
       workingScene.selectedId = id;
       return {
-        type: 'add_text',
+        type: "add_text",
         customId: id,
-        ...(typeof duplicateLeft === 'number' ? { left: duplicateLeft } : {}),
-        ...(typeof duplicateTop === 'number' ? { top: duplicateTop } : {}),
+        ...(typeof duplicateLeft === "number" ? { left: duplicateLeft } : {}),
+        ...(typeof duplicateTop === "number" ? { top: duplicateTop } : {}),
         ...(sourceItem.text ? { text: sourceItem.text } : {}),
         ...(keyframes.length > 0 ? { keyframes } : {}),
       };
     }
 
-    if (sourceItem.name === 'image') {
+    if (sourceItem.name === "image") {
       return null;
     }
 
@@ -1113,71 +1134,79 @@ export function applyToolCallToWorkingScene(
     });
     workingScene.selectedId = id;
 
-    if (sourceItem.name === 'rectangle') {
+    if (sourceItem.name === "rectangle") {
       return {
-        type: 'add_rectangle',
+        type: "add_rectangle",
         customId: id,
-        ...(typeof sourceCurrent?.fill === 'string' ? { color: sourceCurrent.fill } : {}),
-        ...(typeof sourceCurrent?.scaledHeight === 'number'
+        ...(typeof sourceCurrent?.fill === "string"
+          ? { color: sourceCurrent.fill }
+          : {}),
+        ...(typeof sourceCurrent?.scaledHeight === "number"
           ? { height: sourceCurrent.scaledHeight }
           : {}),
-        ...(typeof duplicateLeft === 'number' ? { left: duplicateLeft } : {}),
-        ...(typeof duplicateTop === 'number' ? { top: duplicateTop } : {}),
-        ...(typeof sourceCurrent?.scaledWidth === 'number'
+        ...(typeof duplicateLeft === "number" ? { left: duplicateLeft } : {}),
+        ...(typeof duplicateTop === "number" ? { top: duplicateTop } : {}),
+        ...(typeof sourceCurrent?.scaledWidth === "number"
           ? { width: sourceCurrent.scaledWidth }
           : {}),
       };
     }
 
-    if (sourceItem.name === 'line') {
+    if (sourceItem.name === "line") {
       return {
-        type: 'add_line',
+        type: "add_line",
         customId: id,
-        ...(typeof sourceCurrent?.stroke === 'string' ? { color: sourceCurrent.stroke } : {}),
-        ...(typeof sourceCurrent?.scaledHeight === 'number'
+        ...(typeof sourceCurrent?.stroke === "string"
+          ? { color: sourceCurrent.stroke }
+          : {}),
+        ...(typeof sourceCurrent?.scaledHeight === "number"
           ? { height: sourceCurrent.scaledHeight }
           : {}),
-        ...(typeof duplicateLeft === 'number' ? { left: duplicateLeft } : {}),
-        ...(typeof duplicateTop === 'number' ? { top: duplicateTop } : {}),
-        ...(typeof sourceCurrent?.scaledWidth === 'number'
+        ...(typeof duplicateLeft === "number" ? { left: duplicateLeft } : {}),
+        ...(typeof duplicateTop === "number" ? { top: duplicateTop } : {}),
+        ...(typeof sourceCurrent?.scaledWidth === "number"
           ? { width: sourceCurrent.scaledWidth }
           : {}),
       };
     }
 
-    if (sourceItem.name === 'polygon') {
+    if (sourceItem.name === "polygon") {
       return {
-        type: 'add_polygon',
+        type: "add_polygon",
         customId: id,
-        ...(typeof sourceCurrent?.fill === 'string' ? { color: sourceCurrent.fill } : {}),
-        ...(typeof sourceCurrent?.scaledHeight === 'number'
+        ...(typeof sourceCurrent?.fill === "string"
+          ? { color: sourceCurrent.fill }
+          : {}),
+        ...(typeof sourceCurrent?.scaledHeight === "number"
           ? { height: sourceCurrent.scaledHeight }
           : {}),
-        ...(typeof duplicateLeft === 'number' ? { left: duplicateLeft } : {}),
-        ...(typeof duplicateTop === 'number' ? { top: duplicateTop } : {}),
-        ...(typeof sourceCurrent?.scaledWidth === 'number'
+        ...(typeof duplicateLeft === "number" ? { left: duplicateLeft } : {}),
+        ...(typeof duplicateTop === "number" ? { top: duplicateTop } : {}),
+        ...(typeof sourceCurrent?.scaledWidth === "number"
           ? { width: sourceCurrent.scaledWidth }
           : {}),
       };
     }
 
-    if (sourceItem.name === 'circle') {
+    if (sourceItem.name === "circle") {
       return {
-        type: 'add_circle',
+        type: "add_circle",
         customId: id,
-        ...(typeof sourceCurrent?.fill === 'string' ? { color: sourceCurrent.fill } : {}),
-        ...(typeof duplicateLeft === 'number' ? { left: duplicateLeft } : {}),
-        ...(typeof sourceCurrent?.scaledWidth === 'number'
+        ...(typeof sourceCurrent?.fill === "string"
+          ? { color: sourceCurrent.fill }
+          : {}),
+        ...(typeof duplicateLeft === "number" ? { left: duplicateLeft } : {}),
+        ...(typeof sourceCurrent?.scaledWidth === "number"
           ? { radius: Math.max(1, sourceCurrent.scaledWidth / 2) }
           : {}),
-        ...(typeof duplicateTop === 'number' ? { top: duplicateTop } : {}),
+        ...(typeof duplicateTop === "number" ? { top: duplicateTop } : {}),
       };
     }
 
     return null;
   }
 
-  if (toolCall.tool === 'add_image') {
+  if (toolCall.tool === "add_image") {
     const id = nextGeneratedId();
     const height = sanitizeNumber(toolCall.args.height);
     const left = sanitizeNumber(toolCall.args.left);
@@ -1190,36 +1219,36 @@ export function applyToolCallToWorkingScene(
     if (!prompt && !url) return null;
 
     const command: ToolBackedCommand = {
-      type: 'add_image',
+      type: "add_image",
       customId: id,
-      ...(typeof height === 'number' ? { height } : {}),
-      ...(typeof left === 'number' ? { left } : {}),
+      ...(typeof height === "number" ? { height } : {}),
+      ...(typeof left === "number" ? { left } : {}),
       ...(prompt ? { prompt } : {}),
-      ...(typeof right === 'number' ? { right } : {}),
-      ...(typeof top === 'number' ? { top } : {}),
+      ...(typeof right === "number" ? { right } : {}),
+      ...(typeof top === "number" ? { top } : {}),
       ...(url ? { url } : {}),
-      ...(typeof width === 'number' ? { width } : {}),
+      ...(typeof width === "number" ? { width } : {}),
     };
 
     workingScene.items.unshift({
       id,
       keyframeTimes: [0],
-      name: 'image',
+      name: "image",
     });
     workingScene.selectedId = id;
     return command;
   }
 
-  if (toolCall.tool === 'set_video_aspect_ratio') {
+  if (toolCall.tool === "set_video_aspect_ratio") {
     const nextAspectLabel = toolCall.args.aspectLabel;
     const nextAspectRatioByLabel: Record<
-      '16:9' | '9:16' | '1:1' | '4:5',
+      "16:9" | "9:16" | "1:1" | "4:5",
       number
     > = {
-      '16:9': 16 / 9,
-      '9:16': 9 / 16,
-      '1:1': 1,
-      '4:5': 4 / 5,
+      "16:9": 16 / 9,
+      "9:16": 9 / 16,
+      "1:1": 1,
+      "4:5": 4 / 5,
     };
 
     if (workingScene.project) {
@@ -1229,12 +1258,12 @@ export function applyToolCallToWorkingScene(
     }
 
     return {
-      type: 'set_aspect_ratio',
+      type: "set_aspect_ratio",
       aspectLabel: nextAspectLabel,
     };
   }
 
-  if (toolCall.tool === 'add_rectangle') {
+  if (toolCall.tool === "add_rectangle") {
     const id = nextGeneratedId();
     const color = sanitizeColor(toolCall.args.color);
     const height = sanitizeNumber(toolCall.args.height);
@@ -1243,27 +1272,27 @@ export function applyToolCallToWorkingScene(
     const top = sanitizeNumber(toolCall.args.top);
     const width = sanitizeNumber(toolCall.args.width);
     const command: ToolBackedCommand = {
-      type: 'add_rectangle',
+      type: "add_rectangle",
       customId: id,
       ...(color ? { color } : {}),
-      ...(typeof height === 'number' ? { height } : {}),
-      ...(typeof left === 'number' ? { left } : {}),
-      ...(typeof right === 'number' ? { right } : {}),
-      ...(typeof top === 'number' ? { top } : {}),
-      ...(typeof width === 'number' ? { width } : {}),
+      ...(typeof height === "number" ? { height } : {}),
+      ...(typeof left === "number" ? { left } : {}),
+      ...(typeof right === "number" ? { right } : {}),
+      ...(typeof top === "number" ? { top } : {}),
+      ...(typeof width === "number" ? { width } : {}),
     };
 
     workingScene.items.unshift({
       id,
       keyframeTimes: [0],
-      name: 'rectangle',
+      name: "rectangle",
     });
     workingScene.selectedId = id;
 
     return command;
   }
 
-  if (toolCall.tool === 'add_polygon') {
+  if (toolCall.tool === "add_polygon") {
     const id = nextGeneratedId();
     const color = sanitizeColor(toolCall.args.color);
     const height = sanitizeNumber(toolCall.args.height);
@@ -1273,28 +1302,28 @@ export function applyToolCallToWorkingScene(
     const top = sanitizeNumber(toolCall.args.top);
     const width = sanitizeNumber(toolCall.args.width);
     const command: ToolBackedCommand = {
-      type: 'add_polygon',
+      type: "add_polygon",
       customId: id,
       ...(color ? { color } : {}),
-      ...(typeof height === 'number' ? { height } : {}),
-      ...(typeof left === 'number' ? { left } : {}),
-      ...(typeof right === 'number' ? { right } : {}),
-      ...(typeof sides === 'number' ? { sides } : {}),
-      ...(typeof top === 'number' ? { top } : {}),
-      ...(typeof width === 'number' ? { width } : {}),
+      ...(typeof height === "number" ? { height } : {}),
+      ...(typeof left === "number" ? { left } : {}),
+      ...(typeof right === "number" ? { right } : {}),
+      ...(typeof sides === "number" ? { sides } : {}),
+      ...(typeof top === "number" ? { top } : {}),
+      ...(typeof width === "number" ? { width } : {}),
     };
 
     workingScene.items.unshift({
       id,
       keyframeTimes: [0],
-      name: 'polygon',
+      name: "polygon",
     });
     workingScene.selectedId = id;
 
     return command;
   }
 
-  if (toolCall.tool === 'add_line') {
+  if (toolCall.tool === "add_line") {
     const id = nextGeneratedId();
     const color = sanitizeColor(toolCall.args.color);
     const height = sanitizeNumber(toolCall.args.height);
@@ -1303,27 +1332,27 @@ export function applyToolCallToWorkingScene(
     const top = sanitizeNumber(toolCall.args.top);
     const width = sanitizeNumber(toolCall.args.width);
     const command: ToolBackedCommand = {
-      type: 'add_line',
+      type: "add_line",
       customId: id,
       ...(color ? { color } : {}),
-      ...(typeof height === 'number' ? { height } : {}),
-      ...(typeof left === 'number' ? { left } : {}),
-      ...(typeof right === 'number' ? { right } : {}),
-      ...(typeof top === 'number' ? { top } : {}),
-      ...(typeof width === 'number' ? { width } : {}),
+      ...(typeof height === "number" ? { height } : {}),
+      ...(typeof left === "number" ? { left } : {}),
+      ...(typeof right === "number" ? { right } : {}),
+      ...(typeof top === "number" ? { top } : {}),
+      ...(typeof width === "number" ? { width } : {}),
     };
 
     workingScene.items.unshift({
       id,
       keyframeTimes: [0],
-      name: 'line',
+      name: "line",
     });
     workingScene.selectedId = id;
 
     return command;
   }
 
-  if (toolCall.tool === 'add_text') {
+  if (toolCall.tool === "add_text") {
     const id = nextGeneratedId();
     const color = sanitizeColor(toolCall.args.color);
     const left = sanitizeNumber(toolCall.args.left);
@@ -1332,27 +1361,27 @@ export function applyToolCallToWorkingScene(
     const top = sanitizeNumber(toolCall.args.top);
     const width = sanitizeNumber(toolCall.args.width);
     const command: ToolBackedCommand = {
-      type: 'add_text',
+      type: "add_text",
       customId: id,
       ...(color ? { color } : {}),
-      ...(typeof left === 'number' ? { left } : {}),
-      ...(typeof right === 'number' ? { right } : {}),
+      ...(typeof left === "number" ? { left } : {}),
+      ...(typeof right === "number" ? { right } : {}),
       ...(text ? { text } : {}),
-      ...(typeof top === 'number' ? { top } : {}),
-      ...(typeof width === 'number' ? { width } : {}),
+      ...(typeof top === "number" ? { top } : {}),
+      ...(typeof width === "number" ? { width } : {}),
     };
 
     workingScene.items.unshift({
       id,
       keyframeTimes: [0],
-      name: 'text',
+      name: "text",
     });
     workingScene.selectedId = id;
 
     return command;
   }
 
-  if (toolCall.tool !== 'add_circle') {
+  if (toolCall.tool !== "add_circle") {
     return null;
   }
 
@@ -1363,19 +1392,19 @@ export function applyToolCallToWorkingScene(
   const right = sanitizeNumber(toolCall.args.right);
   const top = sanitizeNumber(toolCall.args.top);
   const command: AIEditorCommand = {
-    type: 'add_circle',
+    type: "add_circle",
     customId: id,
     ...(color ? { color } : {}),
-    ...(typeof left === 'number' ? { left } : {}),
-    ...(typeof radius === 'number' ? { radius } : {}),
-    ...(typeof right === 'number' ? { right } : {}),
-    ...(typeof top === 'number' ? { top } : {}),
+    ...(typeof left === "number" ? { left } : {}),
+    ...(typeof radius === "number" ? { radius } : {}),
+    ...(typeof right === "number" ? { right } : {}),
+    ...(typeof top === "number" ? { top } : {}),
   };
 
   workingScene.items.unshift({
     id,
     keyframeTimes: [0],
-    name: 'circle',
+    name: "circle",
   });
   workingScene.selectedId = id;
 
@@ -1384,21 +1413,23 @@ export function applyToolCallToWorkingScene(
 
 /** Normalizes optional color argument into a safe string. */
 function sanitizeColor(value: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined;
+  if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
 /** Normalizes optional text argument into a safe string. */
 function sanitizeText(value: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined;
+  if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
 /** Normalizes optional numeric argument into a finite number. */
 function sanitizeNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 type SanitizedItemPatch = {
@@ -1416,7 +1447,14 @@ type SanitizedItemPatch = {
 
 type SanitizedItemKeyframe = {
   angle?: number;
-  easing?: 'linear' | 'step' | 'easeIn' | 'easeOut' | 'easeInOut' | 'elastic' | 'bounce';
+  easing?:
+    | "linear"
+    | "step"
+    | "easeIn"
+    | "easeOut"
+    | "easeInOut"
+    | "elastic"
+    | "bounce";
   fill?: string;
   left?: number;
   opacity?: number;
@@ -1444,28 +1482,30 @@ function sanitizeItemPatch(
 ): SanitizedItemPatch | undefined {
   if (!props) return undefined;
   const nextProps = {
-    ...(typeof sanitizeNumber(props.angle) === 'number'
+    ...(typeof sanitizeNumber(props.angle) === "number"
       ? { angle: sanitizeNumber(props.angle) }
       : {}),
     ...(sanitizeColor(props.fill) ? { fill: sanitizeColor(props.fill) } : {}),
-    ...(typeof sanitizeNumber(props.left) === 'number'
+    ...(typeof sanitizeNumber(props.left) === "number"
       ? { left: sanitizeNumber(props.left) }
       : {}),
-    ...(typeof sanitizeNumber(props.opacity) === 'number'
+    ...(typeof sanitizeNumber(props.opacity) === "number"
       ? { opacity: sanitizeNumber(props.opacity) }
       : {}),
-    ...(typeof sanitizeNumber(props.scaleX) === 'number'
+    ...(typeof sanitizeNumber(props.scaleX) === "number"
       ? { scaleX: sanitizeNumber(props.scaleX) }
       : {}),
-    ...(typeof sanitizeNumber(props.scaleY) === 'number'
+    ...(typeof sanitizeNumber(props.scaleY) === "number"
       ? { scaleY: sanitizeNumber(props.scaleY) }
       : {}),
-    ...(sanitizeColor(props.stroke) ? { stroke: sanitizeColor(props.stroke) } : {}),
+    ...(sanitizeColor(props.stroke)
+      ? { stroke: sanitizeColor(props.stroke) }
+      : {}),
     ...(sanitizeText(props.text) ? { text: sanitizeText(props.text) } : {}),
-    ...(typeof sanitizeNumber(props.top) === 'number'
+    ...(typeof sanitizeNumber(props.top) === "number"
       ? { top: sanitizeNumber(props.top) }
       : {}),
-    ...(typeof sanitizeNumber(props.width) === 'number'
+    ...(typeof sanitizeNumber(props.width) === "number"
       ? { width: sanitizeNumber(props.width) }
       : {}),
   };
@@ -1477,13 +1517,13 @@ function sanitizeItemKeyframes(
   keyframes: Array<{
     angle?: number | null;
     easing?:
-      | 'linear'
-      | 'step'
-      | 'easeIn'
-      | 'easeOut'
-      | 'easeInOut'
-      | 'elastic'
-      | 'bounce'
+      | "linear"
+      | "step"
+      | "easeIn"
+      | "easeOut"
+      | "easeInOut"
+      | "elastic"
+      | "bounce"
       | null;
     fill?: string | null;
     left?: number | null;
@@ -1508,17 +1548,17 @@ function sanitizeItemKeyframes(
       time: sanitizeNumber(frame.time),
       top: sanitizeNumber(frame.top),
     }))
-    .filter((frame) => typeof frame.time === 'number')
+    .filter((frame) => typeof frame.time === "number")
     .map((frame) => ({
-      ...(typeof frame.angle === 'number' ? { angle: frame.angle } : {}),
+      ...(typeof frame.angle === "number" ? { angle: frame.angle } : {}),
       ...(frame.easing ? { easing: frame.easing } : {}),
       ...(frame.fill ? { fill: frame.fill } : {}),
-      ...(typeof frame.left === 'number' ? { left: frame.left } : {}),
-      ...(typeof frame.opacity === 'number' ? { opacity: frame.opacity } : {}),
-      ...(typeof frame.scaleX === 'number' ? { scaleX: frame.scaleX } : {}),
-      ...(typeof frame.scaleY === 'number' ? { scaleY: frame.scaleY } : {}),
+      ...(typeof frame.left === "number" ? { left: frame.left } : {}),
+      ...(typeof frame.opacity === "number" ? { opacity: frame.opacity } : {}),
+      ...(typeof frame.scaleX === "number" ? { scaleX: frame.scaleX } : {}),
+      ...(typeof frame.scaleY === "number" ? { scaleY: frame.scaleY } : {}),
       ...(frame.stroke ? { stroke: frame.stroke } : {}),
       time: Number(frame.time),
-      ...(typeof frame.top === 'number' ? { top: frame.top } : {}),
+      ...(typeof frame.top === "number" ? { top: frame.top } : {}),
     }));
 }

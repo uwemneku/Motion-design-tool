@@ -1,10 +1,10 @@
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 
 function CanvasPreviewButton() {
-  const { fabricCanvas } = useCanvasAppContext();
+  const { fabricCanvasRef } = useCanvasAppContext();
 
   const getScreenShot = async () => {
-    const canvas = fabricCanvas.current;
+    const canvas = fabricCanvasRef.current;
     console.log(canvas);
 
     if (!canvas) return;
@@ -13,7 +13,7 @@ function CanvasPreviewButton() {
       quality: 1,
       multiplier: 2, // Increase resolution for better quality
     });
-    console.log(dataURL);
+    if (!dataURL) return;
 
     //  open in new tab via url
     const url = URL.createObjectURL(dataURL);

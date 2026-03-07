@@ -152,6 +152,8 @@ export function buildCompactSceneItemContext(
     current: {
       angle: item.current.angle,
       ...(item.current.bounds ? { bounds: item.current.bounds } : {}),
+      centerX: item.current.centerX,
+      centerY: item.current.centerY,
       ...(typeof item.current.fill === 'string' ? { fill: item.current.fill } : {}),
       ...(typeof item.current.height === 'number' ? { height: item.current.height } : {}),
       left: item.current.left,
