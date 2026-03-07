@@ -40,6 +40,12 @@ Open the URL printed by Vite.
 - `pnpm lint` - ESLint
 - `pnpm preview` - preview production build
 
+## Deployment
+
+GitHub Pages deployment runs from [`.github/workflows/deploy-pages.yml`](/Users/uwem/Documents/Projects/newMotion/.github/workflows/deploy-pages.yml).
+Production builds use relative asset URLs so the generated `dist/` output works on Pages
+without passing a repository-specific Vite base path in CI.
+
 ## Project Structure
 
 - `src/app/layout` - app shell layout
