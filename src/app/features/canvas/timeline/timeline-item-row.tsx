@@ -10,6 +10,7 @@ import type {
   ColorKeyframe,
   Keyframe,
 } from "../../shapes/animatable-object/types";
+import { rgbaBytesToCss } from "../../shapes/animatable-object/util";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 import { KEYFRAME_SECTION_HORIZONTAL_PADDING } from "../../../../const";
 
@@ -314,7 +315,7 @@ function buildColorDetailRow(
         keyframeId: frame.id,
         property,
         time: frame.time,
-        text: frame.value,
+        text: rgbaBytesToCss(frame.value),
       }))
       .sort((a, b) => a.time - b.time),
   };

@@ -6,21 +6,18 @@ import {
   type FabricObject,
 } from "fabric";
 import type { MutableRefObject } from "react";
-import { useRef } from "react";
-import { useDispatch } from "react-redux";
 import { toast } from "sonner";
 import { AnimatableObject } from "../../shapes/animatable-object/object";
 import type { KeyframeEasing } from "../../shapes/animatable-object/types";
 import { getVideoWorkAreaRect } from "../../export/video-work-area";
 import {
   removeItemRecord,
-  setCanvasItemIds,
   setSelectedId,
   upsertItemRecord,
 } from "../../../store/editor-slice";
 import {
   dispatchableSelector,
-  type AppDispatch,
+  useAppDispatch,
   useAppSelector,
 } from "../../../store";
 import {
@@ -31,7 +28,6 @@ import {
   RectangleObject,
   TextObject,
 } from "../../shapes/objects";
-import type { AIItemKeyframe } from "../../ai/editor-ai-events";
 
 import { useCanvasAppContext } from "./use-canvas-app-context";
 import { createRegularPolygonPoints, validateImageUrl } from "./util";
@@ -41,12 +37,6 @@ import {
 } from "../util/animations-utils";
 import {
   CANVAS_KEYFRAME_EPSILON,
-  IMAGE_PLACEHOLDER_HEIGHT_RATIO,
-  IMAGE_PLACEHOLDER_MIN_SIZE,
-  IMAGE_PLACEHOLDER_PULSE_DURATION_MS,
-  IMAGE_PLACEHOLDER_PULSE_MAX_OPACITY,
-  IMAGE_PLACEHOLDER_PULSE_MIN_OPACITY,
-  IMAGE_PLACEHOLDER_WIDTH_RATIO,
 } from "../../../../const";
 
 type UseCanvasItemsParams = {
@@ -59,13 +49,26 @@ type AddItemOptions = {
   right?: number;
   top?: number;
   width?: number;
-  keyframes?: AIItemKeyframe[];
+  keyframes?: CanvasItemKeyframeInput[];
   color?: string;
   sides?: number;
   customId?: string;
   markers?: Array<{ id: string; timestamp: number }>;
   name?: string;
   shouldSetSelected?: boolean;
+};
+
+type CanvasItemKeyframeInput = {
+  angle?: number;
+  easing?: KeyframeEasing;
+  fill?: string;
+  left?: number;
+  opacity?: number;
+  scaleX?: number;
+  scaleY?: number;
+  stroke?: string;
+  time: number;
+  top?: number;
 };
 
 type UpdateItemProps = {
@@ -173,16 +176,14 @@ function applyStrokeUniformRecursively(object: FabricObject) {
 }
 
 export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch();
   const {
     getObjectById: getInstanceById,
-    instancesRef,
     addCanvasObject: registerInstance,
     deleteCanvasObject: unregisterInstance,
   } = useCanvasAppContext();
   const activeAspectRatio =
     useAppSelector((state) => state.editor.projectInfo.videoAspectRatio) ?? 1;
-  const placeholderCleanupByIdRef = useRef<Map<string, () => void>>(new Map());
 
   const getVideoCenter = (canvas: Canvas) => {
     const videoArea = getVideoWorkAreaRect(
@@ -379,18 +380,10 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     return customId;
   };
 
-  const stopPlaceholderAnimation = (id: string) => {
-    const stop = placeholderCleanupByIdRef.current.get(id);
-    if (!stop) return;
-    stop();
-    placeholderCleanupByIdRef.current.delete(id);
-  };
-
   const removeItemById = (id: string) => {
     const canvas = fabricCanvas.current;
     if (!canvas) return;
 
-    stopPlaceholderAnimation(id);
     const targetObject = canvas
       .getObjects()
       .find((object) => object.customId === id);
@@ -400,140 +393,6 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     unregisterInstance(id);
     dispatch(removeItemRecord(id));
     canvas.requestRenderAll();
-  };
-
-  const startPlaceholderPulse = (id: string) => {
-    const instance = getInstanceById(id);
-    const canvas = fabricCanvas.current;
-    if (!instance || !canvas) return;
-
-    let stopped = false;
-    const run = (nextOpacity: number) => {
-      if (stopped) return;
-      instance.fabricObject.animate(
-        { opacity: nextOpacity },
-        {
-          duration: IMAGE_PLACEHOLDER_PULSE_DURATION_MS,
-          onChange: () => {
-            canvas.requestRenderAll();
-          },
-          onComplete: () => {
-            run(
-              nextOpacity === IMAGE_PLACEHOLDER_PULSE_MAX_OPACITY
-                ? IMAGE_PLACEHOLDER_PULSE_MIN_OPACITY
-                : IMAGE_PLACEHOLDER_PULSE_MAX_OPACITY,
-            );
-          },
-        },
-      );
-    };
-
-    run(IMAGE_PLACEHOLDER_PULSE_MIN_OPACITY);
-    placeholderCleanupByIdRef.current.set(id, () => {
-      stopped = true;
-      instance.fabricObject.set("opacity", 1);
-      canvas.requestRenderAll();
-    });
-  };
-
-  const addImagePlaceholder = (options: AddItemOptions = {}) => {
-    const canvas = fabricCanvas.current;
-    if (!canvas) return null;
-
-    const width = Math.max(
-      IMAGE_PLACEHOLDER_MIN_SIZE,
-      canvas.getWidth() * IMAGE_PLACEHOLDER_WIDTH_RATIO,
-    );
-    const height = Math.max(
-      IMAGE_PLACEHOLDER_MIN_SIZE * 0.66,
-      canvas.getHeight() * IMAGE_PLACEHOLDER_HEIGHT_RATIO,
-    );
-    const left = (canvas.getWidth() - width) / 2;
-    const top = (canvas.getHeight() - height) / 2;
-
-    const placeholder = new RectangleObject({
-      left,
-      top,
-      width,
-      height,
-      fill: "#ffffff33",
-      stroke: "#ffffff",
-      strokeWidth: 0,
-      strokeDashArray: [10, 6],
-      rx: 10,
-      ry: 10,
-      opacity: IMAGE_PLACEHOLDER_PULSE_MAX_OPACITY,
-      strokeUniform: true,
-    });
-
-    const id = addObjectToCanvas(placeholder, "image", {
-      ...options,
-      customId: options.customId ?? createUniqueId("image-placeholder"),
-      name: "image-loading",
-      shouldSetSelected: false,
-    });
-    if (!id) return null;
-    startPlaceholderPulse(id);
-    return id;
-  };
-
-  const replaceItemWithImageFromURL = async (
-    id: string,
-    url: string,
-    options: AddItemOptions = {},
-  ) => {
-    const canvas = fabricCanvas.current;
-    if (!canvas) return;
-
-    const targetObject = canvas
-      .getObjects()
-      .find((object) => object.customId === id);
-    const existingItem = dispatch(
-      dispatchableSelector((state) => state.editor.itemsRecord[id]),
-    );
-    const wasSelected =
-      dispatch(dispatchableSelector((state) => state.editor.selectedId)) === id;
-    const placement = targetObject
-      ? {
-          left: targetObject.left ?? 0,
-          top: targetObject.top ?? 0,
-          width: Math.max(1, targetObject.getScaledWidth()),
-          height: Math.max(1, targetObject.getScaledHeight()),
-        }
-      : null;
-
-    await validateImageUrl(url);
-    const imageObject = await ImageObject.fromURL(url, {
-      crossOrigin: "anonymous",
-    });
-
-    const imageWidth = imageObject.fabricObject.width ?? 1;
-    const imageHeight = imageObject.fabricObject.height ?? 1;
-    const maxWidth = placement?.width ?? canvas.getWidth() * 0.4;
-    const maxHeight = placement?.height ?? canvas.getHeight() * 0.8;
-    const widthScale = maxWidth / imageWidth;
-    const heightScale = maxHeight / imageHeight;
-    const scale = Math.min(1, widthScale, heightScale);
-
-    imageObject.fabricObject.set({
-      left: placement?.left ?? 520,
-      top: placement?.top ?? 220,
-      scaleX: scale,
-      scaleY: scale,
-    });
-
-    if (targetObject) {
-      canvas.remove(targetObject);
-    }
-    stopPlaceholderAnimation(id);
-    unregisterInstance(id);
-
-    addObjectToCanvas(imageObject, "image", {
-      ...options,
-      customId: id,
-      markers: existingItem?.keyframe,
-      shouldSetSelected: wasSelected,
-    });
   };
 
   const addCircle = (options: AddItemOptions = {}) => {
@@ -722,7 +581,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
 
   const updateItemById = (
     id: string,
-    options: { keyframes?: AIItemKeyframe[]; props?: UpdateItemProps } = {},
+    options: { keyframes?: CanvasItemKeyframeInput[]; props?: UpdateItemProps } = {},
   ) => {
     const canvas = fabricCanvas.current;
     if (!canvas) return false;
@@ -934,266 +793,16 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     return true;
   };
 
-  const reorderLayers = (idsInOrder: string[]) => {
-    const canvas = fabricCanvas.current;
-    if (!canvas) return false;
-
-    const itemCount = idsInOrder.length;
-    for (let index = 0; index < itemCount; index += 1) {
-      const id = idsInOrder[index];
-      const instance = getInstanceById(id);
-      const object = instance?.fabricObject;
-      if (!object) continue;
-      const stackIndex = itemCount - 1 - index;
-
-      if (typeof canvas.moveObjectTo === "function") {
-        canvas.moveObjectTo(object, stackIndex);
-      } else if ("moveTo" in object && typeof object.moveTo === "function") {
-        object.moveTo(stackIndex);
-      }
-    }
-
-    dispatch(setCanvasItemIds(idsInOrder));
-    canvas.requestRenderAll();
-    return true;
-  };
-
-  const syncItemRecordFromInstance = (id: string) => {
-    const instance = getInstanceById(id);
-    const existing = dispatch(
-      dispatchableSelector((state) => state.editor.itemsRecord[id]),
-    );
-    if (!instance || !existing) return;
-    dispatch(
-      upsertItemRecord({
-        id,
-        value: {
-          ...existing,
-          keyframe: instance
-            .getTimelineMarkers()
-            .map((marker) => ({
-              id: marker.id,
-              timestamp: marker.time,
-            }))
-            .sort((a, b) => a.timestamp - b.timestamp),
-        },
-      }),
-    );
-  };
-
-  const modifyKeyframeById = (
-    keyframeId: string,
-    updates: {
-      easing?: KeyframeEasing;
-      time?: number;
-      value?: number | string;
-    } = {},
-  ) => {
-    const canvas = fabricCanvas.current;
-    if (!canvas) return false;
-
-    for (const [itemId, instance] of instancesRef.current.entries()) {
-      let updated = false;
-
-      for (const property of Object.keys(instance.keyframes) as Array<
-        keyof typeof instance.keyframes
-      >) {
-        const frames = instance.keyframes[property];
-        if (!frames) continue;
-        for (const frame of frames) {
-          if (frame.id !== keyframeId) continue;
-          if (
-            typeof updates.time === "number" &&
-            Number.isFinite(updates.time)
-          ) {
-            frame.time = updates.time;
-          }
-          if (updates.easing) {
-            frame.easing = updates.easing;
-          }
-          if (
-            typeof updates.value === "number" &&
-            Number.isFinite(updates.value)
-          ) {
-            frame.value = updates.value;
-          }
-          frames.sort((a, b) => a.time - b.time);
-          updated = true;
-          break;
-        }
-        if (updated) break;
-      }
-
-      if (!updated) {
-        for (const property of Object.keys(instance.colorKeyframes) as Array<
-          keyof typeof instance.colorKeyframes
-        >) {
-          const frames = instance.colorKeyframes[property];
-          if (!frames) continue;
-          for (const frame of frames) {
-            if (frame.id !== keyframeId) continue;
-            if (
-              typeof updates.time === "number" &&
-              Number.isFinite(updates.time)
-            ) {
-              frame.time = updates.time;
-            }
-            if (updates.easing) {
-              frame.easing = updates.easing;
-            }
-            if (typeof updates.value === "string" && updates.value.length > 0) {
-              frame.value = updates.value;
-            }
-            frames.sort((a, b) => a.time - b.time);
-            updated = true;
-            break;
-          }
-          if (updated) break;
-        }
-      }
-
-      if (!updated) continue;
-
-      syncItemRecordFromInstance(itemId);
-      canvas.requestRenderAll();
-      return true;
-    }
-
-    return false;
-  };
-
-  const deleteKeyframeById = (keyframeId: string) => {
-    const canvas = fabricCanvas.current;
-    if (!canvas) return false;
-
-    for (const [itemId, instance] of instancesRef.current.entries()) {
-      let deleted = false;
-
-      for (const property of Object.keys(instance.keyframes) as Array<
-        keyof typeof instance.keyframes
-      >) {
-        const frames = instance.keyframes[property];
-        if (!frames) continue;
-        const nextFrames = frames.filter((frame) => frame.id !== keyframeId);
-        if (nextFrames.length === frames.length) continue;
-        if (nextFrames.length > 0) {
-          instance.keyframes[property] =
-            nextFrames as (typeof instance.keyframes)[typeof property];
-        } else {
-          delete instance.keyframes[property];
-        }
-        deleted = true;
-        break;
-      }
-
-      if (!deleted) {
-        for (const property of Object.keys(instance.colorKeyframes) as Array<
-          keyof typeof instance.colorKeyframes
-        >) {
-          const frames = instance.colorKeyframes[property];
-          if (!frames) continue;
-          const nextFrames = frames.filter((frame) => frame.id !== keyframeId);
-          if (nextFrames.length === frames.length) continue;
-          if (nextFrames.length > 0) {
-            instance.colorKeyframes[property] =
-              nextFrames as (typeof instance.colorKeyframes)[typeof property];
-          } else {
-            delete instance.colorKeyframes[property];
-          }
-          deleted = true;
-          break;
-        }
-      }
-
-      if (!deleted) continue;
-
-      syncItemRecordFromInstance(itemId);
-      canvas.requestRenderAll();
-      return true;
-    }
-
-    return false;
-  };
-
-  /**
-   * Shifts timeline markers and keyframe times for selected items by a delta.
-   * Negative shifts are clamped at 0 to keep keyframes in-range.
-   */
-  const shiftItemTimelines = (ids: string[], deltaSeconds: number) => {
-    const canvas = fabricCanvas.current;
-    if (!canvas || !Number.isFinite(deltaSeconds)) return false;
-
-    const uniqueIds = ids.filter((id, index) => ids.indexOf(id) === index);
-    let didUpdate = false;
-
-    for (const id of uniqueIds) {
-      const instance = getInstanceById(id);
-      const itemRecord = dispatch(
-        dispatchableSelector((state) => state.editor.itemsRecord[id]),
-      );
-      if (!instance || !itemRecord) continue;
-
-      for (const property of Object.keys(instance.keyframes) as Array<
-        keyof typeof instance.keyframes
-      >) {
-        const frames = instance.keyframes[property];
-        if (!frames) continue;
-        frames.forEach((frame) => {
-          frame.time = Math.max(0, frame.time + deltaSeconds);
-        });
-        frames.sort((a, b) => a.time - b.time);
-      }
-
-      for (const property of Object.keys(instance.colorKeyframes) as Array<
-        keyof typeof instance.colorKeyframes
-      >) {
-        const frames = instance.colorKeyframes[property];
-        if (!frames) continue;
-        frames.forEach((frame) => {
-          frame.time = Math.max(0, frame.time + deltaSeconds);
-        });
-        frames.sort((a, b) => a.time - b.time);
-      }
-
-      dispatch(
-        upsertItemRecord({
-          id,
-          value: {
-            ...itemRecord,
-            keyframe: itemRecord.keyframe
-              .map((marker) => ({
-                ...marker,
-                timestamp: Math.max(0, marker.timestamp + deltaSeconds),
-              }))
-              .sort((a, b) => a.timestamp - b.timestamp),
-          },
-        }),
-      );
-      didUpdate = true;
-    }
-
-    if (didUpdate) {
-      canvas.requestRenderAll();
-    }
-    return didUpdate;
-  };
-
   return {
     addCircle,
     addLine,
     addPolygon,
     addRectangle,
-    addImagePlaceholder,
     addImageFromFile,
     addSvgFromFile,
     addImageFromURL,
     removeItemById,
-    reorderLayers,
-    modifyKeyframeById,
-    deleteKeyframeById,
     updateItemById,
-    replaceItemWithImageFromURL,
     addText,
-    shiftItemTimelines,
   };
 }

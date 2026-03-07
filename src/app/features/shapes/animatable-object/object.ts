@@ -7,6 +7,7 @@ import type {
   ColorKeyframe,
   ColorKeyframesByProperty,
   ColorSnapshot,
+  ColorVector,
   KeyframesByProperty,
   KeyframeEasing,
   Keyframe,
@@ -20,9 +21,12 @@ import {
   findBoundingKeyframes,
   findInsertionIndex,
   hasKeyframeNearTime,
+  cloneColorBytes,
+  colorToRgbaBytes,
   getNumeric,
-  interpolateColor,
+  interpolateColorBytes,
   lerp,
+  rgbaBytesToCss,
 } from "./util";
 
 export class AnimatableObject {
@@ -50,7 +54,7 @@ export class AnimatableObject {
   ) {
     this.fabricObject = fabricObject;
     this.keyframes = keyframes;
-    this.colorKeyframes = colorKeyframes;
+    this.colorKeyframes = normalizeColorKeyframes(colorKeyframes);
 
     const centerPoint = this.fabricObject.getCenterPoint();
     this.fabricObject.set({
@@ -142,18 +146,27 @@ export class AnimatableObject {
   }
 
   addColorKeyframe<K extends keyof ColorAnimatableProperties>(
-    keyframe: Omit<ColorKeyframe<K>, 'id' | 'easing'> & { easing?: KeyframeEasing },
+    keyframe: Omit<ColorKeyframe<K>, "id" | "easing" | "value"> & {
+      value: ColorAnimatableProperties[K] | ColorVector;
+      easing?: KeyframeEasing;
+    },
   ) {
     const propertyKeyframes = (this.colorKeyframes[keyframe.property] ??
       []) as ColorKeyframe[];
+    const colorValue =
+      typeof keyframe.value === "string"
+        ? colorToRgbaBytes(keyframe.value)
+        : cloneColorBytes(keyframe.value);
+    if (!colorValue) return null;
     const [insertIndex, shouldReplace] = findInsertionIndex(
       propertyKeyframes,
       keyframe.time,
     );
     const nextKeyframe: ColorKeyframe = {
       ...keyframe,
-      easing: keyframe.easing ?? 'linear',
-      id: createId('ckf'),
+      easing: keyframe.easing ?? "linear",
+      id: createId("ckf"),
+      value: colorValue,
     };
 
     propertyKeyframes.splice(insertIndex, shouldReplace ? 1 : 0, nextKeyframe);
@@ -232,7 +245,7 @@ export class AnimatableObject {
         previous.id === next.id ||
         Math.abs(next.time - previous.time) < 0.0001
       ) {
-        this.updateColorProperty(property, previous.value);
+        this.updateColorProperty(property, rgbaBytesToCss(previous.value));
         continue;
       }
 
@@ -243,7 +256,7 @@ export class AnimatableObject {
       );
       this.updateColorProperty(
         property,
-        interpolateColor(
+        interpolateColorBytes(
           previous.value,
           next.value,
           applyEasing(progress, next.easing),
@@ -315,4 +328,31 @@ export class AnimatableObject {
   ) {
     this.fabricObject.set(property, value);
   }
+}
+
+/** Converts loaded color keyframes into cloned RGBA byte vectors. */
+function normalizeColorKeyframes(keyframes: ColorKeyframesByProperty) {
+  const nextKeyframes: ColorKeyframesByProperty = {};
+
+  for (const property of Object.keys(keyframes) as Array<
+    keyof ColorKeyframesByProperty
+  >) {
+    const frames = keyframes[property];
+    if (!frames) continue;
+
+    const normalizedFrames = frames.flatMap((frame) => {
+      const value =
+        typeof frame.value === "string"
+          ? colorToRgbaBytes(frame.value)
+          : cloneColorBytes(frame.value);
+      if (!value) return [];
+      return [{ ...frame, value }];
+    });
+
+    if (normalizedFrames.length > 0) {
+      nextKeyframes[property] = normalizedFrames;
+    }
+  }
+
+  return nextKeyframes;
 }

@@ -13,6 +13,8 @@ export type ColorAnimatableProperties = {
   stroke: string;
 };
 
+export type ColorVector = Uint8Array;
+
 export type AnimatableSnapshot = {
   [K in keyof AnimatableProperties]: AnimatableProperties[K];
 };
@@ -43,7 +45,7 @@ export interface ColorKeyframe<
 > {
   id: string;
   property: K;
-  value: ColorAnimatableProperties[K];
+  value: ColorVector;
   time: number;
   easing: KeyframeEasing;
 }

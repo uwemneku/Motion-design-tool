@@ -1,5 +1,5 @@
 /** Util.Ts shape model and behavior. */
-import type { Keyframe, KeyframeEasing } from './types';
+import type { ColorVector, Keyframe, KeyframeEasing } from "./types";
 
 export function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -36,14 +36,14 @@ function easeOutElastic(progress: number) {
 
 export function applyEasing(progress: number, easing: KeyframeEasing) {
   const t = clamp(progress, 0, 1);
-  if (easing === 'step') return t < 1 ? 0 : 1;
-  if (easing === 'easeIn') return t * t * t;
-  if (easing === 'easeOut') return 1 - Math.pow(1 - t, 3);
-  if (easing === 'easeInOut') {
+  if (easing === "step") return t < 1 ? 0 : 1;
+  if (easing === "easeIn") return t * t * t;
+  if (easing === "easeOut") return 1 - Math.pow(1 - t, 3);
+  if (easing === "easeInOut") {
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
-  if (easing === 'elastic') return easeOutElastic(t);
-  if (easing === 'bounce') return easeOutBounce(t);
+  if (easing === "elastic") return easeOutElastic(t);
+  if (easing === "bounce") return easeOutBounce(t);
   return t;
 }
 
@@ -217,19 +217,47 @@ export function parseColor(value: string): RgbaColor | null {
   return parseHexText(normalized) ?? parseRgbText(normalized);
 }
 
+/** Converts a CSS color string into a 4-byte RGBA vector. */
+export function colorToRgbaBytes(value: string): ColorVector | null {
+  const parsed = parseColor(value);
+  if (!parsed) return null;
+  return new Uint8Array([
+    clampColorChannel(parsed.r),
+    clampColorChannel(parsed.g),
+    clampColorChannel(parsed.b),
+    clampColorChannel(parsed.a * 255),
+  ]);
+}
+
+/** Clones an RGBA byte vector so keyframes do not share mutable references. */
+export function cloneColorBytes(value: ColorVector) {
+  return new Uint8Array(value);
+}
+
+/** Converts an RGBA byte vector into a CSS rgba(...) string. */
+export function rgbaBytesToCss(color: ColorVector) {
+  return rgbaToCss({
+    r: color[0] ?? 0,
+    g: color[1] ?? 0,
+    b: color[2] ?? 0,
+    a: (color[3] ?? 255) / 255,
+  });
+}
+
 export function rgbaToCss(color: RgbaColor) {
   return `rgba(${clampColorChannel(color.r)}, ${clampColorChannel(color.g)}, ${clampColorChannel(color.b)}, ${clampAlpha(color.a).toFixed(3)})`;
 }
 
-export function interpolateColor(start: string, end: string, progress: number) {
-  const startColor = parseColor(start);
-  const endColor = parseColor(end);
-  if (!startColor || !endColor) return progress >= 1 ? end : start;
-
+/** Interpolates two RGBA byte vectors and returns a CSS rgba(...) string. */
+export function interpolateColorBytes(
+  start: ColorVector,
+  end: ColorVector,
+  progress: number,
+) {
   return rgbaToCss({
-    r: lerp(startColor.r, endColor.r, progress),
-    g: lerp(startColor.g, endColor.g, progress),
-    b: lerp(startColor.b, endColor.b, progress),
-    a: lerp(startColor.a, endColor.a, progress),
+    r: lerp(start[0] ?? 0, end[0] ?? 0, progress),
+    g: lerp(start[1] ?? 0, end[1] ?? 0, progress),
+    b: lerp(start[2] ?? 0, end[2] ?? 0, progress),
+    a: lerp((start[3] ?? 255) / 255, (end[3] ?? 255) / 255, progress),
   });
 }
