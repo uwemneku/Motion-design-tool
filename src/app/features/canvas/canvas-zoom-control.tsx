@@ -26,7 +26,7 @@ export default function CanvasZoomControl() {
     <button
       type="button"
       onClick={resetZoom}
-      className="absolute bottom-3 left-3 z-30 flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900/95 px-2.5 py-1 text-xs font-semibold text-slate-100 shadow-lg hover:border-slate-400/70 hover:text-slate-200"
+      className="absolute bottom-4 left-4 z-30 flex items-center gap-1.5 rounded-[12px] border border-white/10 bg-[rgba(20,24,33,0.72)] px-3 py-1.5 text-xs font-semibold text-[#edf3ff] shadow-[0_16px_30px_rgba(0,0,0,0.22)] backdrop-blur-2xl hover:bg-[rgba(255,255,255,0.08)]"
       title="Reset zoom to 100%"
       aria-label="Reset canvas zoom"
     >

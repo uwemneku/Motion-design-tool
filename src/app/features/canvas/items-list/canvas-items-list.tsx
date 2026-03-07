@@ -40,22 +40,25 @@ export default function CanvasItemsList() {
     syncCanvasStackOrder(nextDisplayIds);
   };
 
+  if (canvasItemIds.length === 0) return null;
+
   return (
-    <section className="space-y-3">
-      {canvasItemIds.length === 0 ? (
-        <p className="text-sm text-[#8f8f8f]">No items on canvas</p>
-      ) : (
+    <div
+      className="pointer-events-auto absolute left-4 top-4 z-20 flex max-h-[min(440px,calc(100vh-184px))] w-[202px] flex-col overflow-hidden rounded-[12px] border border-white/10 bg-[rgba(18,22,30,0.72)] p-1 shadow-[0_16px_34px_rgba(0,0,0,0.26)] backdrop-blur-2xl"
+      data-testid="floating-layers-panel"
+    >
+      <section className="min-h-0 flex-1 overflow-y-auto">
         <Reorder.Group
           axis="y"
           values={displayItemIds}
           onReorder={onReorder}
-          className="space-y-1 rounded-lg border border-[var(--wise-border)] bg-[var(--wise-surface)] p-1"
+          className="space-y-1"
         >
           {displayItemIds.map((id, index) => (
             <CanvasItemsListItem key={id} id={id} index={index} />
           ))}
         </Reorder.Group>
-      )}
-    </section>
+      </section>
+    </div>
   );
 }

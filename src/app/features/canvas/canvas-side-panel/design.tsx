@@ -346,20 +346,20 @@ export default function CanvasSidePanelDesign() {
                       addPropertyKeyframe("left");
                     }}
                   />
-                <input
-                  type="number"
-                  step={0.001}
-                  value={designForm.left}
-                  onChange={(event) => {
-                    setDesignForm((prev) => ({
-                      ...prev,
-                      left: event.target.value,
-                    }));
-                  }}
-                  onBlur={() => commitDesignForm(designForm, ["left"])}
-                  onKeyDown={(event) => onInputKeyDown(event, ["left"])}
-                  className={`${fieldClass} pr-9`}
-                />
+                  <input
+                    type="number"
+                    step={0.001}
+                    value={designForm.left}
+                    onChange={(event) => {
+                      setDesignForm((prev) => ({
+                        ...prev,
+                        left: event.target.value,
+                      }));
+                    }}
+                    onBlur={() => commitDesignForm(designForm, ["left"])}
+                    onKeyDown={(event) => onInputKeyDown(event, ["left"])}
+                    className={`${fieldClass} pr-9`}
+                  />
                 </div>
               </label>
               <label className={labelClass}>
@@ -372,20 +372,20 @@ export default function CanvasSidePanelDesign() {
                       addPropertyKeyframe("top");
                     }}
                   />
-                <input
-                  type="number"
-                  step={0.001}
-                  value={designForm.top}
-                  onChange={(event) => {
-                    setDesignForm((prev) => ({
-                      ...prev,
-                      top: event.target.value,
-                    }));
-                  }}
-                  onBlur={() => commitDesignForm(designForm, ["top"])}
-                  onKeyDown={(event) => onInputKeyDown(event, ["top"])}
-                  className={`${fieldClass} pr-9`}
-                />
+                  <input
+                    type="number"
+                    step={0.001}
+                    value={designForm.top}
+                    onChange={(event) => {
+                      setDesignForm((prev) => ({
+                        ...prev,
+                        top: event.target.value,
+                      }));
+                    }}
+                    onBlur={() => commitDesignForm(designForm, ["top"])}
+                    onKeyDown={(event) => onInputKeyDown(event, ["top"])}
+                    className={`${fieldClass} pr-9`}
+                  />
                 </div>
               </label>
             </div>
@@ -401,20 +401,20 @@ export default function CanvasSidePanelDesign() {
                       addPropertyKeyframe("scaleX");
                     }}
                   />
-                <input
-                  type="number"
-                  step={0.001}
-                  value={designForm.scaleX}
-                  onChange={(event) => {
-                    setDesignForm((prev) => ({
-                      ...prev,
-                      scaleX: event.target.value,
-                    }));
-                  }}
-                  onBlur={() => commitDesignForm(designForm, ["scaleX"])}
-                  onKeyDown={(event) => onInputKeyDown(event, ["scaleX"])}
-                  className={`${fieldClass} pr-9`}
-                />
+                  <input
+                    type="number"
+                    step={0.001}
+                    value={designForm.scaleX}
+                    onChange={(event) => {
+                      setDesignForm((prev) => ({
+                        ...prev,
+                        scaleX: event.target.value,
+                      }));
+                    }}
+                    onBlur={() => commitDesignForm(designForm, ["scaleX"])}
+                    onKeyDown={(event) => onInputKeyDown(event, ["scaleX"])}
+                    className={`${fieldClass} pr-9`}
+                  />
                 </div>
               </label>
               <label className={labelClass}>
@@ -427,20 +427,20 @@ export default function CanvasSidePanelDesign() {
                       addPropertyKeyframe("scaleY");
                     }}
                   />
-                <input
-                  type="number"
-                  step={0.001}
-                  value={designForm.scaleY}
-                  onChange={(event) => {
-                    setDesignForm((prev) => ({
-                      ...prev,
-                      scaleY: event.target.value,
-                    }));
-                  }}
-                  onBlur={() => commitDesignForm(designForm, ["scaleY"])}
-                  onKeyDown={(event) => onInputKeyDown(event, ["scaleY"])}
-                  className={`${fieldClass} pr-9`}
-                />
+                  <input
+                    type="number"
+                    step={0.001}
+                    value={designForm.scaleY}
+                    onChange={(event) => {
+                      setDesignForm((prev) => ({
+                        ...prev,
+                        scaleY: event.target.value,
+                      }));
+                    }}
+                    onBlur={() => commitDesignForm(designForm, ["scaleY"])}
+                    onKeyDown={(event) => onInputKeyDown(event, ["scaleY"])}
+                    className={`${fieldClass} pr-9`}
+                  />
                 </div>
               </label>
             </div>
@@ -456,22 +456,22 @@ export default function CanvasSidePanelDesign() {
                       addPropertyKeyframe("opacity");
                     }}
                   />
-                <input
-                  type="number"
-                  min={0}
-                  max={1}
-                  step={0.001}
-                  value={designForm.opacity}
-                  onChange={(event) => {
-                    setDesignForm((prev) => ({
-                      ...prev,
-                      opacity: event.target.value,
-                    }));
-                  }}
-                  onBlur={() => commitDesignForm(designForm, ["opacity"])}
-                  onKeyDown={(event) => onInputKeyDown(event, ["opacity"])}
-                  className={`${fieldClass} pr-9`}
-                />
+                  <input
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.001}
+                    value={designForm.opacity}
+                    onChange={(event) => {
+                      setDesignForm((prev) => ({
+                        ...prev,
+                        opacity: event.target.value,
+                      }));
+                    }}
+                    onBlur={() => commitDesignForm(designForm, ["opacity"])}
+                    onKeyDown={(event) => onInputKeyDown(event, ["opacity"])}
+                    className={`${fieldClass} pr-9`}
+                  />
                 </div>
               </label>
               <label className={labelClass}>
@@ -484,20 +484,20 @@ export default function CanvasSidePanelDesign() {
                       addPropertyKeyframe("angle");
                     }}
                   />
-                <input
-                  type="number"
-                  step={0.001}
-                  value={designForm.angle}
-                  onChange={(event) => {
-                    setDesignForm((prev) => ({
-                      ...prev,
-                      angle: event.target.value,
-                    }));
-                  }}
-                  onBlur={() => commitDesignForm(designForm, ["angle"])}
-                  onKeyDown={(event) => onInputKeyDown(event, ["angle"])}
-                  className={`${fieldClass} pr-9`}
-                />
+                  <input
+                    type="number"
+                    step={0.001}
+                    value={designForm.angle}
+                    onChange={(event) => {
+                      setDesignForm((prev) => ({
+                        ...prev,
+                        angle: event.target.value,
+                      }));
+                    }}
+                    onBlur={() => commitDesignForm(designForm, ["angle"])}
+                    onKeyDown={(event) => onInputKeyDown(event, ["angle"])}
+                    className={`${fieldClass} pr-9`}
+                  />
                 </div>
               </label>
             </div>
@@ -823,7 +823,7 @@ function KeyframeActionButton({
         event.stopPropagation();
         onAddKeyframe();
       }}
-      className={`absolute right-2 top-1/2 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-md border transition ${
+      className={`absolute right-2 top-1/2 inline-flex size-4 -translate-y-1/2 items-center justify-center rounded-md border transition ${
         isKeyframed
           ? "border-[#2563eb] bg-[#2563eb]/18 text-[#93c5fd]"
           : "border-white/10 bg-[rgba(255,255,255,0.03)] text-[#8f96a3] hover:border-[#2563eb]/70 hover:bg-[#2563eb]/10 hover:text-[#93c5fd]"

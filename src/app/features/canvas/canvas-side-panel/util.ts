@@ -101,15 +101,14 @@ import type {
 } from "../../../../types";
 
 export const sectionTitleClass =
-  "text-[11px] font-semibold uppercase tracking-[0.18em] text-[#c9ccd6]";
+  "text-[10px] font-semibold uppercase tracking-[0.2em] text-[#bfc7d4]";
 export const labelClass = "space-y-1.5 text-[11px] text-[#b8bdc9]";
 export const fieldClass =
-  "h-8 w-full rounded-lg border border-white/10 " +
+  "h-8 w-full rounded-sm border border-white/10 " +
   "bg-[rgba(255,255,255,0.03)] px-2.5 text-[11px] text-[#efefef] " +
   "outline-none transition focus:border-[#ffffff] focus:ring-1 focus:ring-[#ffffff]/45";
 export const cardClass =
-  "space-y-3 rounded-xl border border-white/10 " +
-  "bg-[rgba(255,255,255,0.02)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]";
+  "space-y-2 rounded-[10px] bg-[rgba(255,255,255,0.015)] px-2 py-2.5";
 
 export const animationTemplates: AnimationTemplate[] = [
   {

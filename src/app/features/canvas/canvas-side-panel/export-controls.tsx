@@ -36,7 +36,7 @@ export function CanvasSidePanelExportControls() {
             disabled={isExporting}
             aria-label={EXPORT_VIDEO_LABEL}
             title={EXPORT_VIDEO_LABEL}
-            className="rounded-md border border-[#2563eb] bg-[#2563eb] px-2.5 py-1.5 text-[12px] font-medium text-white shadow-[0_0_0_1px_rgba(37,99,235,0.12)] transition hover:bg-[#1d4ed8] hover:border-[#1d4ed8] disabled:cursor-not-allowed disabled:border-[#2563eb]/50 disabled:bg-[#2563eb]/70 disabled:opacity-80"
+            className="rounded-[12px] border border-[#4ba4ff]/35 bg-[linear-gradient(180deg,#1591ff,#0a84ff)] px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_10px_22px_rgba(10,132,255,0.24)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
           >
             <motion.span
               layout
@@ -61,7 +61,7 @@ export function CanvasSidePanelExportControls() {
         <Tooltip.Portal>
           <Tooltip.Content
             sideOffset={8}
-            className="z-50 w-56 rounded-lg border border-[#4a4a4a] bg-[#1f1f1f] p-2.5 text-xs text-[#e6e6e6] shadow-[0_10px_30px_rgba(0,0,0,0.45)]"
+            className="z-50 w-56 rounded-[14px] border border-white/10 bg-[rgba(20,24,33,0.88)] p-3 text-xs text-[#e6e6e6] shadow-[0_18px_40px_rgba(0,0,0,0.38)] backdrop-blur-2xl"
           >
             <div className="mb-3 space-y-1.5">
               <div className="text-[11px] font-medium text-[#c9ccd6]">
@@ -72,7 +72,7 @@ export function CanvasSidePanelExportControls() {
                 onChange={(event) => {
                   setExportFormat(event.target.value as ExportVideoFormat);
                 }}
-                className="h-8 w-full rounded-md border border-white/10 bg-[rgba(255,255,255,0.03)] px-2 text-[11px] font-medium uppercase text-[#e6e6e6] outline-none transition focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb]/45"
+                className="h-8 w-full rounded-[10px] border border-white/10 bg-[rgba(255,255,255,0.04)] px-2.5 text-[11px] font-medium uppercase text-[#e6e6e6] outline-none transition focus:border-[#0a84ff] focus:ring-1 focus:ring-[#0a84ff]/45"
               >
                 {EXPORT_FORMAT_OPTIONS.map((format) => (
                   <option key={format} value={format}>
@@ -92,7 +92,7 @@ export function CanvasSidePanelExportControls() {
               valueText={`${exportQuality.toFixed(1)}x`}
               onChange={setExportQuality}
             />
-            <Tooltip.Arrow className="fill-[#1f1f1f]" />
+            <Tooltip.Arrow className="fill-[rgba(20,24,33,0.88)]" />
           </Tooltip.Content>
         </Tooltip.Portal>
       </Tooltip.Root>

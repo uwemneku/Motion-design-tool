@@ -4,7 +4,6 @@ import { EXPORT_VIDEO_LABEL } from "../src/app/features/canvas/canvas-side-panel
 /** Waits for the editor shell to finish initial render. */
 async function gotoEditor(page: Page) {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Layers" })).toBeVisible();
   await expect(page.getByTestId("timeline")).toBeVisible();
   await expect(page.getByRole("button", { name: EXPORT_VIDEO_LABEL })).toBeVisible();
 }
@@ -54,6 +53,18 @@ test.describe("Editor visual review", () => {
       fullPage: true,
       maxDiffPixelRatio: 0.02,
     });
+  });
+
+  test("captures a crowded editor review state", async ({ page }, testInfo) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add rectangle");
+    await addCanvasItem(page, "Add circle");
+    await addCanvasItem(page, "Add text");
+    await addCanvasItem(page, "Add rectangle");
+    await addCanvasItem(page, "Add line");
+    await selectLayer(page, "circle");
+
+    await saveShot(page, testInfo, "editor-crowded-review.png");
   });
 
   test("captures the animation template panel", async ({ page }, testInfo) => {

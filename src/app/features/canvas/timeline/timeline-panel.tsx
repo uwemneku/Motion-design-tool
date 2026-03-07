@@ -18,10 +18,11 @@ import { setPlayheadTime } from "../../../store/editor-slice";
 import TimeStampControl from "./timestamp-control";
 
 const TIMELINE_ZOOM_MIN = 1;
-const TIMELINE_ZOOM_MAX = 4;
+const TIMELINE_ZOOM_MAX = 16;
 const TIMELINE_ZOOM_STEP = 0.25;
 const TIMELINE_TOOLBAR_HEIGHT = 48;
 const TIMELINE_RULER_HEIGHT = 36;
+const TIMELINE_ZOOM_SCALE_FACTOR = 3;
 
 /** Timeline container with playback loop, labels, and item rows. */
 export default function TimelinePanel() {
@@ -30,7 +31,10 @@ export default function TimelinePanel() {
 
   const [timelineHeight, setTimelineHeight] = useState(TIMELINE_DEFAULT_HEIGHT);
   const [timelineZoom, setTimelineZoom] = useState(1);
-  const timelineContentWidth = `calc(${LABEL_COLUMN_WIDTH}px + (100% - ${LABEL_COLUMN_WIDTH}px) * ${timelineZoom})`;
+  const timelineZoomScale =
+    1 + (timelineZoom - TIMELINE_ZOOM_MIN) * TIMELINE_ZOOM_SCALE_FACTOR;
+  const timelineLabelStep = getTimelineLabelStep(timelineZoom);
+  const timelineContentWidth = `calc(${LABEL_COLUMN_WIDTH}px + (100% - ${LABEL_COLUMN_WIDTH}px) * ${timelineZoomScale})`;
 
   const seekFromPointer = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
@@ -181,12 +185,12 @@ export default function TimelinePanel() {
                   <div className="relative h-full">
                     {Array.from(
                       {
-                        length:
-                          Math.floor(TIMELINE_DURATION / TIMELINE_LABEL_STEP) +
-                          1,
+                        length: Math.floor(TIMELINE_DURATION / timelineLabelStep) + 1,
                       },
                       (_, index) => {
-                        const time = index * TIMELINE_LABEL_STEP;
+                        const time = Number(
+                          (index * timelineLabelStep).toFixed(3),
+                        );
                         const left = clamp(
                           (time / TIMELINE_DURATION) * 100,
                           0,
@@ -200,7 +204,7 @@ export default function TimelinePanel() {
                           >
                             <div className="mx-auto mt-1.5 h-2 w-px bg-slate-500" />
                             <div className="pt-1 text-[10px] font-medium text-slate-400">
-                              {formatTimelineLabel(time)}
+                              {formatTimelineLabel(time, timelineLabelStep)}
                             </div>
                           </div>
                         );
@@ -238,9 +242,23 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function formatTimelineLabel(seconds: number) {
+/** Chooses a ruler label interval that becomes denser as users zoom in. */
+function getTimelineLabelStep(zoom: number) {
+  if (zoom >= 6) return 0.1;
+  if (zoom >= 3) return 0.25;
+  if (zoom >= 1.5) return 0.5;
+  if (zoom >= 1.25) return 1;
+  return TIMELINE_LABEL_STEP;
+}
+
+/** Formats ruler labels with sub-second precision only when the ruler is dense. */
+function formatTimelineLabel(seconds: number, labelStep: number) {
   const wholeSeconds = Math.max(0, Math.floor(seconds));
   const minutes = Math.floor(wholeSeconds / 60);
   const remainingSeconds = wholeSeconds % 60;
+  if (labelStep < 1) {
+    const fractionalSeconds = (seconds - minutes * 60).toFixed(2);
+    return `${minutes}:${fractionalSeconds.padStart(5, "0")}`;
+  }
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
