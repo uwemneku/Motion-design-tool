@@ -1,10 +1,11 @@
 /** Design.Tsx canvas side panel UI logic. */
 import type { FabricObject } from "fabric";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
-import { useAppDispatch, useAppSelector } from "../../../store";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { dispatchableSelector, useAppDispatch, useAppSelector } from "../../../store";
 import { upsertItemRecord } from "../../../store/editor-slice";
+import type { EditorItemRecord } from "../../../store/editor-slice";
 import { getVideoWorkAreaRect } from "../../export/video-work-area";
+import { hasKeyframeNearTime } from "../../shapes/animatable-object/util";
 import { appendUniqueMarkerTimes } from "../util/animations-utils";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 import {
@@ -16,8 +17,8 @@ import {
 } from "../../../../const";
 import { MaskSourceControl } from "./mask-source-control";
 import type { DesignFormState } from "../../../../types";
-import { FieldShell, KeyframeActionButton } from "./design-components";
 import DesignAlignmentControls from "./design-alignment-controls";
+import DesignColorField from "./design-color-field";
 import DesignNumberField from "./design-number-field";
 import {
   clamp,
@@ -25,7 +26,6 @@ import {
   formatNumberInput,
   getNumericKeyframeFields,
   getNumericKeyframeValue,
-  removeNull,
   toPrecisionNumber,
   TRANSFORM_FIELD_ROWS,
 } from "./design-helpers";
@@ -42,7 +42,6 @@ import {
   ensureGoogleFontsLoaded,
   fieldClass,
   labelClass,
-  normalizeHexColor,
   readDesignFormFromObject,
   sectionTitleClass,
 } from "./util";
@@ -52,48 +51,27 @@ export default function CanvasSidePanelDesign() {
   const dispatch = useAppDispatch();
   const { fabricCanvasRef, getObjectById: getInstanceById } = useCanvasAppContext();
   const [designForm, setDesignForm] = useState<DesignFormState>(EMPTY_FORM);
-  const [activeColorField, setActiveColorField] = useState<ColorFieldKey | null>(null);
   const [transformTargetObject, setTransformTargetObject] = useState<FabricObject | null>(null);
-  const fillColorSectionRef = useRef<HTMLLabelElement>(null);
-  const strokeColorSectionRef = useRef<HTMLLabelElement>(null);
-  const designFormRef = useRef(designForm);
 
   const selectedIds = useAppSelector((state) => state.editor.selectedId);
-  const selectedId = selectedIds[0] ?? null;
-  const selectedItem = useAppSelector((state) => state.editor.itemsRecord?.[selectedId] ?? null);
-  const selectedItems = useAppSelector((state) =>
-    selectedIds
-      .map((id) => ({
-        id,
-        item: state.editor.itemsRecord?.[id] ?? null,
-      }))
-      .filter(removeNull),
-  );
   const playheadTime = useAppSelector((state) => state.editor.playHeadTime);
+  const selectedId = selectedIds[0] ?? null;
 
-  const prevSelectedId = useRef<string>(null);
-
-  const selectedInstance = useMemo(
-    () => (selectedId ? getInstanceById(selectedId) : undefined),
+  const selectedContext = useMemo(
+    () => ({
+      id: selectedId,
+      instance: selectedId ? getInstanceById(selectedId) : undefined,
+    }),
     [getInstanceById, selectedId],
   );
   const isMultiSelected = selectedIds.length > 1;
 
+  const selectedInstance = selectedContext.instance;
   const selectedObject = selectedInstance?.fabricObject;
   const supportsText = typeof selectedObject?.get("text") === "string";
   const supportsFill = typeof selectedObject?.get("fill") === "string";
   const supportsStroke = typeof selectedObject?.get("stroke") === "string";
-
-  useEffect(() => {
-    designFormRef.current = designForm;
-  }, [designForm]);
-
-  useEffect(() => {
-    if (prevSelectedId.current === selectedId) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setActiveColorField(null);
-    prevSelectedId.current = selectedId;
-  }, [selectedId]);
+  const supportsBorderRadius = typeof selectedObject?.get("rx") === "number";
 
   useEffect(() => {
     if (isMultiSelected) {
@@ -101,8 +79,8 @@ export default function CanvasSidePanelDesign() {
       setTransformTargetObject(fabricCanvasRef.current?.getActiveObject() ?? null);
       return;
     }
-    setTransformTargetObject(selectedInstance?.fabricObject ?? null);
-  }, [fabricCanvasRef, isMultiSelected, selectedInstance]);
+    setTransformTargetObject(selectedContext.instance?.fabricObject ?? null);
+  }, [fabricCanvasRef, isMultiSelected, selectedContext.instance]);
 
   useEffect(() => {
     if (!transformTargetObject) return;
@@ -134,37 +112,27 @@ export default function CanvasSidePanelDesign() {
     ensureGoogleFontsLoaded();
   }, []);
 
-  useEffect(() => {
-    // Close any open color picker when clicking outside the color editor sections.
-    if (!activeColorField) return;
-
-    const onDocumentMouseDown = (event: MouseEvent) => {
-      const target = event.target as Node | null;
-      const isInFillSection = Boolean(fillColorSectionRef.current?.contains(target));
-      const isInStrokeSection = Boolean(strokeColorSectionRef.current?.contains(target));
-      if (!isInFillSection && !isInStrokeSection) {
-        setActiveColorField(null);
-      }
-    };
-
-    document.addEventListener("mousedown", onDocumentMouseDown);
-    return () => {
-      document.removeEventListener("mousedown", onDocumentMouseDown);
-    };
-  }, [activeColorField]);
-
   /** Adds keyframes for the requested properties at the current playhead time. */
   const addKeyframesForFields = useCallback(
     (fields: KeyframeField[], nextForm: DesignFormState) => {
+      const currentPlayheadTime = dispatch(
+        dispatchableSelector((state) => state.editor.playHeadTime),
+      );
+      const itemRecords = dispatch(
+        dispatchableSelector((state) => state.editor.itemsRecord),
+      );
+
+      // Split the requested field list once so both the multi-select and
+      // single-select paths can reuse the same numeric-property decision.
       const numericFieldsToCapture = getNumericKeyframeFields(fields);
 
       /** Syncs timeline markers back into the item record after keyframe changes. */
-      const updateItemMarkers = (id: string, item: typeof selectedItem) => {
+      const updateItemMarkers = (id: string, item: EditorItemRecord | null | undefined) => {
         if (!item) return;
 
         const nextMarkers = appendUniqueMarkerTimes(
           item.keyframe,
-          [playheadTime],
+          [currentPlayheadTime],
           CANVAS_KEYFRAME_EPSILON,
         );
 
@@ -180,10 +148,13 @@ export default function CanvasSidePanelDesign() {
       };
 
       if (isMultiSelected) {
+        // Multi-select keyframing snapshots each selected object at the
+        // current playhead time, but only for numeric properties.
         if (numericFieldsToCapture.length === 0) return;
 
-        selectedItems.forEach(({ id, item }) => {
+        selectedIds.forEach((id) => {
           const instance = getInstanceById(id);
+          const item = itemRecords[id];
           if (!instance) return;
 
           const snapshot = instance.getSnapshot();
@@ -191,7 +162,7 @@ export default function CanvasSidePanelDesign() {
             instance.addKeyframe({
               property: field,
               value: snapshot[field],
-              time: playheadTime,
+              time: currentPlayheadTime,
               easing: "linear",
             });
           });
@@ -201,20 +172,26 @@ export default function CanvasSidePanelDesign() {
         return;
       }
 
-      if (!selectedId || !selectedItem || !selectedInstance) return;
+      const selectedItem = selectedContext.id ? itemRecords[selectedContext.id] : null;
+      if (!selectedContext.id || !selectedItem || !selectedContext.instance) return;
 
-      let addedKeyframe = false;
+      const selectedInstance = selectedContext.instance;
 
+      let createdKeyframe = false;
+
+      // Single-object keyframing can mix numeric and color properties, so the
+      // two property families are handled separately and then merged into one
+      // marker update below.
       numericFieldsToCapture.forEach((field) => {
         const numericValue = getNumericKeyframeValue(selectedInstance.fabricObject, field);
         if (!Number.isFinite(numericValue)) return;
         selectedInstance.addKeyframe({
           property: field,
           value: numericValue,
-          time: playheadTime,
+          time: currentPlayheadTime,
           easing: "linear",
         });
-        addedKeyframe = true;
+        createdKeyframe = true;
       });
 
       fields.forEach((field) => {
@@ -224,27 +201,18 @@ export default function CanvasSidePanelDesign() {
           selectedInstance.addColorKeyframe({
             property: field,
             value: colorValue,
-            time: playheadTime,
+            time: currentPlayheadTime,
             easing: "linear",
           });
-          addedKeyframe = true;
+          createdKeyframe = true;
         }
       });
 
-      if (!addedKeyframe) return;
+      if (!createdKeyframe) return;
 
-      updateItemMarkers(selectedId, selectedItem);
+      updateItemMarkers(selectedContext.id, selectedItem);
     },
-    [
-      dispatch,
-      getInstanceById,
-      isMultiSelected,
-      playheadTime,
-      selectedId,
-      selectedInstance,
-      selectedItem,
-      selectedItems,
-    ],
+    [dispatch, getInstanceById, isMultiSelected, selectedContext, selectedIds],
   );
 
   const commitDesignForm = useCallback(
@@ -256,6 +224,10 @@ export default function CanvasSidePanelDesign() {
       const top = toPrecisionNumber(Number(nextForm.top));
       const width = clampMin(toPrecisionNumber(Number(nextForm.width)), 0);
       const height = clampMin(toPrecisionNumber(Number(nextForm.height)), 0);
+      const borderRadius = clampMin(
+        toPrecisionNumber(Number(nextForm.borderRadius)),
+        0,
+      );
       const opacity = clamp(toPrecisionNumber(Number(nextForm.opacity)), 0, 1);
       const angle = toPrecisionNumber(Number(nextForm.angle));
       const strokeWidth = clampMin(toPrecisionNumber(Number(nextForm.strokeWidth)), 0);
@@ -275,6 +247,12 @@ export default function CanvasSidePanelDesign() {
         if (currentHeight > 0) {
           object.set("scaleY", currentScaleY * (height / currentHeight));
         }
+      }
+      if (Number.isFinite(borderRadius) && supportsBorderRadius && !isMultiSelected) {
+        object.set({
+          rx: borderRadius,
+          ry: borderRadius,
+        });
       }
       if (Number.isFinite(opacity) && !isMultiSelected) object.set("opacity", opacity);
       if (Number.isFinite(angle)) object.set("angle", angle);
@@ -301,6 +279,9 @@ export default function CanvasSidePanelDesign() {
         });
       }
 
+      // Fabric mutates object geometry as transforms are applied, so the form
+      // is refreshed from the resulting object dimensions rather than trusting
+      // the original typed input values for width and height.
       object.setCoords();
       object.canvas?.requestRenderAll();
       setDesignForm((prev) => ({
@@ -309,6 +290,10 @@ export default function CanvasSidePanelDesign() {
         top: Number.isFinite(top) ? formatNumberInput(top) : prev.top,
         width: formatNumberInput(object.getScaledWidth()),
         height: formatNumberInput(object.getScaledHeight()),
+        borderRadius:
+          Number.isFinite(borderRadius) && supportsBorderRadius
+            ? formatNumberInput(borderRadius)
+            : prev.borderRadius,
         opacity: Number.isFinite(opacity) ? formatNumberInput(opacity) : prev.opacity,
         angle: Number.isFinite(angle) ? formatNumberInput(angle) : prev.angle,
         strokeWidth: Number.isFinite(strokeWidth)
@@ -330,6 +315,7 @@ export default function CanvasSidePanelDesign() {
       addKeyframesForFields,
       isMultiSelected,
       supportsFill,
+      supportsBorderRadius,
       supportsStroke,
       supportsText,
       transformTargetObject,
@@ -339,15 +325,16 @@ export default function CanvasSidePanelDesign() {
   /** Commits a single numeric field change coming from a child field component. */
   const commitNumericField = useCallback(
     (field: NumericScrubField, value: string, shouldKeyframe: boolean) => {
+      // Child field components manage their own transient input state; this
+      // callback merges that local draft back into the canonical form snapshot.
       const nextForm = {
-        ...designFormRef.current,
+        ...designForm,
         [field]: value,
       };
 
-      designFormRef.current = nextForm;
       commitDesignForm(nextForm, shouldKeyframe ? [field] : []);
     },
-    [commitDesignForm],
+    [commitDesignForm, designForm],
   );
 
   /** Commits the current field value and adds a keyframe for that property. */
@@ -366,7 +353,7 @@ export default function CanvasSidePanelDesign() {
         : selectedInstance.keyframes[field];
 
     return Boolean(
-      frames?.some((frame) => Math.abs(frame.time - playheadTime) <= CANVAS_KEYFRAME_EPSILON),
+      frames && hasKeyframeNearTime(frames, playheadTime, CANVAS_KEYFRAME_EPSILON),
     );
   };
 
@@ -374,6 +361,8 @@ export default function CanvasSidePanelDesign() {
     setDesignForm((prev) => {
       const next = { ...prev, [field]: value };
       if (shouldCommit) {
+        // Color inputs update freely while typing/picking, then optionally
+        // commit once the interaction reaches a stable point.
         commitDesignForm(next, [field]);
       }
       return next;
@@ -402,6 +391,8 @@ export default function CanvasSidePanelDesign() {
     let nextLeft = currentLeft;
     let nextTop = currentTop;
 
+    // Alignment works against the selection bounding box so grouped
+    // selections and rotated objects move together as one visual unit.
     if (axis === "left") {
       nextLeft += videoArea.left - bounds.left;
     } else if (axis === "center") {
@@ -460,143 +451,103 @@ export default function CanvasSidePanelDesign() {
         )}
       </section>
 
-      {!isMultiSelected && selectedInstance && (supportsFill || supportsStroke) ? (
+      {!isMultiSelected && selectedContext.instance && (supportsFill || supportsStroke) ? (
         <section className={cardClass}>
           <h4 className={sectionTitleClass}>Appearance</h4>
-          {supportsFill ? (
-            <label ref={fillColorSectionRef} className={`block ${labelClass}`}>
-              <span className="text-[#d5d8e1]">Fill</span>
-              <div className="space-y-2">
-                <FieldShell className="gap-2 px-2">
-                  <KeyframeActionButton
-                    isKeyframed={hasKeyframeAtPlayhead("fill")}
-                    label="Fill"
-                    onAddKeyframe={() => {
-                      addPropertyKeyframe("fill");
-                    }}
-                    className="right-9"
-                  />
-                  <HexColorInput
-                    color={normalizeHexColor(designForm.fill)}
-                    alpha
-                    prefixed
-                    onFocus={() => {
-                      setActiveColorField("fill");
-                    }}
-                    onChange={(value) => {
-                      setColorField("fill", `#${value.replace(/^#/, "")}`, false);
-                    }}
-                    onBlur={() => {
-                      setColorField("fill", normalizeHexColor(designForm.fill), true);
-                    }}
-                    className="h-full flex-1 bg-transparent pr-10 text-[13px] text-[#f6f7fb] outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveColorField("fill");
-                    }}
-                    className="h-6 w-6 shrink-0 rounded-[7px] border border-white/12"
-                    style={{
-                      backgroundColor: normalizeHexColor(designForm.fill),
-                    }}
-                  />
-                </FieldShell>
-                {activeColorField === "fill" ? (
-                  <HexAlphaColorPicker
-                    color={normalizeHexColor(designForm.fill)}
-                    onChange={(value) => {
-                      setColorField("fill", value, true);
-                    }}
-                    className="!w-full"
-                  />
-                ) : null}
-              </div>
-            </label>
-          ) : null}
+          <div className="grid grid-cols-2 gap-2.5">
+            {supportsFill ? (
+              <DesignColorField
+                inputValue={designForm.fill}
+                isKeyframed={hasKeyframeAtPlayhead("fill")}
+                label="Fill"
+                onAddKeyframe={() => {
+                  addPropertyKeyframe("fill");
+                }}
+                onCommitValue={(value) => {
+                  setColorField("fill", value, true);
+                }}
+                onPreviewValue={(value) => {
+                  setColorField("fill", value, false);
+                }}
+              />
+            ) : (
+              <div />
+            )}
 
-          {supportsStroke ? (
-            <label ref={strokeColorSectionRef} className={`block ${labelClass}`}>
-              <span className="text-[#d5d8e1]">Stroke</span>
-              <div className="space-y-2">
-                <FieldShell className="gap-2 px-2">
-                  <KeyframeActionButton
-                    isKeyframed={hasKeyframeAtPlayhead("stroke")}
-                    label="Stroke"
-                    onAddKeyframe={() => {
-                      addPropertyKeyframe("stroke");
-                    }}
-                    className="right-9"
-                  />
-                  <HexColorInput
-                    color={normalizeHexColor(designForm.stroke, "#2c2c2c")}
-                    alpha
-                    prefixed
-                    onFocus={() => {
-                      setActiveColorField("stroke");
-                    }}
-                    onChange={(value) => {
-                      setColorField("stroke", `#${value.replace(/^#/, "")}`, false);
-                    }}
-                    onBlur={() => {
-                      setColorField(
-                        "stroke",
-                        normalizeHexColor(designForm.stroke, "#2c2c2c"),
-                        true,
-                      );
-                    }}
-                    className="h-full flex-1 bg-transparent pr-10 text-[13px] text-[#f6f7fb] outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveColorField("stroke");
-                    }}
-                    className="h-6 w-6 shrink-0 rounded-[7px] border border-white/12"
-                    style={{
-                      backgroundColor: normalizeHexColor(designForm.stroke, "#2c2c2c"),
-                    }}
-                  />
-                </FieldShell>
-                {activeColorField === "stroke" ? (
-                  <HexAlphaColorPicker
-                    color={normalizeHexColor(designForm.stroke, "#2c2c2c")}
-                    onChange={(value) => {
-                      setColorField("stroke", value, true);
-                    }}
-                    className="!w-full"
-                  />
-                ) : null}
-              </div>
-            </label>
-          ) : null}
-          {supportsStroke ? (
-            <DesignNumberField
-              field="strokeWidth"
-              groupLabel="Border Width"
-              inputValue={designForm.strokeWidth}
-              isKeyframed={hasKeyframeAtPlayhead("strokeWidth")}
-              isSecondaryLabel={false}
-              keyframeLabel="Border Width"
-              onAddKeyframe={() => {
-                addPropertyKeyframe("strokeWidth");
-              }}
-              onCommitValue={commitNumericField}
-              prefix="W"
-              shapeId={selectedId}
-            />
+            {supportsStroke ? (
+              <DesignColorField
+                fallbackColor="#2c2c2c"
+                inputValue={designForm.stroke}
+                isKeyframed={hasKeyframeAtPlayhead("stroke")}
+                label="Stroke"
+                onAddKeyframe={() => {
+                  addPropertyKeyframe("stroke");
+                }}
+                onCommitValue={(value) => {
+                  setColorField("stroke", value, true);
+                }}
+                onPreviewValue={(value) => {
+                  setColorField("stroke", value, false);
+                }}
+              />
+            ) : (
+              <div />
+            )}
+          </div>
+          {supportsStroke || supportsBorderRadius ? (
+            <div className="grid grid-cols-2 gap-2.5">
+              {supportsStroke ? (
+                <DesignNumberField
+                  field="strokeWidth"
+                  groupLabel="Border Width"
+                  inputValue={designForm.strokeWidth}
+                  isKeyframed={hasKeyframeAtPlayhead("strokeWidth")}
+                  isSecondaryLabel={false}
+                  keyframeLabel="Border Width"
+                  onAddKeyframe={() => {
+                    addPropertyKeyframe("strokeWidth");
+                  }}
+                  onCommitValue={commitNumericField}
+                  prefix="W"
+                  shapeId={selectedId}
+                />
+              ) : (
+                <div />
+              )}
+              {supportsBorderRadius ? (
+                <DesignNumberField
+                  field="borderRadius"
+                  groupLabel="Border Radius"
+                  inputValue={designForm.borderRadius}
+                  isKeyframed={hasKeyframeAtPlayhead("borderRadius")}
+                  isSecondaryLabel={!supportsStroke}
+                  keyframeLabel="Border Radius"
+                  onAddKeyframe={() => {
+                    addPropertyKeyframe("borderRadius");
+                  }}
+                  onCommitValue={commitNumericField}
+                  prefix="R"
+                  shapeId={selectedId}
+                />
+              ) : (
+                <div />
+              )}
+            </div>
           ) : null}
         </section>
       ) : null}
 
-      {!isMultiSelected && selectedInstance ? (
+      {!isMultiSelected && selectedContext.instance ? (
         <section className={cardClass}>
           <h4 className={sectionTitleClass}>Masking</h4>
-          <MaskSourceControl selectedId={selectedId} selectedInstance={selectedInstance} />
+          <MaskSourceControl
+            selectedId={selectedContext.id}
+            selectedInstance={selectedContext.instance}
+          />
         </section>
       ) : null}
 
-      {!isMultiSelected && selectedInstance && supportsText ? (
+      {!isMultiSelected && selectedContext.instance && supportsText ? (
         <section className={cardClass}>
           <h4 className={sectionTitleClass}>Typography</h4>
           <div className="space-y-2.5">

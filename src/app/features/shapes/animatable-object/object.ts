@@ -35,6 +35,7 @@ export class AnimatableObject {
     "top",
     "width",
     "height",
+    "borderRadius",
     "opacity",
     "angle",
     "strokeWidth",
@@ -54,7 +55,7 @@ export class AnimatableObject {
     colorKeyframes: ColorKeyframesByProperty = {},
   ) {
     this.fabricObject = fabricObject;
-    this.keyframes = keyframes;
+    this.keyframes = normalizeNumericKeyframes(keyframes);
     this.colorKeyframes = normalizeColorKeyframes(colorKeyframes);
 
     const centerPoint = this.fabricObject.getCenterPoint();
@@ -82,6 +83,7 @@ export class AnimatableObject {
       top: getNumeric(y, 0),
       width: Math.max(1, this.fabricObject.getScaledWidth()),
       height: Math.max(1, this.fabricObject.getScaledHeight()),
+      borderRadius: clamp(getNumeric(this.fabricObject.get("rx"), 0), 0, 9999),
       opacity: clamp(getNumeric(this.fabricObject.opacity, 1), 0, 1),
       angle: getNumeric(this.fabricObject.angle, 0),
       strokeWidth: clamp(getNumeric(this.fabricObject.strokeWidth, 0), 0, 9999),
@@ -345,6 +347,13 @@ export class AnimatableObject {
       }
       return;
     }
+    if (property === "borderRadius") {
+      this.fabricObject.set({
+        rx: value as number,
+        ry: value as number,
+      });
+      return;
+    }
     this.fabricObject.set(property, value as number);
   }
 
@@ -354,6 +363,28 @@ export class AnimatableObject {
   ) {
     this.fabricObject.set(property, value);
   }
+}
+
+/** Drops invalid loaded numeric keyframes and enforces time ordering once at hydration. */
+function normalizeNumericKeyframes(keyframes: KeyframesByProperty) {
+  const nextKeyframes: KeyframesByProperty = {};
+
+  for (const property of Object.keys(keyframes) as Array<
+    keyof KeyframesByProperty
+  >) {
+    const frames = keyframes[property];
+    if (!frames) continue;
+
+    const normalizedFrames = frames
+      .filter((frame) => Number.isFinite(frame.time))
+      .sort(byTimeAsc);
+
+    if (normalizedFrames.length > 0) {
+      nextKeyframes[property] = normalizedFrames;
+    }
+  }
+
+  return nextKeyframes;
 }
 
 /** Converts loaded color keyframes into cloned RGBA byte vectors. */
@@ -367,13 +398,14 @@ function normalizeColorKeyframes(keyframes: ColorKeyframesByProperty) {
     if (!frames) continue;
 
     const normalizedFrames = frames.flatMap((frame) => {
+      if (!Number.isFinite(frame.time)) return [];
       const value =
         typeof frame.value === "string"
           ? colorToRgbaBytes(frame.value)
           : cloneColorBytes(frame.value);
       if (!value) return [];
       return [{ ...frame, value }];
-    });
+    }).sort(byTimeAsc);
 
     if (normalizedFrames.length > 0) {
       nextKeyframes[property] = normalizedFrames;

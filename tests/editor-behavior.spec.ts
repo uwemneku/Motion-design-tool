@@ -150,6 +150,58 @@ test.describe("Editor behavior", () => {
     ).toBeVisible();
   });
 
+  test("starts number scrubbing from the latest typed value", async ({
+    page,
+  }) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add rectangle");
+    await selectLayer(page, "rectangle");
+
+    const scrubHandle = page.getByRole("button", { name: "Adjust X" }).first();
+    const positionXInput = scrubHandle.locator("..").locator("input");
+    await positionXInput.fill("240");
+    await positionXInput.press("Enter");
+    await expect(positionXInput).toHaveValue("240");
+
+    const handleBox = await scrubHandle.boundingBox();
+    if (!handleBox) {
+      throw new Error("Position X scrub handle was not measurable.");
+    }
+
+    await page.mouse.move(
+      handleBox.x + handleBox.width / 2,
+      handleBox.y + handleBox.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      handleBox.x + handleBox.width / 2 + 12,
+      handleBox.y + handleBox.height / 2,
+      { steps: 8 },
+    );
+    await page.mouse.up();
+
+    await expect(positionXInput).toHaveValue("252");
+  });
+
+  test("starts playback from the current scrubbed playhead position", async ({
+    page,
+  }) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add rectangle");
+
+    await seekTimeline(page, 0.5);
+    await expect(page.getByText("5.00")).toBeVisible();
+
+    await page.getByRole("button", { name: "Play timeline" }).click();
+
+    await expect
+      .poll(async () => {
+        const readout = page.locator('[title="Pause timeline"]').locator("..").getByText(/\d+\.\d{2}/).first();
+        return readout.textContent();
+      })
+      .not.toBe("0.00");
+  });
+
   test("keeps export and inspector controls reachable in the normal flow", async ({
     page,
   }) => {
@@ -165,6 +217,47 @@ test.describe("Editor behavior", () => {
     await page.getByRole("button", { name: EXPORT_VIDEO_LABEL }).hover();
     await expect(page.locator("select").last()).toBeVisible();
     await expect(page.locator("select").last()).toHaveValue("mp4");
+  });
+
+  test("keeps the design panel scrollable and places the color picker left of the inspector", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add text");
+    await selectLayer(page, "text");
+
+    const panel = page.getByTestId("canvas-side-panel");
+    const scrollContainer = panel.locator("[data-container]");
+    const fillPickerTrigger = page.getByRole("button", {
+      name: "Open fill picker",
+    });
+
+    await fillPickerTrigger.click();
+
+    const popover = page.getByTestId("design-color-popover");
+    await expect(popover).toBeVisible();
+
+    const panelBox = await panel.boundingBox();
+    const popoverBox = await popover.boundingBox();
+    if (!panelBox || !popoverBox) {
+      throw new Error("Color picker or side panel was not measurable.");
+    }
+
+    expect(popoverBox.x + popoverBox.width).toBeLessThanOrEqual(panelBox.x + 1);
+
+    const scrollTopBefore = await scrollContainer.evaluate(
+      (element) => element.scrollTop,
+    );
+    await scrollContainer.hover();
+    await page.mouse.wheel(0, 320);
+
+    await expect
+      .poll(
+        async () =>
+          scrollContainer.evaluate((element) => element.scrollTop),
+      )
+      .toBeGreaterThan(scrollTopBefore);
   });
 
   test("supports svg and bitmap imports", async ({

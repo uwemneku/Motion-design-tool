@@ -10,7 +10,8 @@ import type {
 
 export type ColorFieldKey = keyof ColorAnimatableProperties;
 export type KeyframeField = keyof Omit<DesignFormState, "text">;
-export type NumericFieldKey = keyof NumericAnimatableProperties | "fontSize";
+export type NumericFieldKey = keyof NumericAnimatableProperties | "fontSize" | "borderRadius";
+export type NumericKeyframeField = keyof NumericAnimatableProperties;
 export type SupportedKeyframeField = keyof AnimatableProperties;
 
 export type HorizontalAlignment = "left" | "center" | "right";
@@ -43,11 +44,12 @@ export type NumericScrubSession = {
 
 export const INPUT_PRECISION = 3;
 export const NUMERIC_INPUT_PATTERN = /^-?\d*\.?\d*$/;
-export const NUMERIC_KEYFRAME_FIELDS: readonly NumericScrubField[] = [
+export const NUMERIC_KEYFRAME_FIELDS: readonly NumericKeyframeField[] = [
   "left",
   "top",
   "width",
   "height",
+  "borderRadius",
   "opacity",
   "angle",
   "strokeWidth",
@@ -89,7 +91,7 @@ export const TRANSFORM_FIELD_ROWS: readonly [TransformFieldConfig, TransformFiel
   [
     {
       changedField: "opacity",
-      groupLabel: "Appearance",
+      groupLabel: "Opacity",
       keyframeField: "opacity",
       keyframeLabel: "Opacity",
       prefix: "O",
@@ -124,6 +126,7 @@ export const VERTICAL_ALIGNMENT_CONTROLS: readonly {
 
 const NUMERIC_SCRUB_CONFIG: Record<NumericScrubField, NumericScrubConfig> = {
   angle: { baseStep: 1 },
+  borderRadius: { baseStep: 1, min: 0 },
   height: { baseStep: 1, min: 0 },
   left: { baseStep: 1 },
   opacity: { baseStep: 0.01, min: 0, max: 1 },
@@ -225,20 +228,18 @@ export const removeNull = <T>(entry: {
 export function getNumericKeyframeFields(fields: KeyframeField[]) {
   return Array.from(
     new Set(
-      fields.filter((field): field is NumericScrubField => {
-        return NUMERIC_KEYFRAME_FIELDS.includes(field as NumericScrubField);
+      fields.filter((field): field is NumericKeyframeField => {
+        return NUMERIC_KEYFRAME_FIELDS.includes(field as NumericKeyframeField);
       }),
     ),
   );
 }
 
 /** Reads the current numeric value for a keyframe-capable field from a Fabric object. */
-export function getNumericKeyframeValue(
-  object: FabricObject,
-  field: NumericScrubField,
-) {
+export function getNumericKeyframeValue(object: FabricObject, field: NumericKeyframeField) {
   if (field === "width") return object.getScaledWidth();
   if (field === "height") return object.getScaledHeight();
+  if (field === "borderRadius") return Number(object.get("rx"));
   if (field === "strokeWidth") return Number(object.get("strokeWidth"));
   return Number(object.get(field));
 }

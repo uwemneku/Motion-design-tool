@@ -26,6 +26,7 @@ export type DesignFormState = {
   top: string;
   width: string;
   height: string;
+  borderRadius: string;
   opacity: string;
   angle: string;
   fill: string;

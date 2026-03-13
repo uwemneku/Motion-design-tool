@@ -1,20 +1,15 @@
 import { useEffect, useRef } from "react";
 import { TIMELINE_DURATION } from "../../../../const";
-import { useAppDispatch, useAppSelector } from "../../../store";
-import {
-  setIsPaused,
-  setPlayheadTime as setPlayHeadTime,
-} from "../../../store/editor-slice";
+import { dispatchableSelector, useAppDispatch, useAppSelector } from "../../../store";
+import { setIsPaused, setPlayheadTime as setPlayHeadTime } from "../../../store/editor-slice";
 
 /** Playback transport with play state and precise current/duration readouts. */
 function TimeStampControl() {
   const playheadTime = useAppSelector((state) => state.editor.playHeadTime);
-  const playheadRef = useRef(playheadTime);
   const isPaused = useAppSelector((state) => state.editor.isPaused);
   const dispatch = useAppDispatch();
 
   const frameRef = useRef<number | null>(null);
-  const lastTickRef = useRef<number | null>(null);
 
   useEffect(() => {
     const onWindowKeyDown = (event: KeyboardEvent) => {
@@ -47,23 +42,22 @@ function TimeStampControl() {
         cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
       }
-      lastTickRef.current = null;
       return;
     }
 
+    let startTimestamp: number | null = null;
+    let startPlayheadTime: number | null = null;
+
+    /** Advances playback from the playhead position captured on the first active frame. */
     const tick = (now: number) => {
-      const previous = lastTickRef.current ?? now;
-      const deltaSeconds = (now - previous) / 1000;
-      const rawNextTime = playheadRef.current + deltaSeconds;
+      startTimestamp ??= now;
+      startPlayheadTime ??= dispatch(dispatchableSelector((state) => state.editor.playHeadTime));
+      const elapsedSeconds = (now - startTimestamp) / 1000;
+      const rawNextTime = startPlayheadTime + elapsedSeconds;
       const nextTime =
-        rawNextTime >= TIMELINE_DURATION
-          ? rawNextTime % TIMELINE_DURATION
-          : rawNextTime;
+        rawNextTime >= TIMELINE_DURATION ? rawNextTime % TIMELINE_DURATION : rawNextTime;
 
-      lastTickRef.current = now;
-      playheadRef.current = nextTime;
       dispatch(setPlayHeadTime(Number(nextTime.toFixed(3))));
-
       frameRef.current = requestAnimationFrame(tick);
     };
 
@@ -74,7 +68,6 @@ function TimeStampControl() {
         cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
       }
-      lastTickRef.current = null;
     };
   }, [dispatch, isPaused]);
 

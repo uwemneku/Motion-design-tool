@@ -24,6 +24,7 @@ type DesignNumberFieldProps = {
   ) => void;
   prefix: string;
   shapeId: string | null;
+  showKeyframeAction?: boolean;
 };
 
 type ScrubSession = {
@@ -45,12 +46,18 @@ export default function DesignNumberField({
   onCommitValue,
   prefix,
   shapeId,
+  showKeyframeAction = true,
 }: DesignNumberFieldProps) {
   const [draftValue, setDraftValue] = useState(inputValue);
   const [isEditing, setIsEditing] = useState(false);
   const draftValueRef = useRef(inputValue);
   const scrubSessionRef = useRef<ScrubSession | null>(null);
   const displayValue = isEditing ? draftValue : inputValue;
+
+  useEffect(() => {
+    if (isEditing) return;
+    draftValueRef.current = inputValue;
+  }, [inputValue, isEditing, shapeId]);
 
   useEffect(() => {
     /** Updates the scrubbed value while the pointer moves over the field. */
@@ -152,12 +159,14 @@ export default function DesignNumberField({
       </span>
       <PrefixedField>
         <PrefixScrubHandle prefix={prefix} onPointerDown={onPrefixPointerDown} />
-        <KeyframeActionButton
-          isKeyframed={isKeyframed}
-          label={keyframeLabel}
-          onAddKeyframe={onAddKeyframe}
-          className={inputClassName}
-        />
+        {showKeyframeAction ? (
+          <KeyframeActionButton
+            isKeyframed={isKeyframed}
+            label={keyframeLabel}
+            onAddKeyframe={onAddKeyframe}
+            className={inputClassName}
+          />
+        ) : null}
         <input
           data-shape-id={shapeId ?? ""}
           type="text"
@@ -170,7 +179,9 @@ export default function DesignNumberField({
             commitCurrentValue(true);
           }}
           onKeyDown={onKeyDown}
-          className="h-full w-full bg-transparent pr-10 text-[11px] text-[#f6f7fb] outline-none"
+          className={`h-full w-full bg-transparent text-[11px] text-[#f6f7fb] outline-none ${
+            showKeyframeAction ? "pr-10" : "pr-3"
+          }`}
         />
       </PrefixedField>
     </label>

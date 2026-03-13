@@ -272,10 +272,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
         timestamp: playheadTime,
       });
     }
-    const sortedExtraKeyframes = [...(options.keyframes ?? [])].sort(
-      (a, b) => a.time - b.time,
-    );
-    for (const keyframe of sortedExtraKeyframes) {
+    for (const keyframe of options.keyframes ?? []) {
       if (!Number.isFinite(keyframe.time)) continue;
       if (typeof keyframe.left === "number") {
         instance.addKeyframe({
@@ -703,10 +700,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       pushMarkerIfNeeded(playheadTime);
     }
 
-    const extraKeyframes = [...(options.keyframes ?? [])].sort(
-      (a, b) => a.time - b.time,
-    );
-    for (const keyframe of extraKeyframes) {
+    for (const keyframe of options.keyframes ?? []) {
       if (!Number.isFinite(keyframe.time)) continue;
       if (typeof keyframe.left === "number") {
         instance.addKeyframe({

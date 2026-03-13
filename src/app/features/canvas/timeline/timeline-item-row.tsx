@@ -30,6 +30,7 @@ const DETAIL_ROW_DEFINITIONS: {
   { label: "Position Y", property: "top", valueType: "number" },
   { label: "Width", property: "width", valueType: "number" },
   { label: "Height", property: "height", valueType: "number" },
+  { label: "Border Radius", property: "borderRadius", valueType: "number" },
   { label: "Opacity", property: "opacity", valueType: "number" },
   { label: "Rotation", property: "angle", valueType: "number" },
   { label: "Border Width", property: "strokeWidth", valueType: "number" },

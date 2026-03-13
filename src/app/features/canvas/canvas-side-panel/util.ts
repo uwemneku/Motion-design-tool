@@ -28,6 +28,7 @@ export function readDesignFormFromObject(
     top: toNumberInput(object.top, 0),
     width: toNumberInput(object.getScaledWidth(), 1),
     height: toNumberInput(object.getScaledHeight(), 1),
+    borderRadius: toNumberInput(object.get("rx"), 0),
     opacity: toNumberInput(object.opacity, 1),
     angle: toNumberInput(object.angle, 0),
     fill:

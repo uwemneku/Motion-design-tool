@@ -4,6 +4,7 @@ export type NumericAnimatableProperties = {
   top: number;
   width: number;
   height: number;
+  borderRadius: number;
   opacity: number;
   angle: number;
   strokeWidth: number;

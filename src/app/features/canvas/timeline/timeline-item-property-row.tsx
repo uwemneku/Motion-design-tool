@@ -151,8 +151,7 @@ export function TimelineItemPropertyRow({
               .map((marker) => ({
                 id: marker.id,
                 timestamp: marker.time,
-              }))
-              .sort((left, right) => left.timestamp - right.timestamp),
+              })),
           },
         }),
       );
@@ -307,8 +306,7 @@ function getDetailEntries({
         property,
         time: frame.time,
         text: rgbaBytesToCss(frame.value),
-      }))
-      .sort((left, right) => left.time - right.time);
+      }));
   }
 
   const frames = (instance.keyframes[
@@ -320,8 +318,7 @@ function getDetailEntries({
       property,
       time: frame.time,
       text: formatValue(frame.value),
-    }))
-    .sort((left, right) => left.time - right.time);
+    }));
 }
 
 /** Moves only the targeted keyframe id and keeps each property timeline sorted. */

@@ -206,6 +206,7 @@ export default function CanvasSidePanelAnimations({
           angle: baseAngle,
           width: charSnapshot.width,
           height: charSnapshot.height,
+          borderRadius: charSnapshot.borderRadius,
           strokeWidth: charSnapshot.strokeWidth,
         });
         charObject.addSnapshotKeyframe(charEnd, {
@@ -215,6 +216,7 @@ export default function CanvasSidePanelAnimations({
           angle: baseAngle,
           width: charSnapshot.width,
           height: charSnapshot.height,
+          borderRadius: charSnapshot.borderRadius,
           strokeWidth: charSnapshot.strokeWidth,
         });
         charObject.seek(startTime);
