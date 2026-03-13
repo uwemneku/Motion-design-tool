@@ -23,14 +23,14 @@ type CanvasItemsListItemProps = {
 export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
   const dispatch = useAppDispatch();
   const name = useAppSelector((state) => state.editor.itemsRecord?.[id]?.name);
-  const selectedId = useAppSelector((state) => state.editor.selectedId);
+  const selectedIds = useAppSelector((state) => state.editor.selectedId);
   const fabricCanvas = useCanvasAppContext();
   const dragControls = useDragControls();
   const { removeItemById } = useCanvasItems({
     fabricCanvas: fabricCanvas.fabricCanvasRef,
   });
   const displayName = name ?? id;
-  const isSelected = selectedId === id;
+  const isSelected = selectedIds.includes(id);
   const [isVisible, setIsVisible] = useState(true);
   const [draftName, setDraftName] = useState(displayName);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -44,7 +44,7 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
 
   /** Selects the clicked canvas item in the editor store. */
   const handleClick = () => {
-    dispatch(setSelectedId(id));
+    dispatch(setSelectedId([id]));
     const instance = fabricCanvas.getObjectById(id);
     if (instance) {
       instance.fabricObject.canvas?.setActiveObject(instance.fabricObject);
@@ -66,7 +66,7 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
       const nextVisible = !isVisible;
       if (!nextVisible && object.canvas?.getActiveObject() === object) {
         object.canvas.discardActiveObject();
-        dispatch(setSelectedId(null));
+        dispatch(setSelectedId([]));
       }
       object.set("visible", nextVisible);
       object.canvas?.requestRenderAll();

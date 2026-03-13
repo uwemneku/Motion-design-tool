@@ -1,7 +1,7 @@
 /** Const.Ts module implementation. */
 import type {
-  AnimatableProperties,
   KeyframeEasing,
+  NumericAnimatableProperties,
 } from "./app/features/shapes/animatable-object/types";
 import type { DesignFormState } from "./types";
 
@@ -62,13 +62,14 @@ export const MAX_BORDER_SCALE_FACTOR = 4;
 export const MAX_CANVAS_ZOOM = 4;
 export const MIN_CANVAS_ZOOM = 0.025;
 export const MIN_BORDER_SCALE_FACTOR = 0.05;
-export const NUMERIC_ANIMATABLE_PROPERTIES: (keyof AnimatableProperties)[] = [
+export const NUMERIC_ANIMATABLE_PROPERTIES: (keyof NumericAnimatableProperties)[] = [
   "left",
   "top",
   "width",
   "height",
   "opacity",
   "angle",
+  "strokeWidth",
 ];
 export const TIMELINE_DEFAULT_HEIGHT = 160;
 export const TIMELINE_DURATION = 10;

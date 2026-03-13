@@ -20,7 +20,8 @@ export default function CanvasSidePanel({
   showToolbar = true,
 }: CanvasSidePanelProps) {
   const [activeTab, setActiveTab] = useState<PanelTab>("design");
-  const selectedId = useAppSelector((state) => state.editor.selectedId);
+  const selectedIds = useAppSelector((state) => state.editor.selectedId);
+  const selectedId = selectedIds[0] ?? null;
   const selectedItem = useAppSelector((state) =>
     selectedId ? state.editor.itemsRecord[selectedId] : null,
   );

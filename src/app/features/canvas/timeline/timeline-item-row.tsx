@@ -1,18 +1,14 @@
 /** Timeline Item Row.Tsx timeline UI and behavior. */
-import { useMemo, useState, type MouseEvent } from "react";
+import { useState, type MouseEvent } from "react";
+import { KEYFRAME_SECTION_HORIZONTAL_PADDING } from "../../../../const";
 import { useAppDispatch, useAppSelector } from "../../../store";
 import {
   setPlayheadTime,
   setSelectedId,
   setSelectedKeyframe,
 } from "../../../store/editor-slice";
-import type {
-  ColorKeyframe,
-  Keyframe,
-} from "../../shapes/animatable-object/types";
-import { rgbaBytesToCss } from "../../shapes/animatable-object/util";
-import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
-import { KEYFRAME_SECTION_HORIZONTAL_PADDING } from "../../../../const";
+import { TimelineItemPropertyRow } from "./timeline-item-property-row";
+import type { AnimatableProperties } from "../../shapes/animatable-object/types";
 
 type TimelineItemRowProps = {
   id: string;
@@ -20,93 +16,53 @@ type TimelineItemRowProps = {
   timelineDuration: number;
 };
 
-type DetailEntry = {
-  keyframeId: string;
-  property: string;
-  time: number;
-  text: string;
+type AnimationSpan = {
+  start: number;
+  end: number;
 };
 
-type DetailRow = {
+const DETAIL_ROW_DEFINITIONS: {
   label: string;
-  entries: DetailEntry[];
-};
+  property: keyof AnimatableProperties;
+  valueType: "number" | "color";
+}[] = [
+  { label: "Position X", property: "left", valueType: "number" },
+  { label: "Position Y", property: "top", valueType: "number" },
+  { label: "Width", property: "width", valueType: "number" },
+  { label: "Height", property: "height", valueType: "number" },
+  { label: "Opacity", property: "opacity", valueType: "number" },
+  { label: "Rotation", property: "angle", valueType: "number" },
+  { label: "Border Width", property: "strokeWidth", valueType: "number" },
+  { label: "Fill", property: "fill", valueType: "color" },
+  { label: "Stroke", property: "stroke", valueType: "color" },
+] as const;
 
-/** Timeline row for one canvas item, including keyframe details and easing. */
+/** Timeline row for one canvas item, including property keyframe details. */
 export default function TimelineItemRow({
   id,
   onSeekFromPointer,
   timelineDuration,
 }: TimelineItemRowProps) {
   const dispatch = useAppDispatch();
-  const { getObjectById } = useCanvasAppContext();
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const isSelected = useAppSelector(
-    (state) => state.editor.selectedId === id,
+  const isSelected = useAppSelector((state) =>
+    state.editor.selectedId.includes(id),
   );
   const name = useAppSelector(
     (state) => state.editor.itemsRecord[id]?.name ?? id,
   );
-  const keyframes = useAppSelector(
-    (state) => state.editor.itemsRecord[id]?.keyframe ?? [],
+  const itemKeyFrames = useAppSelector(
+    (state) => state.editor.itemsRecord[id]?.keyframe ?? null,
   );
-  const selectedKeyframe = useAppSelector(
-    (state) => state.editor.selectedKeyframe,
-  );
-  const keyframeSignature = useMemo(
-    () => keyframes.map((frame) => `${frame.id}:${frame.timestamp}`).join("|"),
-    [keyframes],
-  );
+  // TODO: This should be derived from the item's keyframe data, not the markers.
+  const animationSpan = getAnimationSpan(itemKeyFrames ?? []);
+  const hasKeyframes = (itemKeyFrames?.length ?? 0) > 1;
+  console.log(itemKeyFrames?.length);
 
-  const detailRows = useMemo(() => {
-    void keyframeSignature;
-    const instance = getObjectById(id);
-    if (!instance) return [];
-
-    const leftFrames = (instance.keyframes.left ?? []) as Keyframe[];
-    const topFrames = (instance.keyframes.top ?? []) as Keyframe[];
-    const widthFrames = (instance.keyframes.width ?? []) as Keyframe[];
-    const heightFrames = (instance.keyframes.height ?? []) as Keyframe[];
-    const opacityFrames = (instance.keyframes.opacity ?? []) as Keyframe[];
-    const angleFrames = (instance.keyframes.angle ?? []) as Keyframe[];
-    const fillFrames = (instance.colorKeyframes.fill ?? []) as ColorKeyframe[];
-    const strokeFrames = (instance.colorKeyframes.stroke ??
-      []) as ColorKeyframe[];
-
-    return [
-      buildSingleDetailRow("Position X", "left", leftFrames),
-      buildSingleDetailRow("Position Y", "top", topFrames),
-      buildSingleDetailRow("Width", "width", widthFrames),
-      buildSingleDetailRow("Height", "height", heightFrames),
-      buildSingleDetailRow("Opacity", "opacity", opacityFrames),
-      buildSingleDetailRow("Rotation", "angle", angleFrames),
-      buildColorDetailRow("Fill", "fill", fillFrames),
-      buildColorDetailRow("Stroke", "stroke", strokeFrames),
-    ].filter((row) => row.entries.length > 0);
-  }, [getObjectById, id, keyframeSignature]);
-
+  /** Updates the editor playhead using normalized timeline precision. */
   const seekToTime = (time: number) => {
     dispatch(setPlayheadTime(Number(time.toFixed(3))));
-  };
-
-  const selectKeyframe = (entry: DetailEntry) => {
-    seekToTime(entry.time);
-    dispatch(setSelectedId(id));
-    dispatch(
-      setSelectedKeyframe({
-        itemId: id,
-        keyframeId: entry.keyframeId,
-        property: entry.property,
-        timestamp: entry.time,
-      }),
-    );
-  };
-
-  const seekOnly = (time: number) => {
-    seekToTime(time);
-    dispatch(setSelectedId(id));
-    dispatch(setSelectedKeyframe(null));
   };
 
   return (
@@ -119,33 +75,35 @@ export default function TimelineItemRow({
               : "bg-[var(--wise-surface)]"
           }`}
           onClick={() => {
-            dispatch(setSelectedId(id));
+            dispatch(setSelectedId([id]));
           }}
         >
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="rounded p-0.5 text-slate-400 hover:bg-[var(--wise-surface-muted)] hover:text-slate-100"
-              aria-label={
-                isExpanded
-                  ? "Collapse keyframe details"
-                  : "Expand keyframe details"
-              }
-              onClick={(event) => {
-                event.stopPropagation();
-                setIsExpanded((prev) => !prev);
-              }}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className={`size-3 transition-transform ${isExpanded ? "rotate-90" : "rotate-0"}`}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
+            {hasKeyframes && (
+              <button
+                type="button"
+                className="rounded p-0.5 text-slate-400 hover:bg-[var(--wise-surface-muted)] hover:text-slate-100"
+                aria-label={
+                  isExpanded
+                    ? "Collapse keyframe details"
+                    : "Expand keyframe details"
+                }
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setIsExpanded((prev) => !prev);
+                }}
               >
-                <path d="M9 6l6 6-6 6" />
-              </svg>
-            </button>
+                <svg
+                  viewBox="0 0 24 24"
+                  className={`size-3 transition-transform ${isExpanded ? "rotate-90" : "rotate-0"}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M9 6l6 6-6 6" />
+                </svg>
+              </button>
+            )}
             <div className="w-full cursor-pointer text-left">{name}</div>
           </div>
         </div>
@@ -160,7 +118,7 @@ export default function TimelineItemRow({
           <div
             className={`relative h-6 rounded-sm border ${
               isSelected
-                ? "border-[var(--wise-accent)] shadow-[inset_0_0_0_1px_rgba(255, 255, 255, 0.42)]"
+                ? "border-[var(--wise-accent)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.42)]"
                 : "border-[var(--wise-border)]"
             }`}
             onClick={onSeekFromPointer}
@@ -170,153 +128,73 @@ export default function TimelineItemRow({
                 "repeating-linear-gradient(45deg, #2c2c2c, #2c2c2c 16px, #1f1f1f 16px, #1f1f1f 32px)",
             }}
           >
-            {keyframes.map((keyframe) => {
-              const left = clamp(
-                (keyframe.timestamp / timelineDuration) * 100,
-                0,
-                100,
-              );
-              return (
-                <button
-                  type="button"
-                  key={keyframe.id}
-                  className="absolute top-1/2 z-[5] size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#e5e7eb] bg-[var(--wise-accent)]"
-                  style={{ left: `${left}%` }}
-                  title={`${name} @ ${keyframe.timestamp.toFixed(2)}s`}
-                  onMouseDown={(event) => {
-                    event.stopPropagation();
-                    seekOnly(keyframe.timestamp);
-                  }}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    seekOnly(keyframe.timestamp);
-                  }}
-                />
-              );
-            })}
+            {animationSpan ? (
+              <button
+                type="button"
+                className="absolute top-1/2 z-30 h-full -translate-y-1/2 rounded-sm bg-[var(--wise-accent)]/70 shadow-[0_0_0_1px_rgba(229,231,235,0.24)]"
+                style={getAnimationSpanStyle(animationSpan, timelineDuration)}
+                title={`${name} animation ${animationSpan.start.toFixed(2)}s - ${animationSpan.end.toFixed(2)}s`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  dispatch(setSelectedId([id]));
+                  dispatch(setSelectedKeyframe(null));
+                  seekToTime(animationSpan.start);
+                }}
+              />
+            ) : null}
           </div>
         </div>
       </div>
 
       {isExpanded ? (
         <div className="border-t border-[var(--wise-border)] bg-[var(--wise-surface)]/60">
-          {detailRows.length === 0 ? (
-            <div className="grid grid-cols-[210px_1fr]">
-              <div className="sticky left-0 z-20 border-r border-[var(--wise-border)] bg-[var(--wise-surface)] px-3 py-2 pl-8 text-xs text-slate-500">
-                Details
-              </div>
-              <div className="px-3 py-2 text-xs text-slate-500">
-                No keyframe details available.
-              </div>
-            </div>
-          ) : (
-            detailRows.map((row) => {
-              return (
-                <div
-                  key={row.label}
-                  className="grid grid-cols-[210px_1fr] border-b border-[var(--wise-border)] last:border-b-0"
-                >
-                  <div className="sticky left-0 z-20 border-r border-[var(--wise-border)] bg-[var(--wise-surface)] px-3 py-2 pl-8 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                    {row.label}
-                  </div>
-                  <div
-                    className="py-2"
-                    style={{
-                      paddingLeft: KEYFRAME_SECTION_HORIZONTAL_PADDING,
-                      paddingRight: KEYFRAME_SECTION_HORIZONTAL_PADDING,
-                    }}
-                  >
-                    <div
-                      className="relative h-6 rounded border border-[var(--wise-border)]"
-                      style={{
-                        background:
-                          "repeating-linear-gradient(45deg, #2c2c2c, #2c2c2c 16px, #1f1f1f 16px, #1f1f1f 32px)",
-                      }}
-                    >
-                      {row.entries.map((entry, index) => {
-                        const left = clamp(
-                          (entry.time / timelineDuration) * 100,
-                          0,
-                          100,
-                        );
-                        const isSelectedKeyframe =
-                          selectedKeyframe?.itemId === id &&
-                          selectedKeyframe.keyframeId === entry.keyframeId;
-                        return (
-                          <button
-                            type="button"
-                            key={`${row.label}-${entry.time}-${index}`}
-                            className={`absolute top-1/2 z-[5] -translate-x-1/2 -translate-y-1/2 rounded-full border transition ${
-                              isSelectedKeyframe
-                                ? "size-3 border-[#2563eb] bg-[var(--wise-accent)] shadow-[0_0_0_1px_rgba(37,99,235,0.35)]"
-                                : "size-2 border-[#e5e7eb] bg-[var(--wise-accent)]"
-                            }`}
-                            style={{ left: `${left}%` }}
-                            title={`${row.label} @ ${entry.time.toFixed(2)}s • ${entry.text}`}
-                            onMouseDown={(event) => {
-                              event.stopPropagation();
-                              selectKeyframe(entry);
-                            }}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              selectKeyframe(entry);
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
+          {DETAIL_ROW_DEFINITIONS.map((row) => (
+            <TimelineItemPropertyRow
+              key={row.property}
+              itemId={id}
+              label={row.label}
+              property={row.property}
+              valueType={row.valueType}
+              timelineDuration={timelineDuration}
+            />
+          ))}
         </div>
       ) : null}
     </div>
   );
 }
 
+/** Clamps timeline percentages and pointer positions into the valid range. */
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function formatValue(value: number) {
-  if (!Number.isFinite(value)) return "-";
-  return Math.abs(value) >= 100 ? value.toFixed(0) : value.toFixed(2);
-}
+/** Derives the visible animation range from the item's timeline markers. */
+function getAnimationSpan(
+  markers: Array<{
+    id: string;
+    timestamp: number;
+  }>,
+): AnimationSpan | null {
+  if (markers.length < 0) return null;
 
-function buildSingleDetailRow(
-  label: string,
-  property: string,
-  frames: Keyframe[],
-): DetailRow {
+  const sortedMarkers = [...markers].sort(
+    (left, right) => left.timestamp - right.timestamp,
+  );
   return {
-    label,
-    entries: frames
-      .map((frame) => ({
-        keyframeId: frame.id,
-        property,
-        time: frame.time,
-        text: formatValue(frame.value),
-      }))
-      .sort((a, b) => a.time - b.time),
+    start: sortedMarkers[0].timestamp,
+    end: sortedMarkers[sortedMarkers.length - 1].timestamp,
   };
 }
 
-function buildColorDetailRow(
-  label: string,
-  property: string,
-  frames: ColorKeyframe[],
-): DetailRow {
+/** Computes the top-row animation bar position from the marker span. */
+function getAnimationSpanStyle(span: AnimationSpan, timelineDuration: number) {
+  const start = clamp((span.start / timelineDuration) * 100, 0, 100);
+  const end = clamp((span.end / timelineDuration) * 100, 0, 100);
+  const width = Math.max(end - start, 0);
+
   return {
-    label,
-    entries: frames
-      .map((frame) => ({
-        keyframeId: frame.id,
-        property,
-        time: frame.time,
-        text: rgbaBytesToCss(frame.value),
-      }))
-      .sort((a, b) => a.time - b.time),
+    left: `${start}%`,
+    width: `${width}%`,
   };
 }

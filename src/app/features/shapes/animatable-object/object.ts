@@ -1,7 +1,6 @@
 /** Object.Ts shape model and behavior. */
 import type { FabricObject } from "fabric";
 import type {
-  AnimatableProperties,
   AnimatableSnapshot,
   ColorAnimatableProperties,
   ColorKeyframe,
@@ -11,6 +10,7 @@ import type {
   KeyframesByProperty,
   KeyframeEasing,
   Keyframe,
+  NumericAnimatableProperties,
   TimelineMarker,
 } from "./types";
 import {
@@ -30,13 +30,14 @@ import {
 } from "./util";
 
 export class AnimatableObject {
-  static animatableProperties: (keyof AnimatableProperties)[] = [
+  static animatableProperties: (keyof NumericAnimatableProperties)[] = [
     "left",
     "top",
     "width",
     "height",
     "opacity",
     "angle",
+    "strokeWidth",
   ];
   static colorAnimatableProperties: (keyof ColorAnimatableProperties)[] = [
     "fill",
@@ -59,10 +60,10 @@ export class AnimatableObject {
     const centerPoint = this.fabricObject.getCenterPoint();
     this.fabricObject.set({
       centeredRotation: true,
-      originX: 'center',
-      originY: 'center',
+      originX: "center",
+      originY: "center",
     });
-    this.fabricObject.setPositionByOrigin(centerPoint, 'center', 'center');
+    this.fabricObject.setPositionByOrigin(centerPoint, "center", "center");
 
     if (
       Object.keys(this.keyframes).length === 0 &&
@@ -75,13 +76,15 @@ export class AnimatableObject {
   }
 
   getSnapshot(): AnimatableSnapshot {
+    const { x, y } = this.fabricObject.getXY();
     return {
-      left: getNumeric(this.fabricObject.left, 0),
-      top: getNumeric(this.fabricObject.top, 0),
+      left: getNumeric(x, 0),
+      top: getNumeric(y, 0),
       width: Math.max(1, this.fabricObject.getScaledWidth()),
       height: Math.max(1, this.fabricObject.getScaledHeight()),
       opacity: clamp(getNumeric(this.fabricObject.opacity, 1), 0, 1),
       angle: getNumeric(this.fabricObject.angle, 0),
+      strokeWidth: clamp(getNumeric(this.fabricObject.strokeWidth, 0), 0, 9999),
     };
   }
 
@@ -102,18 +105,19 @@ export class AnimatableObject {
     }
   }
 
-  addKeyframe<K extends keyof AnimatableProperties>(
-    keyframe: Omit<Keyframe<K>, 'id' | 'easing'> & { easing?: KeyframeEasing },
+  addKeyframe<K extends keyof NumericAnimatableProperties>(
+    keyframe: Omit<Keyframe<K>, "id" | "easing"> & { easing?: KeyframeEasing },
   ) {
-    const propertyKeyframes = (this.keyframes[keyframe.property] ?? []) as Keyframe[];
+    const propertyKeyframes = (this.keyframes[keyframe.property] ??
+      []) as Keyframe[];
     const [insertIndex, shouldReplace] = findInsertionIndex(
       propertyKeyframes,
       keyframe.time,
     );
     const nextKeyframe: Keyframe = {
       ...keyframe,
-      easing: keyframe.easing ?? 'linear',
-      id: createId('kf'),
+      easing: keyframe.easing ?? "linear",
+      id: createId("kf"),
     };
 
     propertyKeyframes.splice(insertIndex, shouldReplace ? 1 : 0, nextKeyframe);
@@ -229,7 +233,7 @@ export class AnimatableObject {
         previous.value as number,
         next.value as number,
         easedProgress,
-      ) as AnimatableProperties[typeof property];
+      ) as NumericAnimatableProperties[typeof property];
 
       this.updateProperty(property, value);
     }
@@ -315,9 +319,9 @@ export class AnimatableObject {
     return false;
   }
 
-  private updateProperty<K extends keyof AnimatableProperties>(
+  private updateProperty<K extends keyof NumericAnimatableProperties>(
     property: K,
-    value: AnimatableProperties[K],
+    value: NumericAnimatableProperties[K],
   ) {
     if (property === "width") {
       const currentWidth = this.fabricObject.getScaledWidth();

@@ -35,7 +35,8 @@ export default function CanvasSidePanelAnimations({
   keyframeTimesText,
 }: CanvasSidePanelAnimationsProps) {
   const dispatch = useDispatch<AppDispatch>();
-  const selectedId = useSelector((state: RootState) => state.editor.selectedId);
+  const selectedIds = useSelector((state: RootState) => state.editor.selectedId);
+  const selectedId = selectedIds[0] ?? null;
   const selectedItem = useSelector((state: RootState) =>
     selectedId ? state.editor.itemsRecord[selectedId] : null,
   );
@@ -158,7 +159,7 @@ export default function CanvasSidePanelAnimations({
       sourceCanvas.remove(sourceObject);
       unregisterInstance(selectedId);
       dispatch(removeItemRecord(selectedId));
-      dispatch(setSelectedId(null));
+      dispatch(setSelectedId([]));
 
       const createdIds: string[] = [];
       const markerTimesByChar = new Map<string, number[]>();
@@ -196,22 +197,25 @@ export default function CanvasSidePanelAnimations({
         const index = createdIds.length;
         const charStart = startTime + index * charStagger;
         const charEnd = charStart + charDuration;
+        const charSnapshot = charObject.getSnapshot();
 
         charObject.addSnapshotKeyframe(charStart, {
           left: baseLeft + cursorX,
           top: baseTop + 18,
           opacity: 0,
           angle: baseAngle,
-          width: charObject.getSnapshot().width,
-          height: charObject.getSnapshot().height,
+          width: charSnapshot.width,
+          height: charSnapshot.height,
+          strokeWidth: charSnapshot.strokeWidth,
         });
         charObject.addSnapshotKeyframe(charEnd, {
           left: baseLeft + cursorX,
           top: baseTop,
           opacity: baseOpacity,
           angle: baseAngle,
-          width: charObject.getSnapshot().width,
-          height: charObject.getSnapshot().height,
+          width: charSnapshot.width,
+          height: charSnapshot.height,
+          strokeWidth: charSnapshot.strokeWidth,
         });
         charObject.seek(startTime);
 
@@ -237,7 +241,7 @@ export default function CanvasSidePanelAnimations({
       });
 
       if (createdIds.length > 0) {
-        dispatch(setSelectedId(createdIds[0]));
+        dispatch(setSelectedId([createdIds[0]]));
       }
       sourceCanvas.requestRenderAll();
     }
@@ -275,7 +279,7 @@ export default function CanvasSidePanelAnimations({
             onClick={() => {
               applyAnimationTemplate(template);
             }}
-            className="group flex min-h-[116px] flex-col rounded-xl border border-white/8 bg-[rgba(255,255,255,0.02)] p-2.5 text-left transition hover:border-[#2563eb]/35 hover:bg-[rgba(255,255,255,0.04)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="group flex min-h-[116px] flex-col rounded-xl border border-white/8 bg-[rgba(255,255,255,0.02)] p-2.5 text-left transition hover:border-white/18 hover:bg-[rgba(255,255,255,0.04)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <div className="mb-2 flex items-start justify-between gap-2">
               <p className="text-[11px] leading-4 text-slate-200">
@@ -311,7 +315,7 @@ export default function CanvasSidePanelAnimations({
               onClick={() => {
                 applyTextAnimationTemplate(template);
               }}
-              className="group rounded-xl border border-white/8 bg-[rgba(255,255,255,0.02)] p-2.5 text-left transition hover:border-[#2563eb]/35 hover:bg-[rgba(255,255,255,0.04)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="group rounded-xl border border-white/8 bg-[rgba(255,255,255,0.02)] p-2.5 text-left transition hover:border-white/18 hover:bg-[rgba(255,255,255,0.04)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <div className="mb-2 flex items-start justify-between gap-2">
                 <p className="text-[11px] font-semibold leading-4 text-slate-200">

@@ -1,9 +1,10 @@
 /** Design.Tsx canvas side panel UI logic. */
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent as ReactKeyboardEvent } from "react";
+import type { FabricObject } from "fabric";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
 import { useAppDispatch, useAppSelector } from "../../../store";
 import { upsertItemRecord } from "../../../store/editor-slice";
+import { getVideoWorkAreaRect } from "../../export/video-work-area";
 import { appendUniqueMarkerTimes } from "../util/animations-utils";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 import {
@@ -15,42 +16,58 @@ import {
 } from "../../../../const";
 import { MaskSourceControl } from "./mask-source-control";
 import type { DesignFormState } from "../../../../types";
+import { FieldShell, KeyframeActionButton } from "./design-components";
+import DesignAlignmentControls from "./design-alignment-controls";
+import DesignNumberField from "./design-number-field";
+import {
+  clamp,
+  clampMin,
+  formatNumberInput,
+  getNumericKeyframeFields,
+  getNumericKeyframeValue,
+  removeNull,
+  toPrecisionNumber,
+  TRANSFORM_FIELD_ROWS,
+} from "./design-helpers";
+import type {
+  ColorFieldKey,
+  HorizontalAlignment,
+  KeyframeField,
+  NumericScrubField,
+  SupportedKeyframeField,
+  VerticalAlignment,
+} from "./design-helpers";
 import {
   cardClass,
   ensureGoogleFontsLoaded,
   fieldClass,
   labelClass,
   normalizeHexColor,
-  readDesignForm,
+  readDesignFormFromObject,
   sectionTitleClass,
 } from "./util";
-
-type ColorFieldKey = "fill" | "stroke";
-type KeyframeField = keyof Omit<DesignFormState, "text">;
-type SupportedKeyframeField =
-  | "left"
-  | "top"
-  | "width"
-  | "height"
-  | "opacity"
-  | "angle"
-  | "fill"
-  | "stroke";
-const INPUT_PRECISION = 3;
 
 /** Design form for editing transform, style, text, and mask settings. */
 export default function CanvasSidePanelDesign() {
   const dispatch = useAppDispatch();
-  const { getObjectById: getInstanceById } = useCanvasAppContext();
+  const { fabricCanvasRef, getObjectById: getInstanceById } = useCanvasAppContext();
   const [designForm, setDesignForm] = useState<DesignFormState>(EMPTY_FORM);
-  const [activeColorField, setActiveColorField] =
-    useState<ColorFieldKey | null>(null);
+  const [activeColorField, setActiveColorField] = useState<ColorFieldKey | null>(null);
+  const [transformTargetObject, setTransformTargetObject] = useState<FabricObject | null>(null);
   const fillColorSectionRef = useRef<HTMLLabelElement>(null);
   const strokeColorSectionRef = useRef<HTMLLabelElement>(null);
+  const designFormRef = useRef(designForm);
 
-  const selectedId = useAppSelector((state) => state.editor.selectedId);
-  const selectedItem = useAppSelector((state) =>
-    selectedId ? state.editor.itemsRecord[selectedId] : null,
+  const selectedIds = useAppSelector((state) => state.editor.selectedId);
+  const selectedId = selectedIds[0] ?? null;
+  const selectedItem = useAppSelector((state) => state.editor.itemsRecord?.[selectedId] ?? null);
+  const selectedItems = useAppSelector((state) =>
+    selectedIds
+      .map((id) => ({
+        id,
+        item: state.editor.itemsRecord?.[id] ?? null,
+      }))
+      .filter(removeNull),
   );
   const playheadTime = useAppSelector((state) => state.editor.playHeadTime);
 
@@ -60,25 +77,39 @@ export default function CanvasSidePanelDesign() {
     () => (selectedId ? getInstanceById(selectedId) : undefined),
     [getInstanceById, selectedId],
   );
+  const isMultiSelected = selectedIds.length > 1;
 
   const selectedObject = selectedInstance?.fabricObject;
   const supportsText = typeof selectedObject?.get("text") === "string";
   const supportsFill = typeof selectedObject?.get("fill") === "string";
   const supportsStroke = typeof selectedObject?.get("stroke") === "string";
 
-  // eslint-disable-next-line react-hooks/refs
-  if (prevSelectedId.current !== selectedId) {
-    setActiveColorField(null);
-    // eslint-disable-next-line react-hooks/refs
-    prevSelectedId.current = selectedId;
-  }
+  useEffect(() => {
+    designFormRef.current = designForm;
+  }, [designForm]);
 
   useEffect(() => {
-    if (!selectedInstance) return;
+    if (prevSelectedId.current === selectedId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActiveColorField(null);
+    prevSelectedId.current = selectedId;
+  }, [selectedId]);
 
-    const object = selectedInstance.fabricObject;
+  useEffect(() => {
+    if (isMultiSelected) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTransformTargetObject(fabricCanvasRef.current?.getActiveObject() ?? null);
+      return;
+    }
+    setTransformTargetObject(selectedInstance?.fabricObject ?? null);
+  }, [fabricCanvasRef, isMultiSelected, selectedInstance]);
+
+  useEffect(() => {
+    if (!transformTargetObject) return;
+
+    const object = transformTargetObject;
     const syncFromCanvas = () => {
-      setDesignForm(readDesignForm(selectedInstance));
+      setDesignForm(readDesignFormFromObject(object));
     };
 
     syncFromCanvas();
@@ -97,7 +128,7 @@ export default function CanvasSidePanelDesign() {
       object.off("modified", syncFromCanvas);
       object.off("my:custom:seek", syncFromCanvas);
     };
-  }, [selectedInstance]);
+  }, [transformTargetObject]);
 
   useEffect(() => {
     ensureGoogleFontsLoaded();
@@ -109,12 +140,8 @@ export default function CanvasSidePanelDesign() {
 
     const onDocumentMouseDown = (event: MouseEvent) => {
       const target = event.target as Node | null;
-      const isInFillSection = Boolean(
-        fillColorSectionRef.current?.contains(target),
-      );
-      const isInStrokeSection = Boolean(
-        strokeColorSectionRef.current?.contains(target),
-      );
+      const isInFillSection = Boolean(fillColorSectionRef.current?.contains(target));
+      const isInStrokeSection = Boolean(strokeColorSectionRef.current?.contains(target));
       if (!isInFillSection && !isInStrokeSection) {
         setActiveColorField(null);
       }
@@ -126,162 +153,202 @@ export default function CanvasSidePanelDesign() {
     };
   }, [activeColorField]);
 
-  const commitDesignForm = (
-    nextForm: DesignFormState,
-    changedFields: KeyframeField[] = [],
-  ) => {
-    if (!selectedId || !selectedItem || !selectedInstance) return;
-
-    const object = selectedInstance.fabricObject;
-    const left = toPrecisionNumber(Number(nextForm.left));
-    const top = toPrecisionNumber(Number(nextForm.top));
-    const width = clampMin(toPrecisionNumber(Number(nextForm.width)), 0);
-    const height = clampMin(toPrecisionNumber(Number(nextForm.height)), 0);
-    const opacity = clamp(toPrecisionNumber(Number(nextForm.opacity)), 0, 1);
-    const angle = toPrecisionNumber(Number(nextForm.angle));
-    const strokeWidth = clampMin(
-      toPrecisionNumber(Number(nextForm.strokeWidth)),
-      0,
-    );
-
-    if (Number.isFinite(left)) object.set("left", left);
-    if (Number.isFinite(top)) object.set("top", top);
-    if (Number.isFinite(width) && width > 0) {
-      const currentWidth = object.getScaledWidth();
-      const currentScaleX = object.scaleX ?? 1;
-      if (currentWidth > 0) {
-        object.set("scaleX", currentScaleX * (width / currentWidth));
-      }
-    }
-    if (Number.isFinite(height) && height > 0) {
-      const currentHeight = object.getScaledHeight();
-      const currentScaleY = object.scaleY ?? 1;
-      if (currentHeight > 0) {
-        object.set("scaleY", currentScaleY * (height / currentHeight));
-      }
-    }
-    if (Number.isFinite(opacity)) object.set("opacity", opacity);
-    if (Number.isFinite(angle)) object.set("angle", angle);
-    if (Number.isFinite(strokeWidth)) object.set("strokeWidth", strokeWidth);
-
-    if (supportsFill) object.set("fill", nextForm.fill.trim());
-    if (supportsStroke) object.set("stroke", nextForm.stroke.trim());
-    if (supportsText) {
-      object.set("text", nextForm.text);
-      object.set("fontFamily", nextForm.fontFamily.trim());
-      const fontSize = toPrecisionNumber(Number(nextForm.fontSize));
-      if (Number.isFinite(fontSize) && fontSize > 0) {
-        object.set("fontSize", fontSize);
-      }
-      object.set("fontStyle", nextForm.fontStyle);
-      object.set("fontWeight", nextForm.fontWeight);
-      void document.fonts
-        ?.load(`16px ${nextForm.fontFamily.trim()}`)
-        .then(() => {
-          object.set("dirty", true);
-          object.canvas?.requestRenderAll();
-        });
-    }
-
-    object.setCoords();
-    object.canvas?.requestRenderAll();
-    setDesignForm((prev) => ({
-      ...prev,
-      left: Number.isFinite(left) ? formatNumberInput(left) : prev.left,
-      top: Number.isFinite(top) ? formatNumberInput(top) : prev.top,
-      width: formatNumberInput(object.getScaledWidth()),
-      height: formatNumberInput(object.getScaledHeight()),
-      opacity: Number.isFinite(opacity)
-        ? formatNumberInput(opacity)
-        : prev.opacity,
-      angle: Number.isFinite(angle) ? formatNumberInput(angle) : prev.angle,
-      strokeWidth: Number.isFinite(strokeWidth)
-        ? formatNumberInput(strokeWidth)
-        : prev.strokeWidth,
-      fontSize:
-        supportsText &&
-        Number.isFinite(toPrecisionNumber(Number(nextForm.fontSize))) &&
-        Number(nextForm.fontSize) > 0
-          ? formatNumberInput(toPrecisionNumber(Number(nextForm.fontSize)))
-          : prev.fontSize,
-    }));
-
-    if (changedFields.length === 0) return;
-
-    addKeyframesForFields(changedFields, nextForm);
-  };
-
   /** Adds keyframes for the requested properties at the current playhead time. */
-  const addKeyframesForFields = (fields: KeyframeField[], nextForm: DesignFormState) => {
-    if (!selectedId || !selectedItem || !selectedInstance) return;
+  const addKeyframesForFields = useCallback(
+    (fields: KeyframeField[], nextForm: DesignFormState) => {
+      const numericFieldsToCapture = getNumericKeyframeFields(fields);
 
-    let addedKeyframe = false;
+      /** Syncs timeline markers back into the item record after keyframe changes. */
+      const updateItemMarkers = (id: string, item: typeof selectedItem) => {
+        if (!item) return;
 
-    const numericFieldsToCapture = new Set<
-      "left" | "top" | "width" | "height" | "opacity" | "angle"
-    >();
-    fields.forEach((field) => {
-      if (
-        field === "left" ||
-        field === "top" ||
-        field === "width" ||
-        field === "height" ||
-        field === "opacity" ||
-        field === "angle"
-      ) {
-        numericFieldsToCapture.add(field);
+        const nextMarkers = appendUniqueMarkerTimes(
+          item.keyframe,
+          [playheadTime],
+          CANVAS_KEYFRAME_EPSILON,
+        );
+
+        dispatch(
+          upsertItemRecord({
+            id,
+            value: {
+              ...item,
+              keyframe: nextMarkers,
+            },
+          }),
+        );
+      };
+
+      if (isMultiSelected) {
+        if (numericFieldsToCapture.length === 0) return;
+
+        selectedItems.forEach(({ id, item }) => {
+          const instance = getInstanceById(id);
+          if (!instance) return;
+
+          const snapshot = instance.getSnapshot();
+          numericFieldsToCapture.forEach((field) => {
+            instance.addKeyframe({
+              property: field,
+              value: snapshot[field],
+              time: playheadTime,
+              easing: "linear",
+            });
+          });
+
+          updateItemMarkers(id, item);
+        });
+        return;
       }
-    });
 
-    numericFieldsToCapture.forEach((field) => {
-      const numericValue =
-        field === "width"
-          ? selectedInstance.fabricObject.getScaledWidth()
-          : field === "height"
-            ? selectedInstance.fabricObject.getScaledHeight()
-            : Number(selectedInstance.fabricObject.get(field));
-      if (!Number.isFinite(numericValue)) return;
-      selectedInstance.addKeyframe({
-        property: field,
-        value: numericValue,
-        time: playheadTime,
-        easing: "linear",
-      });
-      addedKeyframe = true;
-    });
+      if (!selectedId || !selectedItem || !selectedInstance) return;
 
-    fields.forEach((field) => {
-      if (field === "fill" || field === "stroke") {
-        const colorValue = nextForm[field].trim();
-        if (!colorValue) return;
-        selectedInstance.addColorKeyframe({
+      let addedKeyframe = false;
+
+      numericFieldsToCapture.forEach((field) => {
+        const numericValue = getNumericKeyframeValue(selectedInstance.fabricObject, field);
+        if (!Number.isFinite(numericValue)) return;
+        selectedInstance.addKeyframe({
           property: field,
-          value: colorValue,
+          value: numericValue,
           time: playheadTime,
           easing: "linear",
         });
         addedKeyframe = true;
+      });
+
+      fields.forEach((field) => {
+        if (field === "fill" || field === "stroke") {
+          const colorValue = nextForm[field].trim();
+          if (!colorValue) return;
+          selectedInstance.addColorKeyframe({
+            property: field,
+            value: colorValue,
+            time: playheadTime,
+            easing: "linear",
+          });
+          addedKeyframe = true;
+        }
+      });
+
+      if (!addedKeyframe) return;
+
+      updateItemMarkers(selectedId, selectedItem);
+    },
+    [
+      dispatch,
+      getInstanceById,
+      isMultiSelected,
+      playheadTime,
+      selectedId,
+      selectedInstance,
+      selectedItem,
+      selectedItems,
+    ],
+  );
+
+  const commitDesignForm = useCallback(
+    (nextForm: DesignFormState, changedFields: KeyframeField[] = []) => {
+      if (!transformTargetObject) return;
+
+      const object = transformTargetObject;
+      const left = toPrecisionNumber(Number(nextForm.left));
+      const top = toPrecisionNumber(Number(nextForm.top));
+      const width = clampMin(toPrecisionNumber(Number(nextForm.width)), 0);
+      const height = clampMin(toPrecisionNumber(Number(nextForm.height)), 0);
+      const opacity = clamp(toPrecisionNumber(Number(nextForm.opacity)), 0, 1);
+      const angle = toPrecisionNumber(Number(nextForm.angle));
+      const strokeWidth = clampMin(toPrecisionNumber(Number(nextForm.strokeWidth)), 0);
+
+      if (Number.isFinite(left)) object.set("left", left);
+      if (Number.isFinite(top)) object.set("top", top);
+      if (Number.isFinite(width) && width > 0) {
+        const currentWidth = object.getScaledWidth();
+        const currentScaleX = object.scaleX ?? 1;
+        if (currentWidth > 0) {
+          object.set("scaleX", currentScaleX * (width / currentWidth));
+        }
       }
-    });
+      if (Number.isFinite(height) && height > 0) {
+        const currentHeight = object.getScaledHeight();
+        const currentScaleY = object.scaleY ?? 1;
+        if (currentHeight > 0) {
+          object.set("scaleY", currentScaleY * (height / currentHeight));
+        }
+      }
+      if (Number.isFinite(opacity) && !isMultiSelected) object.set("opacity", opacity);
+      if (Number.isFinite(angle)) object.set("angle", angle);
+      if (Number.isFinite(strokeWidth) && !isMultiSelected) {
+        object.set("strokeWidth", strokeWidth);
+      }
 
-    if (!addedKeyframe) return;
+      if (!isMultiSelected && supportsFill) object.set("fill", nextForm.fill.trim());
+      if (!isMultiSelected && supportsStroke) {
+        object.set("stroke", nextForm.stroke.trim());
+      }
+      if (!isMultiSelected && supportsText) {
+        object.set("text", nextForm.text);
+        object.set("fontFamily", nextForm.fontFamily.trim());
+        const fontSize = toPrecisionNumber(Number(nextForm.fontSize));
+        if (Number.isFinite(fontSize) && fontSize > 0) {
+          object.set("fontSize", fontSize);
+        }
+        object.set("fontStyle", nextForm.fontStyle);
+        object.set("fontWeight", nextForm.fontWeight);
+        void document.fonts?.load(`16px ${nextForm.fontFamily.trim()}`).then(() => {
+          object.set("dirty", true);
+          object.canvas?.requestRenderAll();
+        });
+      }
 
-    const nextMarkers = appendUniqueMarkerTimes(
-      selectedItem.keyframe,
-      [playheadTime],
-      CANVAS_KEYFRAME_EPSILON,
-    );
+      object.setCoords();
+      object.canvas?.requestRenderAll();
+      setDesignForm((prev) => ({
+        ...prev,
+        left: Number.isFinite(left) ? formatNumberInput(left) : prev.left,
+        top: Number.isFinite(top) ? formatNumberInput(top) : prev.top,
+        width: formatNumberInput(object.getScaledWidth()),
+        height: formatNumberInput(object.getScaledHeight()),
+        opacity: Number.isFinite(opacity) ? formatNumberInput(opacity) : prev.opacity,
+        angle: Number.isFinite(angle) ? formatNumberInput(angle) : prev.angle,
+        strokeWidth: Number.isFinite(strokeWidth)
+          ? formatNumberInput(strokeWidth)
+          : prev.strokeWidth,
+        fontSize:
+          supportsText &&
+          Number.isFinite(toPrecisionNumber(Number(nextForm.fontSize))) &&
+          Number(nextForm.fontSize) > 0
+            ? formatNumberInput(toPrecisionNumber(Number(nextForm.fontSize)))
+            : prev.fontSize,
+      }));
 
-    dispatch(
-      upsertItemRecord({
-        id: selectedId,
-        value: {
-          ...selectedItem,
-          keyframe: nextMarkers,
-        },
-      }),
-    );
-  };
+      if (changedFields.length === 0) return;
+
+      addKeyframesForFields(changedFields, nextForm);
+    },
+    [
+      addKeyframesForFields,
+      isMultiSelected,
+      supportsFill,
+      supportsStroke,
+      supportsText,
+      transformTargetObject,
+    ],
+  );
+
+  /** Commits a single numeric field change coming from a child field component. */
+  const commitNumericField = useCallback(
+    (field: NumericScrubField, value: string, shouldKeyframe: boolean) => {
+      const nextForm = {
+        ...designFormRef.current,
+        [field]: value,
+      };
+
+      designFormRef.current = nextForm;
+      commitDesignForm(nextForm, shouldKeyframe ? [field] : []);
+    },
+    [commitDesignForm],
+  );
 
   /** Commits the current field value and adds a keyframe for that property. */
   const addPropertyKeyframe = (field: SupportedKeyframeField) => {
@@ -291,7 +358,7 @@ export default function CanvasSidePanelDesign() {
 
   /** Reports whether the selected item already has a keyframe for a field now. */
   const hasKeyframeAtPlayhead = (field: SupportedKeyframeField) => {
-    if (!selectedInstance) return false;
+    if (!selectedInstance || isMultiSelected) return false;
 
     const frames =
       field === "fill" || field === "stroke"
@@ -299,18 +366,11 @@ export default function CanvasSidePanelDesign() {
         : selectedInstance.keyframes[field];
 
     return Boolean(
-      frames?.some(
-        (frame) =>
-          Math.abs(frame.time - playheadTime) <= CANVAS_KEYFRAME_EPSILON,
-      ),
+      frames?.some((frame) => Math.abs(frame.time - playheadTime) <= CANVAS_KEYFRAME_EPSILON),
     );
   };
 
-  const setColorField = (
-    field: ColorFieldKey,
-    value: string,
-    shouldCommit: boolean,
-  ) => {
+  const setColorField = (field: ColorFieldKey, value: string, shouldCommit: boolean) => {
     setDesignForm((prev) => {
       const next = { ...prev, [field]: value };
       if (shouldCommit) {
@@ -320,212 +380,101 @@ export default function CanvasSidePanelDesign() {
     });
   };
 
-  const onInputKeyDown = (
-    event: ReactKeyboardEvent<HTMLInputElement>,
-    changedFields: KeyframeField[] = [],
+  /** Aligns the active selection to the video area along a requested axis. */
+  const alignSelectionToVideoArea = (
+    axis: HorizontalAlignment | VerticalAlignment,
+    activeAspectRatio: number,
   ) => {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    commitDesignForm(designForm, changedFields);
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !transformTargetObject) return;
+
+    const videoArea = getVideoWorkAreaRect(
+      canvas.getWidth(),
+      canvas.getHeight(),
+      activeAspectRatio,
+    );
+    const bounds = transformTargetObject.getBoundingRect();
+    const currentLeft = transformTargetObject.left ?? 0;
+    const currentTop = transformTargetObject.top ?? 0;
+    const boundsCenterX = bounds.left + bounds.width / 2;
+    const boundsCenterY = bounds.top + bounds.height / 2;
+
+    let nextLeft = currentLeft;
+    let nextTop = currentTop;
+
+    if (axis === "left") {
+      nextLeft += videoArea.left - bounds.left;
+    } else if (axis === "center") {
+      nextLeft += videoArea.left + videoArea.width / 2 - boundsCenterX;
+    } else if (axis === "right") {
+      nextLeft += videoArea.left + videoArea.width - (bounds.left + bounds.width);
+    } else if (axis === "top") {
+      nextTop += videoArea.top - bounds.top;
+    } else if (axis === "middle") {
+      nextTop += videoArea.top + videoArea.height / 2 - boundsCenterY;
+    } else if (axis === "bottom") {
+      nextTop += videoArea.top + videoArea.height - (bounds.top + bounds.height);
+    }
+
+    transformTargetObject.set({
+      left: nextLeft,
+      top: nextTop,
+    });
+    transformTargetObject.setCoords();
+    transformTargetObject.canvas?.requestRenderAll();
+    setDesignForm(readDesignFormFromObject(transformTargetObject));
   };
 
   return (
     <>
       <section className={cardClass}>
-        {!selectedInstance ? (
-          <p className="text-xs text-[#8f8f8f]">
-            Select an item to edit properties.
-          </p>
+        {!transformTargetObject ? (
+          <p className="text-xs text-[#8f8f8f]">Select an item to edit properties.</p>
         ) : (
           <>
             <h4 className={sectionTitleClass}>Transform</h4>
-            <div className="grid grid-cols-2 gap-2">
-              <label className={labelClass}>
-                <span className="text-[#d5d8e1]">Position X</span>
-                <div className="relative">
-                  <KeyframeActionButton
-                    isKeyframed={hasKeyframeAtPlayhead("left")}
-                    label="Position X"
+            <DesignAlignmentControls onAlign={alignSelectionToVideoArea} />
+            {TRANSFORM_FIELD_ROWS.map((row) => (
+              <div className="grid grid-cols-2 gap-2.5" key={row[0].changedField}>
+                {row.map((field, index) => (
+                  <DesignNumberField
+                    key={field.changedField}
+                    field={field.changedField as NumericScrubField}
+                    groupLabel={field.groupLabel}
+                    inputClassName={field.inputClassName}
+                    inputValue={designForm[field.changedField]}
+                    isKeyframed={hasKeyframeAtPlayhead(field.keyframeField)}
+                    isSecondaryLabel={index > 0}
+                    keyframeLabel={field.keyframeLabel}
                     onAddKeyframe={() => {
-                      addPropertyKeyframe("left");
+                      addPropertyKeyframe(field.keyframeField);
                     }}
+                    onCommitValue={commitNumericField}
+                    prefix={field.prefix}
+                    shapeId={selectedId}
                   />
-                  <input
-                    type="number"
-                    step={0.001}
-                    value={designForm.left}
-                    onChange={(event) => {
-                      setDesignForm((prev) => ({
-                        ...prev,
-                        left: event.target.value,
-                      }));
-                    }}
-                    onBlur={() => commitDesignForm(designForm, ["left"])}
-                    onKeyDown={(event) => onInputKeyDown(event, ["left"])}
-                    className={`${fieldClass} pr-9`}
-                  />
-                </div>
-              </label>
-              <label className={labelClass}>
-                <span className="text-[#d5d8e1]">Position Y</span>
-                <div className="relative">
-                  <KeyframeActionButton
-                    isKeyframed={hasKeyframeAtPlayhead("top")}
-                    label="Position Y"
-                    onAddKeyframe={() => {
-                      addPropertyKeyframe("top");
-                    }}
-                  />
-                  <input
-                    type="number"
-                    step={0.001}
-                    value={designForm.top}
-                    onChange={(event) => {
-                      setDesignForm((prev) => ({
-                        ...prev,
-                        top: event.target.value,
-                      }));
-                    }}
-                    onBlur={() => commitDesignForm(designForm, ["top"])}
-                    onKeyDown={(event) => onInputKeyDown(event, ["top"])}
-                    className={`${fieldClass} pr-9`}
-                  />
-                </div>
-              </label>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <label className={labelClass}>
-                <span className="text-[#d5d8e1]">Width</span>
-                <div className="relative">
-                  <KeyframeActionButton
-                    isKeyframed={hasKeyframeAtPlayhead("width")}
-                    label="Width"
-                    onAddKeyframe={() => {
-                      addPropertyKeyframe("width");
-                    }}
-                  />
-                  <input
-                    type="number"
-                    min={0.001}
-                    step={0.001}
-                    value={designForm.width}
-                    onChange={(event) => {
-                      setDesignForm((prev) => ({
-                        ...prev,
-                        width: event.target.value,
-                      }));
-                    }}
-                    onBlur={() => commitDesignForm(designForm, ["width"])}
-                    onKeyDown={(event) => onInputKeyDown(event, ["width"])}
-                    className={`${fieldClass} pr-9`}
-                  />
-                </div>
-              </label>
-              <label className={labelClass}>
-                <span className="text-[#d5d8e1]">Height</span>
-                <div className="relative">
-                  <KeyframeActionButton
-                    isKeyframed={hasKeyframeAtPlayhead("height")}
-                    label="Height"
-                    onAddKeyframe={() => {
-                      addPropertyKeyframe("height");
-                    }}
-                  />
-                  <input
-                    type="number"
-                    min={0.001}
-                    step={0.001}
-                    value={designForm.height}
-                    onChange={(event) => {
-                      setDesignForm((prev) => ({
-                        ...prev,
-                        height: event.target.value,
-                      }));
-                    }}
-                    onBlur={() => commitDesignForm(designForm, ["height"])}
-                    onKeyDown={(event) => onInputKeyDown(event, ["height"])}
-                    className={`${fieldClass} pr-9`}
-                  />
-                </div>
-              </label>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <label className={labelClass}>
-                <span className="text-[#d5d8e1]">Opacity</span>
-                <div className="relative">
-                  <KeyframeActionButton
-                    isKeyframed={hasKeyframeAtPlayhead("opacity")}
-                    label="Opacity"
-                    onAddKeyframe={() => {
-                      addPropertyKeyframe("opacity");
-                    }}
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    max={1}
-                    step={0.001}
-                    value={designForm.opacity}
-                    onChange={(event) => {
-                      setDesignForm((prev) => ({
-                        ...prev,
-                        opacity: event.target.value,
-                      }));
-                    }}
-                    onBlur={() => commitDesignForm(designForm, ["opacity"])}
-                    onKeyDown={(event) => onInputKeyDown(event, ["opacity"])}
-                    className={`${fieldClass} pr-9`}
-                  />
-                </div>
-              </label>
-              <label className={labelClass}>
-                <span className="text-[#d5d8e1]">Rotation</span>
-                <div className="relative">
-                  <KeyframeActionButton
-                    isKeyframed={hasKeyframeAtPlayhead("angle")}
-                    label="Rotation"
-                    onAddKeyframe={() => {
-                      addPropertyKeyframe("angle");
-                    }}
-                  />
-                  <input
-                    type="number"
-                    step={0.001}
-                    value={designForm.angle}
-                    onChange={(event) => {
-                      setDesignForm((prev) => ({
-                        ...prev,
-                        angle: event.target.value,
-                      }));
-                    }}
-                    onBlur={() => commitDesignForm(designForm, ["angle"])}
-                    onKeyDown={(event) => onInputKeyDown(event, ["angle"])}
-                    className={`${fieldClass} pr-9`}
-                  />
-                </div>
-              </label>
-            </div>
+                ))}
+              </div>
+            ))}
           </>
         )}
       </section>
 
-      {selectedInstance && (supportsFill || supportsStroke) ? (
+      {!isMultiSelected && selectedInstance && (supportsFill || supportsStroke) ? (
         <section className={cardClass}>
-          <h4 className={sectionTitleClass}>Fill</h4>
+          <h4 className={sectionTitleClass}>Appearance</h4>
           {supportsFill ? (
             <label ref={fillColorSectionRef} className={`block ${labelClass}`}>
               <span className="text-[#d5d8e1]">Fill</span>
-              <div className="space-y-2 rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface-muted)] p-2">
-                <div className="relative flex items-center gap-2">
+              <div className="space-y-2">
+                <FieldShell className="gap-2 px-2">
                   <KeyframeActionButton
                     isKeyframed={hasKeyframeAtPlayhead("fill")}
                     label="Fill"
                     onAddKeyframe={() => {
                       addPropertyKeyframe("fill");
                     }}
-                    className="right-8"
+                    className="right-9"
                   />
                   <HexColorInput
                     color={normalizeHexColor(designForm.fill)}
@@ -535,32 +484,24 @@ export default function CanvasSidePanelDesign() {
                       setActiveColorField("fill");
                     }}
                     onChange={(value) => {
-                      setColorField(
-                        "fill",
-                        `#${value.replace(/^#/, "")}`,
-                        false,
-                      );
+                      setColorField("fill", `#${value.replace(/^#/, "")}`, false);
                     }}
                     onBlur={() => {
-                      setColorField(
-                        "fill",
-                        normalizeHexColor(designForm.fill),
-                        true,
-                      );
+                      setColorField("fill", normalizeHexColor(designForm.fill), true);
                     }}
-                    className={`${fieldClass} flex-1 pr-9`}
+                    className="h-full flex-1 bg-transparent pr-10 text-[13px] text-[#f6f7fb] outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => {
                       setActiveColorField("fill");
                     }}
-                    className="h-5 w-5 shrink-0 rounded border border-[var(--wise-border)]"
+                    className="h-6 w-6 shrink-0 rounded-[7px] border border-white/12"
                     style={{
                       backgroundColor: normalizeHexColor(designForm.fill),
                     }}
                   />
-                </div>
+                </FieldShell>
                 {activeColorField === "fill" ? (
                   <HexAlphaColorPicker
                     color={normalizeHexColor(designForm.fill)}
@@ -575,20 +516,17 @@ export default function CanvasSidePanelDesign() {
           ) : null}
 
           {supportsStroke ? (
-            <label
-              ref={strokeColorSectionRef}
-              className={`block ${labelClass}`}
-            >
+            <label ref={strokeColorSectionRef} className={`block ${labelClass}`}>
               <span className="text-[#d5d8e1]">Stroke</span>
-              <div className="space-y-2 rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface-muted)] p-2">
-                <div className="relative flex items-center gap-2">
+              <div className="space-y-2">
+                <FieldShell className="gap-2 px-2">
                   <KeyframeActionButton
                     isKeyframed={hasKeyframeAtPlayhead("stroke")}
                     label="Stroke"
                     onAddKeyframe={() => {
                       addPropertyKeyframe("stroke");
                     }}
-                    className="right-8"
+                    className="right-9"
                   />
                   <HexColorInput
                     color={normalizeHexColor(designForm.stroke, "#2c2c2c")}
@@ -598,11 +536,7 @@ export default function CanvasSidePanelDesign() {
                       setActiveColorField("stroke");
                     }}
                     onChange={(value) => {
-                      setColorField(
-                        "stroke",
-                        `#${value.replace(/^#/, "")}`,
-                        false,
-                      );
+                      setColorField("stroke", `#${value.replace(/^#/, "")}`, false);
                     }}
                     onBlur={() => {
                       setColorField(
@@ -611,22 +545,19 @@ export default function CanvasSidePanelDesign() {
                         true,
                       );
                     }}
-                    className={`${fieldClass} flex-1 pr-9`}
+                    className="h-full flex-1 bg-transparent pr-10 text-[13px] text-[#f6f7fb] outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => {
                       setActiveColorField("stroke");
                     }}
-                    className="h-5 w-5 shrink-0 rounded border border-[var(--wise-border)]"
+                    className="h-6 w-6 shrink-0 rounded-[7px] border border-white/12"
                     style={{
-                      backgroundColor: normalizeHexColor(
-                        designForm.stroke,
-                        "#2c2c2c",
-                      ),
+                      backgroundColor: normalizeHexColor(designForm.stroke, "#2c2c2c"),
                     }}
                   />
-                </div>
+                </FieldShell>
                 {activeColorField === "stroke" ? (
                   <HexAlphaColorPicker
                     color={normalizeHexColor(designForm.stroke, "#2c2c2c")}
@@ -640,42 +571,35 @@ export default function CanvasSidePanelDesign() {
             </label>
           ) : null}
           {supportsStroke ? (
-            <label className={labelClass}>
-              <span>Width</span>
-              <input
-                type="number"
-                min={0}
-                step={0.001}
-                value={designForm.strokeWidth}
-                onChange={(event) => {
-                  setDesignForm((prev) => ({
-                    ...prev,
-                    strokeWidth: event.target.value,
-                  }));
-                }}
-                onBlur={() => commitDesignForm(designForm, ["strokeWidth"])}
-                onKeyDown={(event) => onInputKeyDown(event, ["strokeWidth"])}
-                className={fieldClass}
-              />
-            </label>
+            <DesignNumberField
+              field="strokeWidth"
+              groupLabel="Border Width"
+              inputValue={designForm.strokeWidth}
+              isKeyframed={hasKeyframeAtPlayhead("strokeWidth")}
+              isSecondaryLabel={false}
+              keyframeLabel="Border Width"
+              onAddKeyframe={() => {
+                addPropertyKeyframe("strokeWidth");
+              }}
+              onCommitValue={commitNumericField}
+              prefix="W"
+              shapeId={selectedId}
+            />
           ) : null}
         </section>
       ) : null}
 
-      {selectedInstance ? (
+      {!isMultiSelected && selectedInstance ? (
         <section className={cardClass}>
           <h4 className={sectionTitleClass}>Masking</h4>
-          <MaskSourceControl
-            selectedId={selectedId}
-            selectedInstance={selectedInstance}
-          />
+          <MaskSourceControl selectedId={selectedId} selectedInstance={selectedInstance} />
         </section>
       ) : null}
 
-      {selectedInstance && supportsText ? (
+      {!isMultiSelected && selectedInstance && supportsText ? (
         <section className={cardClass}>
-          <h4 className={sectionTitleClass}>Fonts</h4>
-          <div className="space-y-2">
+          <h4 className={sectionTitleClass}>Typography</h4>
+          <div className="space-y-2.5">
             <label className={`block ${labelClass}`}>
               <span>Font Family</span>
               <input
@@ -705,22 +629,26 @@ export default function CanvasSidePanelDesign() {
               </datalist>
             </label>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2.5">
               <label className={labelClass}>
                 <span>Font Size</span>
                 <input
-                  type="number"
-                  min={1}
-                  step={0.001}
+                  type="text"
+                  inputMode="decimal"
                   value={designForm.fontSize}
                   onChange={(event) => {
+                    if (!/^-?\d*\.?\d*$/.test(event.target.value)) return;
                     setDesignForm((prev) => ({
                       ...prev,
                       fontSize: event.target.value,
                     }));
                   }}
                   onBlur={() => commitDesignForm(designForm)}
-                  onKeyDown={(event) => onInputKeyDown(event)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter") return;
+                    event.preventDefault();
+                    commitDesignForm(designForm);
+                  }}
                   className={fieldClass}
                 />
               </label>
@@ -780,66 +708,12 @@ export default function CanvasSidePanelDesign() {
                 }}
                 onBlur={() => commitDesignForm(designForm)}
                 rows={3}
-                className="w-full resize-y rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface)] px-2 py-1.5 text-[11px] text-[#efefef] outline-none focus:border-[#ffffff] focus:ring-1 focus:ring-[#ffffff]/45"
+                className="w-full resize-y rounded-[10px] border border-transparent bg-[rgba(255,255,255,0.055)] px-3 py-2.5 text-[13px] text-[#efefef] outline-none transition focus:border-white/15 focus:bg-[rgba(255,255,255,0.075)]"
               />
             </label>
           </div>
         </section>
       ) : null}
     </>
-  );
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function clampMin(value: number, min: number) {
-  return Math.max(min, value);
-}
-
-function toPrecisionNumber(value: number) {
-  if (!Number.isFinite(value)) return Number.NaN;
-  return Number(value.toFixed(INPUT_PRECISION));
-}
-
-function formatNumberInput(value: number) {
-  return Number(value.toFixed(INPUT_PRECISION)).toString();
-}
-
-type KeyframeActionButtonProps = {
-  className?: string;
-  isKeyframed: boolean;
-  label: string;
-  onAddKeyframe: () => void;
-};
-
-/** Renders a compact add-keyframe action inside a property field. */
-function KeyframeActionButton({
-  className,
-  isKeyframed,
-  label,
-  onAddKeyframe,
-}: KeyframeActionButtonProps) {
-  return (
-    <button
-      type="button"
-      onClick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onAddKeyframe();
-      }}
-      className={`absolute right-2 top-1/2 inline-flex size-4 -translate-y-1/2 items-center justify-center rounded-md border transition ${
-        isKeyframed
-          ? "border-[#2563eb] bg-[#2563eb]/18 text-[#93c5fd]"
-          : "border-white/10 bg-[rgba(255,255,255,0.03)] text-[#8f96a3] hover:border-[#2563eb]/70 hover:bg-[#2563eb]/10 hover:text-[#93c5fd]"
-      } ${className ?? ""}`}
-      aria-label={`Add keyframe for ${label}`}
-      title={`Add keyframe for ${label}`}
-    >
-      <svg viewBox="0 0 24 24" className="size-3" fill="currentColor">
-        <path d="M12 4l8 8-8 8-8-8 8-8z" />
-      </svg>
-    </button>
   );
 }

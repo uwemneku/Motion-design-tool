@@ -1,4 +1,5 @@
 /** Timeline Playhead.Tsx timeline UI and behavior. */
+import { ActiveSelection, type FabricObject } from "fabric";
 import {
   useCallback,
   useEffect,
@@ -6,8 +7,9 @@ import {
   useState,
   type MouseEvent,
 } from "react";
+import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 import { useAppDispatch, useAppSelector } from "../../../store";
-import { setPlayheadTime } from "../../../store/editor-slice";
+import { setPlayheadTime, setSelectedId } from "../../../store/editor-slice";
 
 type TimelinePlayheadProps = {
   duration: number;
@@ -26,8 +28,10 @@ export default function TimelinePlayhead({
   rulerHeight = 36,
 }: TimelinePlayheadProps) {
   const dispatch = useAppDispatch();
+  const { fabricCanvasRef } = useCanvasAppContext();
   const playheadTime = useAppSelector((state) => state.editor.playHeadTime);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const previousSelectionRef = useRef<FabricObject[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const playheadPercent = clamp(playheadTime / duration, 0, 1) * 100;
 
@@ -43,8 +47,45 @@ export default function TimelinePlayhead({
     [dispatch, duration],
   );
 
+  /** Restores the cached canvas selection after playhead dragging ends. */
+  const restoreSelection = useCallback(() => {
+    const canvas = fabricCanvasRef.current;
+    const previousSelection = previousSelectionRef.current;
+    previousSelectionRef.current = [];
+    if (!canvas || previousSelection.length === 0) return;
+
+    const existingObjects = previousSelection.filter((object) =>
+      canvas.getObjects().includes(object),
+    );
+    if (existingObjects.length === 0) return;
+
+    if (existingObjects.length === 1) {
+      canvas.setActiveObject(existingObjects[0]);
+    } else {
+      const activeSelection = new ActiveSelection(existingObjects, {
+        canvas,
+      });
+      canvas.setActiveObject(activeSelection);
+    }
+    canvas.requestRenderAll();
+    dispatch(
+      setSelectedId(
+        existingObjects
+          .map((object) => object.customId)
+          .filter((customId): customId is string => typeof customId === "string"),
+      ),
+    );
+  }, [dispatch, fabricCanvasRef]);
+
   const startDragging = (event: MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
+    const canvas = fabricCanvasRef.current;
+    previousSelectionRef.current = canvas?.getActiveObjects() ?? [];
+    if (canvas && previousSelectionRef.current.length > 0) {
+      canvas.discardActiveObject();
+      canvas.requestRenderAll();
+      dispatch(setSelectedId([]));
+    }
     seekFromClientX(event.clientX);
     setIsDragging(true);
   };
@@ -58,6 +99,7 @@ export default function TimelinePlayhead({
 
     const onMouseUp = () => {
       setIsDragging(false);
+      restoreSelection();
     };
 
     window.addEventListener("mousemove", onMouseMove);
@@ -67,10 +109,13 @@ export default function TimelinePlayhead({
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
-  }, [isDragging, seekFromClientX]);
+  }, [isDragging, restoreSelection, seekFromClientX]);
 
   const handleHeight = Math.min(18, Math.max(14, rulerHeight - 12));
-  const handleTop = Math.max(3, Math.floor((rulerHeight - handleHeight) / 2) - 6);
+  const handleTop = Math.max(
+    3,
+    Math.floor((rulerHeight - handleHeight) / 2) - 6,
+  );
   const lineTop = handleTop + handleHeight - 2;
 
   return (
@@ -90,7 +135,7 @@ export default function TimelinePlayhead({
         onMouseDown={startDragging}
       >
         <div
-          className="absolute left-1/2 z-40 w-3 -translate-x-1/2 rounded-full border border-[#e5e7eb] bg-[var(--wise-accent)] shadow"
+          className="absolute left-1/2 z-40 w-3 -translate-x-1/2 rounded-sm border-[0.5px] border-[#e5e7eb] bg-[var(--wise-accent)] shadow"
           style={{
             top: handleTop,
             height: handleHeight,

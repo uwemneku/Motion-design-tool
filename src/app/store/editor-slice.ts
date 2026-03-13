@@ -29,7 +29,7 @@ export type EditorState = {
   isPaused: boolean;
   canvasItemIds: string[];
   itemsRecord: Record<string, EditorItemRecord>;
-  selectedId: string | null;
+  selectedId: string[];
   selectedKeyframe: {
     itemId: string;
     keyframeId: string;
@@ -44,7 +44,7 @@ const initialState: EditorState = {
   isPaused: true,
   canvasItemIds: [],
   itemsRecord: {},
-  selectedId: null,
+  selectedId: [],
   selectedKeyframe: null,
   projectInfo: {
     canvasWidth: 0,
@@ -88,8 +88,8 @@ const editorSlice = createSlice({
         (id) => id !== action.payload,
       );
       delete state.itemsRecord[action.payload];
-      if (state.selectedId === action.payload) {
-        state.selectedId = null;
+      if (state.selectedId.includes(action.payload)) {
+        state.selectedId = state.selectedId.filter((id) => id !== action.payload);
       }
       if (state.selectedKeyframe?.itemId === action.payload) {
         state.selectedKeyframe = null;
@@ -98,7 +98,7 @@ const editorSlice = createSlice({
     clearCanvasItemIds(state) {
       state.canvasItemIds = [];
       state.itemsRecord = {};
-      state.selectedId = null;
+      state.selectedId = [];
       state.selectedKeyframe = null;
     },
     setItemsRecord(
@@ -127,18 +127,18 @@ const editorSlice = createSlice({
       state.canvasItemIds = state.canvasItemIds.filter(
         (id) => id !== action.payload,
       );
-      if (state.selectedId === action.payload) {
-        state.selectedId = null;
+      if (state.selectedId.includes(action.payload)) {
+        state.selectedId = state.selectedId.filter((id) => id !== action.payload);
       }
       if (state.selectedKeyframe?.itemId === action.payload) {
         state.selectedKeyframe = null;
       }
     },
-    setSelectedId(state, action: PayloadAction<string | null>) {
+    setSelectedId(state, action: PayloadAction<string[]>) {
       state.selectedId = action.payload;
       if (
         state.selectedKeyframe &&
-        state.selectedKeyframe.itemId !== action.payload
+        !action.payload.includes(state.selectedKeyframe.itemId)
       ) {
         state.selectedKeyframe = null;
       }

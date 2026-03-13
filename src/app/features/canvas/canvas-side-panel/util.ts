@@ -1,4 +1,5 @@
 /** Util.Ts canvas side panel UI logic. */
+import type { FabricObject } from "fabric";
 import {
   EMPTY_FORM,
   GOOGLE_FONT_FAMILY_QUERY,
@@ -13,8 +14,14 @@ export function toNumberInput(value: unknown, fallback: number) {
 }
 
 export function readDesignForm(instance?: AnimatableObject): DesignFormState {
-  if (!instance) return EMPTY_FORM;
-  const object = instance.fabricObject;
+  return readDesignFormFromObject(instance?.fabricObject);
+}
+
+/** Reads editable transform and style values from a Fabric object. */
+export function readDesignFormFromObject(
+  object?: FabricObject | null,
+): DesignFormState {
+  if (!object) return EMPTY_FORM;
 
   return {
     left: toNumberInput(object.left, 0),
@@ -101,14 +108,14 @@ import type {
 } from "../../../../types";
 
 export const sectionTitleClass =
-  "text-[10px] font-semibold uppercase tracking-[0.2em] text-[#bfc7d4]";
-export const labelClass = "space-y-1.5 text-[11px] text-[#b8bdc9]";
+  "text-[15px] font-semibold tracking-[-0.01em] text-[#eef2f8]";
+export const labelClass = "space-y-1.5 text-[11px] text-[#aeb6c4]";
 export const fieldClass =
-  "h-8 w-full rounded-sm border border-white/10 " +
-  "bg-[rgba(255,255,255,0.03)] px-2.5 text-[11px] text-[#efefef] " +
-  "outline-none transition focus:border-[#ffffff] focus:ring-1 focus:ring-[#ffffff]/45";
+  "h-6 max-h-6 w-full rounded-[8px] border border-transparent " +
+  "bg-[rgba(255,255,255,0.055)] px-2.5 text-[11px] text-[#efefef] " +
+  "outline-none transition focus:border-white/15 focus:bg-[rgba(255,255,255,0.075)]";
 export const cardClass =
-  "space-y-2 rounded-[10px] bg-[rgba(255,255,255,0.015)] px-2 py-2.5";
+  "space-y-3 border-t border-white/10 pt-5 first:border-t-0 first:pt-0";
 
 export const animationTemplates: AnimationTemplate[] = [
   {

@@ -11,8 +11,9 @@ export function KeyframeDetailsPanel() {
   const dispatch = useAppDispatch();
   const { getObjectById: getInstanceById } = useCanvasAppContext();
   const [, forceRefresh] = useState(0);
-  const selectedId = useAppSelector((state) => state.editor.selectedId);
+  const selectedIds = useAppSelector((state) => state.editor.selectedId);
   const selectedKeyframe = useAppSelector((state) => state.editor.selectedKeyframe);
+  const selectedId = selectedIds[0] ?? null;
 
   const selectedKeyframeId =
     selectedId && selectedKeyframe?.itemId === selectedId
@@ -36,7 +37,7 @@ export function KeyframeDetailsPanel() {
           {selectedKeyframeId ? (
             <button
               type="button"
-              className="text-[10px] font-medium text-[#8fa6c7] transition hover:text-[#dce7f7]"
+              className="text-[10px] font-medium text-[#a7afbb] transition hover:text-[#f3f5f8]"
               onClick={() => {
                 dispatch(setSelectedKeyframe(null));
               }}
@@ -48,7 +49,7 @@ export function KeyframeDetailsPanel() {
 
         {selectedKeyframeId ? (
           <select
-            className="h-8 w-full rounded-[10px] border border-white/10 bg-[rgba(255,255,255,0.04)] px-2.5 text-[11px] text-[#eef4ff] outline-none transition focus:border-[#0a84ff] focus:ring-1 focus:ring-[#0a84ff]/45"
+            className="h-8 w-full rounded-[10px] border border-white/10 bg-[rgba(255,255,255,0.04)] px-2.5 text-[11px] text-[#eef4ff] outline-none transition focus:border-white/60 focus:ring-1 focus:ring-white/20"
             value={selectedEasing ?? "linear"}
             onChange={(event) => {
               if (!selectedId || !selectedKeyframeId) return;

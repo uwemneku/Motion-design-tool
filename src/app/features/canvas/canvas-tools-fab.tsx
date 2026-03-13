@@ -57,7 +57,7 @@ export default function CanvasToolsFab() {
         if (!previous || !hasUserMovedRef.current) {
           return clampWithinCanvas(
             (parentWidth - fabWidth) / 2,
-            parentHeight - fabHeight - FAB_EDGE_PADDING - 28,
+            parentHeight - fabHeight - FAB_EDGE_PADDING,
             parentWidth,
             parentHeight,
             fabWidth,

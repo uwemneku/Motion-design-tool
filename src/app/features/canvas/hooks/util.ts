@@ -1,8 +1,8 @@
 import { Canvas, Rect, type FabricObject } from "fabric";
 import type {
-  AnimatableProperties,
   ColorKeyframesByProperty,
   KeyframesByProperty,
+  NumericAnimatableProperties,
 } from "../../shapes/animatable-object/types";
 import type { RootState } from "../../../store";
 import { NUMERIC_ANIMATABLE_PROPERTIES } from "../../../../const";
@@ -55,10 +55,11 @@ export function syncCanvasSizeToContainer(
 export function getPropertiesForTransformAction(action?: string) {
   if (!action) return NUMERIC_ANIMATABLE_PROPERTIES;
   if (action === "drag")
-    return ["left", "top"] as (keyof AnimatableProperties)[];
-  if (action === "rotate") return ["angle"] as (keyof AnimatableProperties)[];
+    return ["left", "top"] as (keyof NumericAnimatableProperties)[];
+  if (action === "rotate")
+    return ["angle"] as (keyof NumericAnimatableProperties)[];
   if (action === "scale" || action === "scaleX" || action === "scaleY") {
-    return ["left", "top", "width", "height"] as (keyof AnimatableProperties)[];
+    return ["left", "top", "width", "height"] as (keyof NumericAnimatableProperties)[];
   }
   return NUMERIC_ANIMATABLE_PROPERTIES;
 }

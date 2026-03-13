@@ -185,7 +185,8 @@ export default function TimelinePanel() {
                   <div className="relative h-full">
                     {Array.from(
                       {
-                        length: Math.floor(TIMELINE_DURATION / timelineLabelStep) + 1,
+                        length:
+                          Math.floor(TIMELINE_DURATION / timelineLabelStep) + 1,
                       },
                       (_, index) => {
                         const time = Number(
@@ -219,7 +220,7 @@ export default function TimelinePanel() {
                   No items yet
                 </div>
               ) : (
-                <div className="z-10 relative">
+                <div className=" relative">
                   {canvasItemIds.map((id) => (
                     <TimelineItemRow
                       key={id}

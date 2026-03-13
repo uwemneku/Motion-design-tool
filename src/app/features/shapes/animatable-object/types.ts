@@ -1,11 +1,12 @@
 /** Types.Ts shape model and behavior. */
-export type AnimatableProperties = {
+export type NumericAnimatableProperties = {
   left: number;
   top: number;
   width: number;
   height: number;
   opacity: number;
   angle: number;
+  strokeWidth: number;
 };
 
 export type ColorAnimatableProperties = {
@@ -13,29 +14,35 @@ export type ColorAnimatableProperties = {
   stroke: string;
 };
 
+export type AnimatableProperties = NumericAnimatableProperties &
+  ColorAnimatableProperties;
+
 export type ColorVector = Uint8Array;
 
 export type AnimatableSnapshot = {
-  [K in keyof AnimatableProperties]: AnimatableProperties[K];
+  [K in keyof NumericAnimatableProperties]: NumericAnimatableProperties[K];
 };
 
 export type KeyframeEasing =
-  | 'linear'
-  | 'step'
-  | 'easeIn'
-  | 'easeOut'
-  | 'easeInOut'
-  | 'elastic'
-  | 'bounce';
+  | "linear"
+  | "step"
+  | "easeIn"
+  | "easeOut"
+  | "easeInOut"
+  | "elastic"
+  | "bounce";
 
 export type ColorSnapshot = Partial<{
   [K in keyof ColorAnimatableProperties]: ColorAnimatableProperties[K];
 }>;
 
-export interface Keyframe<K extends keyof AnimatableProperties = keyof AnimatableProperties> {
+export interface Keyframe<
+  K extends keyof NumericAnimatableProperties =
+    keyof NumericAnimatableProperties,
+> {
   id: string;
   property: K;
-  value: AnimatableProperties[K];
+  value: NumericAnimatableProperties[K];
   time: number;
   easing: KeyframeEasing;
 }
@@ -55,7 +62,9 @@ export type TimelineMarker = {
   time: number;
 };
 
-export type KeyframesByProperty = Partial<Record<keyof AnimatableProperties, Keyframe[]>>;
+export type KeyframesByProperty = Partial<
+  Record<keyof NumericAnimatableProperties, Keyframe[]>
+>;
 export type ColorKeyframesByProperty = Partial<
   Record<keyof ColorAnimatableProperties, ColorKeyframe[]>
 >;

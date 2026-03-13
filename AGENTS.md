@@ -7,6 +7,7 @@
 - Use trailing commas where valid.
 - Max line length: 100.
 - Use semicolons.
+- Use Prettier as the source of truth for formatting. Run `npm run format` to write formatting changes and `npm run format:check` to verify them.
 - Always comment functions with concise purpose/behavior notes.
 
 ## React
@@ -41,6 +42,7 @@
 
 - Do not use `any` unless unavoidable; add a comment when used.
 - Avoid non-null assertions (`!`) unless necessary.
+- Derive related types from source-of-truth types instead of duplicating unions by hand. For example, derive keyframe-field unions from `AnimatableProperties` rather than re-listing the same property names.
 
 ## Canvas/Fabric Patterns
 

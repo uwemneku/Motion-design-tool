@@ -35,6 +35,7 @@ import {
   MAX_CANVAS_ZOOM,
   MIN_CANVAS_ZOOM,
 } from "../../../../const";
+import type { FabricObject, Group } from "fabric";
 
 type CanvasInstanceStore = Map<string, AnimatableObject>;
 
@@ -88,77 +89,99 @@ export function CanvasAppProvider({ children }: PropsWithChildren) {
       _canvas.add(hoverOutlineRect);
 
       _canvas.on("selection:created", (event) => {
-        const customId = event.selected?.[0]?.customId ?? null;
-        if (customId) {
+        const selectedIds = getSelectedObjectIds(event.selected ?? []);
+
+        if (selectedIds.length > 0) {
           hoverOutlineRect.set({ visible: false });
         }
-        dispatch(setSelectedId(customId));
+        dispatch(setSelectedId(selectedIds));
       });
 
       _canvas.on("selection:updated", (event) => {
-        const customId = event.selected?.[0]?.customId ?? null;
-        dispatch(setSelectedId(customId));
+        dispatch(setSelectedId(getSelectedObjectIds(event.selected ?? [])));
       });
 
       _canvas.on("selection:cleared", () => {
-        dispatch(setSelectedId(null));
+        dispatch(setSelectedId([]));
       });
 
-      _canvas.on("object:modified", ({ target }) => {
-        const customId = target?.customId;
-        if (!customId) return;
+      _canvas.on("object:modified", () => {
+        const selectedIds = dispatch(
+          dispatchableSelector((state) => state.editor.selectedId),
+        );
 
-        const instance = getInstanceById(customId);
-        if (!instance) return;
+        if (selectedIds.length === 0) return;
 
         const timestamp = dispatch(
           dispatchableSelector((state) => state.editor.playHeadTime),
         );
-        const snapshot = instance.getSnapshot();
-        const action = transformActionById.get(customId);
-        const changedProperties = getPropertiesForTransformAction(action);
-        changedProperties.forEach((property) => {
-          instance.addKeyframe({
-            property,
-            value: snapshot[property],
-            time: timestamp,
-            easing: "linear",
+
+        selectedIds.forEach((customId) => {
+          const instance = getInstanceById(customId);
+          if (!instance) return;
+
+          const snapshot = instance.getSnapshot();
+          const action = transformActionById.get(customId);
+          const changedProperties = getPropertiesForTransformAction(action);
+          if (changedProperties.length === 0) return;
+
+          changedProperties.forEach((property) => {
+            if (property === "left") {
+              console.table({
+                customId,
+                value: snapshot[property],
+                time: timestamp,
+              });
+            }
+            instance.addKeyframe({
+              property,
+              value: snapshot[property],
+              time: timestamp,
+              easing: "linear",
+            });
           });
+          transformActionById.delete(customId);
+
+          const existing = dispatch(
+            dispatchableSelector((state) => state.editor.itemsRecord[customId]),
+          );
+          if (!existing) return;
+
+          const hasAtTimestamp = existing.keyframe.some(
+            (keyframe) =>
+              Math.abs(keyframe.timestamp - timestamp) <=
+              CANVAS_KEYFRAME_EPSILON,
+          );
+          const nextKeyframes = hasAtTimestamp
+            ? existing.keyframe
+            : [
+                ...existing.keyframe,
+                { id: createKeyframeMarkerId(), timestamp },
+              ].sort((a, b) => a.timestamp - b.timestamp);
+
+          dispatch(
+            upsertItemRecord({
+              id: customId,
+              value: {
+                ...existing,
+                keyframe: nextKeyframes,
+              },
+            }),
+          );
         });
-        transformActionById.delete(customId);
-
-        const existing = dispatch(
-          dispatchableSelector((state) => state.editor.itemsRecord[customId]),
-        );
-        if (!existing) return;
-
-        const hasAtTimestamp = existing.keyframe.some(
-          (keyframe) =>
-            Math.abs(keyframe.timestamp - timestamp) <= CANVAS_KEYFRAME_EPSILON,
-        );
-        const nextKeyframes = hasAtTimestamp
-          ? existing.keyframe
-          : [
-              ...existing.keyframe,
-              { id: createKeyframeMarkerId(), timestamp },
-            ].sort((a, b) => a.timestamp - b.timestamp);
-
-        dispatch(
-          upsertItemRecord({
-            id: customId,
-            value: {
-              ...existing,
-              keyframe: nextKeyframes,
-            },
-          }),
-        );
       });
-
+      // FabricObject<Partial<FabricObjectProps>, SerializedObjectProps, ObjectEvents>[]
       _canvas.on("before:transform", ({ transform }) => {
-        const customId = transform?.target?.customId;
         const action = transform?.action;
-        if (!customId || !action) return;
-        transformActionById.set(customId, action);
+        if (!action) return;
+        const _object = (transform?.target as Group)?._objects || [
+          transform?.target,
+        ];
+        _object.forEach((object) => {
+          const customId = object.get("customId");
+          if (!customId || typeof customId !== "string") return;
+          transformActionById.set(customId, action);
+        });
       });
 
       _canvas.on("mouse:wheel", (event) => {
@@ -265,4 +288,20 @@ export function CanvasAppProvider({ children }: PropsWithChildren) {
       {children}
     </CanvasAppContext.Provider>
   );
+}
+
+/** Extracts stable custom ids from the current Fabric selection payload. */
+function getSelectedObjectIds(
+  objects: Array<
+    FabricObject & {
+      customId?: string;
+    }
+  >,
+) {
+  const nestedObjects = objects?.[0]?.group?._objects;
+  const _objects = nestedObjects || objects;
+
+  return _objects
+    .map((object) => object.customId || object.get("customId"))
+    .filter((customId): customId is string => typeof customId === "string");
 }

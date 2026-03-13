@@ -10,11 +10,9 @@ import { CanvasItemsListItem } from "./canvas-items-list-item";
 /** Reorderable list of canvas items shown from top-most to bottom-most. */
 export default function CanvasItemsList() {
   const dispatch = useAppDispatch();
-  const { fabricCanvasRef, getObjectById: getInstanceById } =
-    useCanvasAppContext();
+  const { fabricCanvasRef, getObjectById } = useCanvasAppContext();
   const canvasItemIds = useAppSelector((state) => state.editor.canvasItemIds);
-  const selectedId = useAppSelector((state) => state.editor.selectedId);
-  const displayItemIds = canvasItemIds;
+  const selectedIds = useAppSelector((state) => state.editor.selectedId);
   const { removeItemById } = useCanvasItems({ fabricCanvas: fabricCanvasRef });
 
   useEffect(() => {
@@ -26,7 +24,7 @@ export default function CanvasItemsList() {
         event.code === "Delete" ||
         event.code === "Backspace";
       if (!isDeleteKey) return;
-      if (!selectedId) return;
+      if (selectedIds.length === 0) return;
 
       const target = event.target as HTMLElement | null;
       if (
@@ -40,14 +38,16 @@ export default function CanvasItemsList() {
       }
 
       event.preventDefault();
-      removeItemById(selectedId);
+      selectedIds.forEach((id) => {
+        removeItemById(id);
+      });
     };
 
     window.addEventListener("keydown", onWindowKeyDown);
     return () => {
       window.removeEventListener("keydown", onWindowKeyDown);
     };
-  }, [removeItemById, selectedId]);
+  }, [removeItemById, selectedIds]);
 
   /** Syncs the visual list order back into the Fabric canvas stacking order. */
   const syncCanvasStackOrder = (idsInOrder: string[]) => {
@@ -55,7 +55,7 @@ export default function CanvasItemsList() {
     const itemCount = idsInOrder.length;
     for (let index = 0; index < itemCount; index += 1) {
       const id = idsInOrder[index];
-      const instance = getInstanceById(id);
+      const instance = getObjectById(id);
       const object = instance?.fabricObject;
       const canvas = object?.canvas;
       if (!object || !canvas) continue;
@@ -87,11 +87,11 @@ export default function CanvasItemsList() {
       <section className="min-h-0 flex-1 overflow-y-auto overflow-x-visible">
         <Reorder.Group
           axis="y"
-          values={displayItemIds}
+          values={canvasItemIds}
           onReorder={onReorder}
           className="space-y-1 px-px"
         >
-          {displayItemIds.map((id, index) => (
+          {canvasItemIds.map((id, index) => (
             <CanvasItemsListItem key={id} id={id} index={index} />
           ))}
         </Reorder.Group>

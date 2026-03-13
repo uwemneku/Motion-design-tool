@@ -72,7 +72,7 @@ export function CanvasSidePanelExportControls() {
                 onChange={(event) => {
                   setExportFormat(event.target.value as ExportVideoFormat);
                 }}
-                className="h-8 w-full rounded-[10px] border border-white/10 bg-[rgba(255,255,255,0.04)] px-2.5 text-[11px] font-medium uppercase text-[#e6e6e6] outline-none transition focus:border-[#0a84ff] focus:ring-1 focus:ring-[#0a84ff]/45"
+                className="h-8 w-full rounded-[10px] border border-white/10 bg-[rgba(255,255,255,0.04)] px-2.5 text-[11px] font-medium uppercase text-[#e6e6e6] outline-none transition focus:border-white/60 focus:ring-1 focus:ring-white/20"
               >
                 {EXPORT_FORMAT_OPTIONS.map((format) => (
                   <option key={format} value={format}>

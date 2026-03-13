@@ -373,7 +373,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       }),
     );
     if (shouldSetSelected) {
-      dispatch(setSelectedId(customId));
+      dispatch(setSelectedId([customId]));
     }
 
     return customId;
