@@ -3,6 +3,7 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { INITIAL_CANVAS_ZOOM } from "../../const";
 
 export type EditorItemRecord = {
+  isLocked?: boolean;
   name: string;
   keyframe: Array<{
     id: string;
@@ -79,6 +80,7 @@ const editorSlice = createSlice({
         state.canvasItemIds.unshift(action.payload);
       }
       state.itemsRecord[action.payload] ??= {
+        isLocked: false,
         name: action.payload,
         keyframe: [],
       };
@@ -111,9 +113,27 @@ const editorSlice = createSlice({
       state,
       action: PayloadAction<{ id: string; value: EditorItemRecord }>,
     ) {
-      state.itemsRecord[action.payload.id] = action.payload.value;
+      state.itemsRecord[action.payload.id] = {
+        isLocked: false,
+        ...action.payload.value,
+      };
       if (!state.canvasItemIds.includes(action.payload.id)) {
         state.canvasItemIds.unshift(action.payload.id);
+      }
+    },
+    toggleItemLocked(
+      state,
+      action: PayloadAction<{ id: string; isLocked: boolean }>,
+    ) {
+      const record = state.itemsRecord[action.payload.id];
+      if (!record) return;
+
+      record.isLocked = action.payload.isLocked;
+      if (action.payload.isLocked && state.selectedId.includes(action.payload.id)) {
+        state.selectedId = state.selectedId.filter((id) => id !== action.payload.id);
+      }
+      if (state.selectedKeyframe?.itemId === action.payload.id && action.payload.isLocked) {
+        state.selectedKeyframe = null;
       }
     },
     updateItemName(state, action: PayloadAction<{ id: string; name: string }>) {
@@ -173,6 +193,7 @@ export const {
   setSelectedId,
   setSelectedKeyframe,
   setProjectInfo,
+  toggleItemLocked,
   updateItemName,
 } = editorSlice.actions;
 

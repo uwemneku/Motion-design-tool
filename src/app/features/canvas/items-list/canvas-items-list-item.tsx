@@ -8,7 +8,11 @@ import {
   type PointerEvent,
 } from "react";
 import { useAppDispatch, useAppSelector } from "../../../store";
-import { setSelectedId, updateItemName } from "../../../store/editor-slice";
+import {
+  setSelectedId,
+  toggleItemLocked,
+  updateItemName,
+} from "../../../store/editor-slice";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 import { useCanvasItems } from "../hooks/use-canvas-items";
 
@@ -23,6 +27,9 @@ type CanvasItemsListItemProps = {
 export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
   const dispatch = useAppDispatch();
   const name = useAppSelector((state) => state.editor.itemsRecord?.[id]?.name);
+  const isLocked = useAppSelector(
+    (state) => state.editor.itemsRecord?.[id]?.isLocked ?? false,
+  );
   const selectedIds = useAppSelector((state) => state.editor.selectedId);
   const fabricCanvas = useCanvasAppContext();
   const dragControls = useDragControls();
@@ -44,6 +51,7 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
 
   /** Selects the clicked canvas item in the editor store. */
   const handleClick = () => {
+    if (isLocked) return;
     dispatch(setSelectedId([id]));
     const instance = fabricCanvas.getObjectById(id);
     if (instance) {
@@ -77,6 +85,28 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
   /** Removes this layer from both Fabric canvas state and editor state. */
   const deleteItem = () => {
     removeItemById(id);
+  };
+
+  /** Toggles whether this layer can participate in Fabric selection. */
+  const toggleLocked = () => {
+    const instance = fabricCanvas.getObjectById(id);
+    const object = instance?.fabricObject;
+    if (!object) return;
+
+    const nextLocked = !isLocked;
+    object.set({
+      evented: !nextLocked,
+      hasControls: !nextLocked,
+      selectable: !nextLocked,
+    });
+
+    if (nextLocked && object.canvas?.getActiveObject() === object) {
+      object.canvas.discardActiveObject();
+      dispatch(setSelectedId([]));
+    }
+
+    object.canvas?.requestRenderAll();
+    dispatch(toggleItemLocked({ id, isLocked: nextLocked }));
   };
 
   /** Persists an inline layer-name edit back into the editor store. */
@@ -177,6 +207,38 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
         </button>
 
         <div className="flex items-center">
+          <button
+            type="button"
+            onClick={toggleLocked}
+            className={`grid size-5 shrink-0 place-items-center text-[#8f9aac] transition hover:text-[#d7dfeb] ${
+              isLocked ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            }`}
+            aria-label={isLocked ? `Unlock ${displayName}` : `Lock ${displayName}`}
+            title={isLocked ? "Unlock layer" : "Lock layer"}
+          >
+            <svg
+              viewBox="0 0 16 16"
+              className="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              {isLocked ? (
+                <>
+                  <path d="M5.5 7V5.5a2.5 2.5 0 1 1 5 0V7" />
+                  <rect x="3.5" y="7" width="9" height="6" rx="1.5" />
+                </>
+              ) : (
+                <>
+                  <path d="M10.5 7V5.5a2.5 2.5 0 0 0-4.8-1" />
+                  <path d="M12.5 9.5V7A1.5 1.5 0 0 0 11 5.5H5A1.5 1.5 0 0 0 3.5 7v6A1.5 1.5 0 0 0 5 14.5h6" />
+                </>
+              )}
+            </svg>
+          </button>
           <button
             type="button"
             onClick={toggleVisibility}

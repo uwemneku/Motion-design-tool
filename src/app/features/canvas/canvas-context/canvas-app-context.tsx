@@ -302,6 +302,7 @@ function getSelectedObjectIds(
   const _objects = nestedObjects || objects;
 
   return _objects
+    .filter((object) => object.selectable !== false && object.evented !== false)
     .map((object) => object.customId || object.get("customId"))
     .filter((customId): customId is string => typeof customId === "string");
 }

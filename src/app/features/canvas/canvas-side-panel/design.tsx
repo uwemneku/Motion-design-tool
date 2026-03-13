@@ -68,9 +68,10 @@ export default function CanvasSidePanelDesign() {
 
   const selectedInstance = selectedContext.instance;
   const selectedObject = selectedInstance?.fabricObject;
+  const supportsImageBorder = selectedObject?.type === "image";
   const supportsText = typeof selectedObject?.get("text") === "string";
   const supportsFill = typeof selectedObject?.get("fill") === "string";
-  const supportsStroke = typeof selectedObject?.get("stroke") === "string";
+  const supportsStroke = typeof selectedObject?.get("stroke") === "string" || supportsImageBorder;
   const supportsBorderRadius = typeof selectedObject?.get("rx") === "number";
 
   useEffect(() => {
@@ -118,9 +119,7 @@ export default function CanvasSidePanelDesign() {
       const currentPlayheadTime = dispatch(
         dispatchableSelector((state) => state.editor.playHeadTime),
       );
-      const itemRecords = dispatch(
-        dispatchableSelector((state) => state.editor.itemsRecord),
-      );
+      const itemRecords = dispatch(dispatchableSelector((state) => state.editor.itemsRecord));
 
       // Split the requested field list once so both the multi-select and
       // single-select paths can reuse the same numeric-property decision.
@@ -224,10 +223,7 @@ export default function CanvasSidePanelDesign() {
       const top = toPrecisionNumber(Number(nextForm.top));
       const width = clampMin(toPrecisionNumber(Number(nextForm.width)), 0);
       const height = clampMin(toPrecisionNumber(Number(nextForm.height)), 0);
-      const borderRadius = clampMin(
-        toPrecisionNumber(Number(nextForm.borderRadius)),
-        0,
-      );
+      const borderRadius = clampMin(toPrecisionNumber(Number(nextForm.borderRadius)), 0);
       const opacity = clamp(toPrecisionNumber(Number(nextForm.opacity)), 0, 1);
       const angle = toPrecisionNumber(Number(nextForm.angle));
       const strokeWidth = clampMin(toPrecisionNumber(Number(nextForm.strokeWidth)), 0);
@@ -352,9 +348,7 @@ export default function CanvasSidePanelDesign() {
         ? selectedInstance.colorKeyframes[field]
         : selectedInstance.keyframes[field];
 
-    return Boolean(
-      frames && hasKeyframeNearTime(frames, playheadTime, CANVAS_KEYFRAME_EPSILON),
-    );
+    return Boolean(frames && hasKeyframeNearTime(frames, playheadTime, CANVAS_KEYFRAME_EPSILON));
   };
 
   const setColorField = (field: ColorFieldKey, value: string, shouldCommit: boolean) => {

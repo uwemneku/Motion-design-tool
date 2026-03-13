@@ -22,6 +22,7 @@ export function readDesignFormFromObject(
   object?: FabricObject | null,
 ): DesignFormState {
   if (!object) return EMPTY_FORM;
+  const supportsImageBorder = object.type === "image";
 
   return {
     left: toNumberInput(object.left, 0),
@@ -36,7 +37,9 @@ export function readDesignFormFromObject(
     stroke:
       typeof object.get("stroke") === "string"
         ? String(object.get("stroke"))
-        : "",
+        : supportsImageBorder
+          ? "#ffffff"
+          : "",
     strokeWidth: toNumberInput(object.get("strokeWidth"), 1),
     text:
       typeof object.get("text") === "string" ? String(object.get("text")) : "",

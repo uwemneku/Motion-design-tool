@@ -364,6 +364,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       upsertItemRecord({
         id: customId,
         value: {
+          isLocked: false,
           name: options.name ?? typeName,
           keyframe: timelineMarkers.sort((a, b) => a.timestamp - b.timestamp),
         },
@@ -500,6 +501,9 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       originY: "center",
       scaleX: scale,
       scaleY: scale,
+      stroke: "#ffffff",
+      strokeWidth: 0,
+      strokeUniform: true,
       ...options,
     });
 
