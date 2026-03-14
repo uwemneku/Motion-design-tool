@@ -8,6 +8,7 @@
 - Max line length: 100.
 - Use semicolons.
 - Use Prettier as the source of truth for formatting. Run `npm run format` to write formatting changes and `npm run format:check` to verify them.
+- Follow the repo-level guidance in `STYLEGUIDE.md` for code organization, React/Redux usage, styling, and testing decisions.
 - Write functions so a human reader can follow them quickly: prefer small helpers, clear naming, and linear control flow over dense cleverness.
 - Always comment functions with concise purpose/behavior notes.
 

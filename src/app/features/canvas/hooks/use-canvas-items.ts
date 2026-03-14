@@ -1,25 +1,12 @@
 /** Use Canvas Items.Ts hook logic. */
-import {
-  loadSVGFromString,
-  Point,
-  type Canvas,
-  type FabricObject,
-} from "fabric";
+import { loadSVGFromString, Point, type Canvas, type FabricObject } from "fabric";
 import type { MutableRefObject } from "react";
 import { toast } from "sonner";
 import { AnimatableObject } from "../../shapes/animatable-object/object";
 import type { KeyframeEasing } from "../../shapes/animatable-object/types";
 import { getVideoWorkAreaRect } from "../../export/video-work-area";
-import {
-  removeItemRecord,
-  setSelectedId,
-  upsertItemRecord,
-} from "../../../store/editor-slice";
-import {
-  dispatchableSelector,
-  useAppDispatch,
-  useAppSelector,
-} from "../../../store";
+import { removeItemRecord, setSelectedId, upsertItemRecord } from "../../../store/editor-slice";
+import { dispatchableSelector, useAppDispatch, useAppSelector } from "../../../store";
 import {
   CircleObject,
   ImageObject,
@@ -31,13 +18,8 @@ import {
 
 import { useCanvasAppContext } from "./use-canvas-app-context";
 import { createRegularPolygonPoints, validateImageUrl } from "./util";
-import {
-  createUniqueId,
-  createKeyframeMarkerId,
-} from "../util/animations-utils";
-import {
-  CANVAS_KEYFRAME_EPSILON,
-} from "../../../../const";
+import { createUniqueId, createKeyframeMarkerId } from "../util/animations-utils";
+import { CANVAS_KEYFRAME_EPSILON } from "../../../../const";
 
 type UseCanvasItemsParams = {
   fabricCanvas: MutableRefObject<Canvas | null>;
@@ -83,11 +65,20 @@ type UpdateItemProps = {
   width?: number;
 };
 
+const CANVAS_ITEM_NUMERIC_KEYFRAME_FIELDS = [
+  "left",
+  "top",
+  "width",
+  "height",
+  "opacity",
+  "angle",
+] as const;
+
+const CANVAS_ITEM_COLOR_KEYFRAME_FIELDS = ["fill", "stroke"] as const;
+
 function isSvgFile(file: File) {
   // Detect SVG uploads by MIME type or extension so we can parse vector data.
-  return (
-    file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg")
-  );
+  return file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg");
 }
 
 function getBoundsForObjects(objects: FabricObject[]) {
@@ -149,11 +140,7 @@ function fitSvgObjectsToCanvas(
       scaleX: (object.scaleX ?? 1) * scale,
       scaleY: (object.scaleY ?? 1) * scale,
     });
-    object.setPositionByOrigin(
-      new Point(nextCenterX, nextCenterY),
-      "center",
-      "center",
-    );
+    object.setPositionByOrigin(new Point(nextCenterX, nextCenterY), "center", "center");
     object.setCoords();
   });
 }
@@ -203,22 +190,15 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
   ) => {
     const canvas = fabricCanvas.current;
     if (!canvas) return null;
-    const playheadTime = dispatch(
-      dispatchableSelector((state) => state.editor.playHeadTime),
-    );
+    const playheadTime = dispatch(dispatchableSelector((state) => state.editor.playHeadTime));
 
     const customId = options.customId ?? createUniqueId(typeName);
     const object: FabricObject = instance.fabricObject;
-    const hasLeft =
-      typeof options.left === "number" && Number.isFinite(options.left);
-    const hasRight =
-      typeof options.right === "number" && Number.isFinite(options.right);
-    const hasTop =
-      typeof options.top === "number" && Number.isFinite(options.top);
-    const hasWidth =
-      typeof options.width === "number" && Number.isFinite(options.width);
-    const hasHeight =
-      typeof options.height === "number" && Number.isFinite(options.height);
+    const hasLeft = typeof options.left === "number" && Number.isFinite(options.left);
+    const hasRight = typeof options.right === "number" && Number.isFinite(options.right);
+    const hasTop = typeof options.top === "number" && Number.isFinite(options.top);
+    const hasWidth = typeof options.width === "number" && Number.isFinite(options.width);
+    const hasHeight = typeof options.height === "number" && Number.isFinite(options.height);
 
     if (hasLeft || hasRight || hasTop) {
       const objectHalfWidth = object.getScaledWidth() / 2;
@@ -263,8 +243,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
 
     const timelineMarkers = [...(options.markers ?? [])];
     const hasPlayheadMarker = timelineMarkers.some(
-      (marker) =>
-        Math.abs(marker.timestamp - playheadTime) <= CANVAS_KEYFRAME_EPSILON,
+      (marker) => Math.abs(marker.timestamp - playheadTime) <= CANVAS_KEYFRAME_EPSILON,
     );
     if (!hasPlayheadMarker) {
       timelineMarkers.push({
@@ -274,74 +253,31 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     }
     for (const keyframe of options.keyframes ?? []) {
       if (!Number.isFinite(keyframe.time)) continue;
-      if (typeof keyframe.left === "number") {
+      CANVAS_ITEM_NUMERIC_KEYFRAME_FIELDS.forEach((property) => {
+        const value = keyframe[property];
+        if (typeof value !== "number") return;
+
         instance.addKeyframe({
-          property: "left",
-          value: keyframe.left,
+          property,
+          value,
           time: keyframe.time,
           easing: keyframe.easing ?? "linear",
         });
-      }
-      if (typeof keyframe.top === "number") {
-        instance.addKeyframe({
-          property: "top",
-          value: keyframe.top,
-          time: keyframe.time,
-          easing: keyframe.easing ?? "linear",
-        });
-      }
-      if (typeof keyframe.width === "number") {
-        instance.addKeyframe({
-          property: "width",
-          value: keyframe.width,
-          time: keyframe.time,
-          easing: keyframe.easing ?? "linear",
-        });
-      }
-      if (typeof keyframe.height === "number") {
-        instance.addKeyframe({
-          property: "height",
-          value: keyframe.height,
-          time: keyframe.time,
-          easing: keyframe.easing ?? "linear",
-        });
-      }
-      if (typeof keyframe.opacity === "number") {
-        instance.addKeyframe({
-          property: "opacity",
-          value: keyframe.opacity,
-          time: keyframe.time,
-          easing: keyframe.easing ?? "linear",
-        });
-      }
-      if (typeof keyframe.angle === "number") {
-        instance.addKeyframe({
-          property: "angle",
-          value: keyframe.angle,
-          time: keyframe.time,
-          easing: keyframe.easing ?? "linear",
-        });
-      }
-      if (typeof keyframe.fill === "string" && keyframe.fill.length > 0) {
+      });
+      CANVAS_ITEM_COLOR_KEYFRAME_FIELDS.forEach((property) => {
+        const value = keyframe[property];
+        if (typeof value !== "string" || value.length === 0) return;
+
         instance.addColorKeyframe({
-          property: "fill",
-          value: keyframe.fill,
+          property,
+          value,
           time: keyframe.time,
           easing: keyframe.easing ?? "linear",
         });
-      }
-      if (typeof keyframe.stroke === "string" && keyframe.stroke.length > 0) {
-        instance.addColorKeyframe({
-          property: "stroke",
-          value: keyframe.stroke,
-          time: keyframe.time,
-          easing: keyframe.easing ?? "linear",
-        });
-      }
+      });
 
       const hasMarker = timelineMarkers.some(
-        (marker) =>
-          Math.abs(marker.timestamp - keyframe.time) <= CANVAS_KEYFRAME_EPSILON,
+        (marker) => Math.abs(marker.timestamp - keyframe.time) <= CANVAS_KEYFRAME_EPSILON,
       );
       if (!hasMarker) {
         timelineMarkers.push({
@@ -374,6 +310,8 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       dispatch(setSelectedId([customId]));
     }
 
+    console.log("has added items");
+
     return customId;
   };
 
@@ -381,9 +319,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     const canvas = fabricCanvas.current;
     if (!canvas) return;
 
-    const targetObject = canvas
-      .getObjects()
-      .find((object) => object.customId === id);
+    const targetObject = canvas.getObjects().find((object) => object.customId === id);
     if (!targetObject) return;
 
     canvas.remove(targetObject);
@@ -554,8 +490,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
         });
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Could not parse SVG.";
+      const message = error instanceof Error ? error.message : "Could not parse SVG.";
       toast.error(`SVG import failed: ${message}`);
     }
   };
@@ -586,21 +521,16 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     const canvas = fabricCanvas.current;
     if (!canvas) return false;
     const instance = getInstanceById(id);
-    const itemRecord = dispatch(
-      dispatchableSelector((state) => state.editor.itemsRecord[id]),
-    );
+    const itemRecord = dispatch(dispatchableSelector((state) => state.editor.itemsRecord[id]));
     if (!instance || !itemRecord) return false;
 
     const timelineMarkers = [...itemRecord.keyframe];
     const object = instance.fabricObject;
-    const playheadTime = dispatch(
-      dispatchableSelector((state) => state.editor.playHeadTime),
-    );
+    const playheadTime = dispatch(dispatchableSelector((state) => state.editor.playHeadTime));
 
     const pushMarkerIfNeeded = (timestamp: number) => {
       const hasMarker = timelineMarkers.some(
-        (marker) =>
-          Math.abs(marker.timestamp - timestamp) <= CANVAS_KEYFRAME_EPSILON,
+        (marker) => Math.abs(marker.timestamp - timestamp) <= CANVAS_KEYFRAME_EPSILON,
       );
       if (hasMarker) return;
       timelineMarkers.push({
@@ -651,10 +581,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
         const currentScaleX = object.scaleX ?? 1;
         const currentScaledWidth = object.getScaledWidth();
         if (currentScaledWidth > 0) {
-          object.set(
-            "scaleX",
-            currentScaleX * (Number(nextProps.width) / currentScaledWidth),
-          );
+          object.set("scaleX", currentScaleX * (Number(nextProps.width) / currentScaledWidth));
           instance.addKeyframe({
             property: "width",
             value: object.getScaledWidth(),
@@ -667,10 +594,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
         const currentScaleY = object.scaleY ?? 1;
         const currentScaledHeight = object.getScaledHeight();
         if (currentScaledHeight > 0) {
-          object.set(
-            "scaleY",
-            currentScaleY * (Number(nextProps.height) / currentScaledHeight),
-          );
+          object.set("scaleY", currentScaleY * (Number(nextProps.height) / currentScaledHeight));
           instance.addKeyframe({
             property: "height",
             value: object.getScaledHeight(),

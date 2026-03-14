@@ -2,10 +2,7 @@
 import { type FabricObject } from "fabric";
 import { useEffect, useRef, useState } from "react";
 import { VIDEO_ASPECT_PRESETS } from "../../../const";
-import {
-  getVideoWorkAreaRect,
-  type VideoWorkAreaRect,
-} from "../export/video-work-area";
+import { getVideoWorkAreaRect, type VideoWorkAreaRect } from "../export/video-work-area";
 import { useCanvasAppContext } from "./hooks/use-canvas-app-context";
 import { setProjectInfo } from "../../store/editor-slice";
 import { useAppDispatch, useAppSelector } from "../../store";
@@ -31,13 +28,10 @@ export default function VideoWorkAreaOverlay() {
   });
   const [labelPosition, setLabelPosition] = useState({ left: 0, top: -9999 });
   const [isVideoOnlyOverlay, setIsVideoOnlyOverlay] = useState(false);
-  const aspectRation = useAppSelector(
-    (state) => state.editor.projectInfo.videoAspectRatio,
-  );
+  const aspectRation = useAppSelector((state) => state.editor.projectInfo.videoAspectRatio);
   const activeAspectPreset =
-    VIDEO_ASPECT_PRESETS.find(
-      (preset) => Math.abs(preset.ratio - aspectRation) < 0.0001,
-    ) ?? VIDEO_ASPECT_PRESETS[0];
+    VIDEO_ASPECT_PRESETS.find((preset) => Math.abs(preset.ratio - aspectRation) < 0.0001) ??
+    VIDEO_ASPECT_PRESETS[0];
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -47,13 +41,7 @@ export default function VideoWorkAreaOverlay() {
     // add guides to canvas if missing.
     if (!guidesRef.current) {
       guidesRef.current = guides;
-      canvas.add(
-        guides.dimTop,
-        guides.dimBottom,
-        guides.dimLeft,
-        guides.dimRight,
-        guides.border,
-      );
+      canvas.add(guides.dimTop, guides.dimBottom, guides.dimLeft, guides.dimRight, guides.border);
       bringGuidesToFront(canvas, guides);
     }
 
@@ -87,6 +75,8 @@ export default function VideoWorkAreaOverlay() {
      * Move guide rect to the front after/when new object is added
      */
     const onObjectAdded = (event: { target?: FabricObject }) => {
+      console.timeEnd("has added items");
+
       if (isVideoGuideObject(event.target)) return;
       const activeGuides = guidesRef.current;
       if (!activeGuides) return;
@@ -119,11 +109,7 @@ export default function VideoWorkAreaOverlay() {
     const updateProjectInfoFromCanvas = () => {
       const canvasWidth = canvas.getWidth();
       const canvasHeight = canvas.getHeight();
-      const videoRect = getVideoWorkAreaRect(
-        canvasWidth,
-        canvasHeight,
-        activeAspectPreset.ratio,
-      );
+      const videoRect = getVideoWorkAreaRect(canvasWidth, canvasHeight, activeAspectPreset.ratio);
 
       dispatch(
         setProjectInfo({
@@ -146,12 +132,7 @@ export default function VideoWorkAreaOverlay() {
     return () => {
       window.removeEventListener("resize", updateProjectInfoFromCanvas);
     };
-  }, [
-    activeAspectPreset.label,
-    activeAspectPreset.ratio,
-    dispatch,
-    fabricCanvasRef,
-  ]);
+  }, [activeAspectPreset.label, activeAspectPreset.ratio, dispatch, fabricCanvasRef]);
 
   // cleanup guides on unmount
   useEffect(() => {
@@ -185,8 +166,7 @@ export default function VideoWorkAreaOverlay() {
       >
         <div
           className={
-            "rounded px-2 py-0.5 text-[10px] " +
-            "font-semibold uppercase tracking-wide text-white"
+            "rounded px-2 py-0.5 text-[10px] " + "font-semibold uppercase tracking-wide text-white"
           }
           style={{ backgroundColor: "#2563eb" }}
         >
@@ -229,16 +209,8 @@ export default function VideoWorkAreaOverlay() {
             "hover:bg-[var(--wise-surface-muted)]"
           }
           style={{ borderColor: "#2563eb" }}
-          aria-label={
-            isVideoOnlyOverlay
-              ? "Show standard video overlay"
-              : "Show only video area"
-          }
-          title={
-            isVideoOnlyOverlay
-              ? "Show standard overlay"
-              : "Show only video area"
-          }
+          aria-label={isVideoOnlyOverlay ? "Show standard video overlay" : "Show only video area"}
+          title={isVideoOnlyOverlay ? "Show standard overlay" : "Show only video area"}
         >
           {isVideoOnlyOverlay ? (
             <svg
