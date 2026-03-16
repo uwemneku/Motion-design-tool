@@ -15,7 +15,7 @@ type FieldShellProps = {
 export function FieldShell({ children, className }: FieldShellProps) {
   return (
     <div
-      className={`relative flex h-6 max-h-6 items-center rounded-sm bg-[rgba(255,255,255,0.055)] ${className ?? ""}`}
+      className={`relative flex min-w-0 h-6 max-h-6 items-center rounded-[6px] bg-[rgba(255,255,255,0.055)] ${className ?? ""}`}
     >
       {children}
     </div>
@@ -45,7 +45,7 @@ export function PrefixScrubHandle({
     <button
       type="button"
       onPointerDown={onPointerDown}
-      className="h-full shrink-0 cursor-ew-resize select-none pl-2.5 pr-1.5 text-[11px] font-medium uppercase text-[#8d95a3]"
+      className="h-full shrink-0 cursor-ew-resize select-none border-r border-white/8 pl-1.5 pr-1 text-[10px] font-medium uppercase tracking-[0.04em] text-[#8d95a3]"
       aria-label={`Adjust ${prefix}`}
       title={`Drag to adjust ${prefix}`}
     >
@@ -59,6 +59,7 @@ type KeyframeActionButtonProps = {
   isKeyframed: boolean;
   label: string;
   onAddKeyframe: () => void;
+  variant?: "absolute" | "inline";
 };
 
 /** Renders a compact add-keyframe action inside a property field. */
@@ -67,7 +68,13 @@ export function KeyframeActionButton({
   isKeyframed,
   label,
   onAddKeyframe,
+  variant = "absolute",
 }: KeyframeActionButtonProps) {
+  const positionClass =
+    variant === "inline"
+      ? "relative shrink-0"
+      : "absolute right-1.5 top-1/2 -translate-y-1/2";
+
   return (
     <button
       type="button"
@@ -76,14 +83,14 @@ export function KeyframeActionButton({
         event.stopPropagation();
         onAddKeyframe();
       }}
-      className={`cursor-pointer absolute right-1.5 top-1/2 inline-flex size-2 -translate-y-1/2 items-center justify-center rotate-45 border transition ${
+      className={`inline-flex size-2.5 cursor-pointer items-center justify-center rotate-45 border transition ${positionClass} ${
         isKeyframed
-          ? "border-[#2563eb] bg-[#2563eb]/80 text-[#93c5fd]"
-          : "border-white/8 bg-[rgba(255,255,255,0.035)] text-[#8f96a3] hover:border-white/18 hover:bg-white/8 hover:text-[#f3f5f8]"
+          ? "border-[#7ea6ff] bg-[rgba(126,166,255,0.12)] text-[#a9c2ff]"
+          : "border-white/10 bg-[rgba(255,255,255,0.03)] text-[#8f96a3] hover:border-white/18 hover:bg-white/8 hover:text-[#f3f5f8]"
       } ${className ?? ""}`}
       aria-label={`Add keyframe for ${label}`}
       title={`Add keyframe for ${label}`}
-    ></button>
+    />
   );
 }
 

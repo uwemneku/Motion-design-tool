@@ -215,8 +215,30 @@ test.describe("Editor behavior", () => {
     await expect(page.getByRole("button", { name: "Redo" })).toBeVisible();
 
     await page.getByRole("button", { name: EXPORT_VIDEO_LABEL }).hover();
-    await expect(page.locator("select").last()).toBeVisible();
-    await expect(page.locator("select").last()).toHaveValue("mp4");
+    await expect(page.getByRole("button", { name: "Select export format" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Select export format" })).toContainText(
+      "MP4",
+    );
+  });
+
+  test("allows changing the export format from the export menu", async ({ page }) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add rectangle");
+    await selectLayer(page, "rectangle");
+
+    await page.getByRole("button", { name: EXPORT_VIDEO_LABEL }).hover();
+    const exportPanel = page.getByText("Format").last().locator("..");
+
+    const formatTrigger = exportPanel.getByRole("button", {
+      name: "Select export format",
+    });
+    await expect(formatTrigger).toBeVisible();
+    await expect(formatTrigger).toContainText("MP4");
+
+    await formatTrigger.click();
+    await page.getByRole("menuitemradio", { name: "WebM" }).click();
+
+    await expect(formatTrigger).toContainText("WebM");
   });
 
   test("keeps the design panel scrollable and places the color picker left of the inspector", async ({

@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 import { EXPORT_VIDEO_LABEL } from "../src/app/features/canvas/canvas-side-panel/export-controls";
 
 /** Waits for the editor shell to finish initial render. */
@@ -10,12 +10,68 @@ async function gotoEditor(page: Page) {
 
 /** Adds a canvas item through the floating canvas tools. */
 async function addCanvasItem(page: Page, label: string) {
-  await page.getByRole("button", { name: label }).click();
+  const button = page.getByRole("button", { name: label });
+  await expect(button).toBeVisible();
+  await button.click();
 }
 
 /** Selects a layer row by its exact name. */
 async function selectLayer(page: Page, name: string) {
-  await page.getByRole("button", { name: new RegExp(`^${escapeRegex(name)}$`) }).click();
+  await page
+    .getByTestId("floating-layers-panel")
+    .getByRole("button", { name: new RegExp(`^${escapeRegex(name)}$`) })
+    .click();
+}
+
+/** Moves the timeline playhead to a relative position across the ruler. */
+async function seekTimeline(page: Page, fraction: number) {
+  const ruler = page
+    .getByTestId("timeline")
+    .getByTitle("Click to move playhead")
+    .first();
+  const bounds = await ruler.boundingBox();
+  if (!bounds) {
+    throw new Error("Timeline ruler was not measurable.");
+  }
+
+  await page.mouse.click(
+    bounds.x + bounds.width * fraction,
+    bounds.y + bounds.height / 2,
+  );
+}
+
+/** Scrolls the visible side-panel content to expose lower controls. */
+async function scrollSidePanel(page: Page, top: number) {
+  await page
+    .getByTestId("canvas-side-panel")
+    .locator("[data-container]")
+    .evaluate((element, nextTop) => {
+      element.scrollTop = nextTop;
+      element.dispatchEvent(new Event("scroll"));
+    }, top);
+}
+
+/** Builds a richer canvas scene before taking design-focused screenshots. */
+async function buildDesignReviewState(page: Page) {
+  await addCanvasItem(page, "Add rectangle");
+  await addCanvasItem(page, "Add circle");
+  await addCanvasItem(page, "Add text");
+  await selectLayer(page, "rectangle");
+  await seekTimeline(page, 0.32);
+  await page.getByRole("button", { name: "Add keyframe for Position X" }).click();
+  await scrollSidePanel(page, 220);
+}
+
+/** Builds an animation-focused state with populated layers and timeline context. */
+async function buildAnimationReviewState(page: Page) {
+  await addCanvasItem(page, "Add rectangle");
+  await addCanvasItem(page, "Add circle");
+  await addCanvasItem(page, "Add text");
+  await selectLayer(page, "rectangle");
+  await seekTimeline(page, 0.48);
+  await page.getByRole("button", { name: "Add keyframe for Position X" }).click();
+  await page.getByRole("button", { name: "Zoom in timeline" }).click();
+  await page.getByRole("button", { name: "Zoom in timeline" }).click();
 }
 
 /** Saves a screenshot into the test output folder for visual review. */
@@ -26,9 +82,23 @@ async function saveShot(page: Page, testInfo: TestInfo, name: string) {
   });
 }
 
+/** Saves a focused locator screenshot into the test output folder for visual review. */
+async function saveLocatorShot(
+  locator: Locator,
+  testInfo: TestInfo,
+  name: string,
+) {
+  await locator.screenshot({
+    path: testInfo.outputPath(name),
+  });
+}
+
 test.describe("Editor visual review", () => {
   test("captures the default editor shell", async ({ page }, testInfo) => {
     await gotoEditor(page);
+    await addCanvasItem(page, "Add rectangle");
+    await addCanvasItem(page, "Add circle");
+    await selectLayer(page, "circle");
 
     await saveShot(page, testInfo, "editor-shell.png");
     await expect(page).toHaveScreenshot("editor-shell-baseline.png", {
@@ -39,11 +109,11 @@ test.describe("Editor visual review", () => {
 
   test("captures a populated design state", async ({ page }, testInfo) => {
     await gotoEditor(page);
-    await addCanvasItem(page, "Add rectangle");
-    await addCanvasItem(page, "Add text");
-    await selectLayer(page, "rectangle");
+    await buildDesignReviewState(page);
 
-    await expect(page.getByRole("button", { name: "Design" })).toBeVisible();
+    await expect(
+      page.getByTestId("canvas-side-panel").getByRole("button", { name: "Design" }),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Add keyframe for Position X" }),
     ).toBeVisible();
@@ -63,15 +133,22 @@ test.describe("Editor visual review", () => {
     await addCanvasItem(page, "Add rectangle");
     await addCanvasItem(page, "Add line");
     await selectLayer(page, "circle");
+    await seekTimeline(page, 0.58);
+    await page.getByRole("button", { name: "Add keyframe for Position X" }).click();
+    await page.getByRole("button", { name: "Play timeline" }).click();
+    await page.waitForTimeout(250);
+    await page.getByRole("button", { name: "Pause timeline" }).click();
 
     await saveShot(page, testInfo, "editor-crowded-review.png");
   });
 
   test("captures the animation template panel", async ({ page }, testInfo) => {
     await gotoEditor(page);
-    await addCanvasItem(page, "Add rectangle");
-    await selectLayer(page, "rectangle");
-    await page.getByRole("button", { name: "Anim" }).click();
+    await buildAnimationReviewState(page);
+    await page
+      .getByTestId("canvas-side-panel")
+      .getByRole("button", { name: "Anim", exact: true })
+      .click();
 
     await expect(page.getByText("Animation Templates")).toBeVisible();
 
@@ -86,6 +163,10 @@ test.describe("Editor visual review", () => {
     await gotoEditor(page);
     await addCanvasItem(page, "Add rectangle");
     await addCanvasItem(page, "Add circle");
+    await addCanvasItem(page, "Add text");
+    await selectLayer(page, "circle");
+    await seekTimeline(page, 0.44);
+    await page.getByRole("button", { name: "Add keyframe for Position X" }).click();
     await page.getByRole("button", { name: "Zoom in timeline" }).click();
     await page.getByRole("button", { name: "Zoom in timeline" }).click();
 
@@ -130,6 +211,33 @@ test.describe("Editor visual review", () => {
     }
 
     expect(Math.abs(toolbarAfter.x - toolbarBefore.x)).toBeLessThan(1);
+  });
+
+  test("captures a close-up of inspector number fields", async ({ page }, testInfo) => {
+    await gotoEditor(page);
+    await buildDesignReviewState(page);
+    await scrollSidePanel(page, 0);
+
+    const inspector = page.getByTestId("canvas-side-panel");
+    const transformSection = inspector.getByText("Transform").locator("..");
+    await saveLocatorShot(transformSection, testInfo, "inspector-field-closeup.png");
+  });
+
+  test("captures the export dropdown close-up", async ({ page }, testInfo) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add rectangle");
+    await addCanvasItem(page, "Add circle");
+    await selectLayer(page, "rectangle");
+
+    await page.getByRole("button", { name: EXPORT_VIDEO_LABEL }).hover();
+
+    const exportPopover = page.getByText("Format").last();
+    await expect(exportPopover).toBeVisible();
+    await saveLocatorShot(
+      page.getByTestId("canvas-side-panel"),
+      testInfo,
+      "export-dropdown-closeup.png",
+    );
   });
 });
 

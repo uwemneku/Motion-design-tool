@@ -28,10 +28,10 @@ export function KeyframeDetailsPanel() {
   })();
 
   return (
-    <section className="shrink-0 border-t border-white/10 bg-[rgba(12,15,22,0.82)] px-2.5 py-2 backdrop-blur-xl">
+    <section className="shrink-0 border-t border-white/10 bg-[rgba(35,35,37,0.98)] px-2.5 py-2 backdrop-blur-xl">
       <div className="space-y-1.5">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#bfc7d4]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#c6cad2]">
             Transition
           </p>
           {selectedKeyframeId ? (
@@ -49,7 +49,7 @@ export function KeyframeDetailsPanel() {
 
         {selectedKeyframeId ? (
           <select
-            className="h-8 w-full rounded-[10px] border border-white/10 bg-[rgba(255,255,255,0.04)] px-2.5 text-[11px] text-[#eef4ff] outline-none transition focus:border-white/60 focus:ring-1 focus:ring-white/20"
+            className="h-8 w-full rounded-[5px] border border-white/10 bg-[rgba(255,255,255,0.045)] px-2.5 text-[11px] text-[#f3f5f8] outline-none transition focus:border-white/40 focus:ring-1 focus:ring-white/12"
             value={selectedEasing ?? "linear"}
             onChange={(event) => {
               if (!selectedId || !selectedKeyframeId) return;
@@ -71,7 +71,7 @@ export function KeyframeDetailsPanel() {
             ))}
           </select>
         ) : (
-          <p className="text-[11px] text-[#8d97a8]">
+          <p className="text-[11px] text-[#8f97a4]">
             Select a keyframe to edit its transition type.
           </p>
         )}

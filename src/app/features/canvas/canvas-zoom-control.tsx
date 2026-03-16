@@ -1,4 +1,5 @@
 /** Canvas Zoom Control.Tsx module implementation. */
+import { Search } from "lucide-react";
 import { syncObjectControlBorderScale } from "./util/fabric-controls";
 import { useCanvasAppContext } from "./hooks/use-canvas-app-context";
 import { useAppDispatch, useAppSelector } from "../../store";
@@ -26,20 +27,11 @@ export default function CanvasZoomControl() {
     <button
       type="button"
       onClick={resetZoom}
-      className="absolute bottom-4 left-4 z-30 flex items-center gap-1.5 rounded-[12px] border border-white/10 bg-[rgba(20,24,33,0.72)] px-3 py-1.5 text-xs font-semibold text-[#edf3ff] shadow-[0_16px_30px_rgba(0,0,0,0.22)] backdrop-blur-2xl hover:bg-[rgba(255,255,255,0.08)]"
+      className="absolute bottom-4 left-4 z-30 flex items-center gap-1.5 rounded-[12px] border border-white/8 bg-[rgba(46,46,49,0.9)] px-3 py-1.5 text-xs font-semibold text-[#f3f4f6] shadow-[0_16px_30px_rgba(0,0,0,0.22)] backdrop-blur-2xl hover:bg-[rgba(255,255,255,0.08)]"
       title="Reset zoom to 100%"
       aria-label="Reset canvas zoom"
     >
-      <svg
-        viewBox="0 0 24 24"
-        className="size-3.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      >
-        <circle cx="11" cy="11" r="7" />
-        <path d="M21 21l-4.35-4.35" />
-      </svg>
+      <Search className="size-3.5" strokeWidth={2} aria-hidden />
       {Math.round(canvasZoom * 100)}%
     </button>
   );

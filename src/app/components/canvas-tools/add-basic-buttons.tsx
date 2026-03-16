@@ -1,4 +1,5 @@
 /** Add Basic Buttons.Tsx reusable UI component. */
+import { Circle, Slash, Square, Type } from "lucide-react";
 import type { MouseEvent } from "react";
 import { ToolButton } from "./tool-button";
 
@@ -23,15 +24,7 @@ export function AddCircleButton({
       onClick={onAddCircle}
       onMouseDown={onMouseDown}
     >
-      <svg
-        viewBox="0 0 24 24"
-        className="size-4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      >
-        <circle cx="12" cy="12" r="8" />
-      </svg>
+      <Circle className="size-4" strokeWidth={2} aria-hidden />
     </ToolButton>
   );
 }
@@ -43,17 +36,7 @@ export function AddLineButton({
 }: Pick<AddBasicButtonsProps, "onAddLine" | "onMouseDown">) {
   return (
     <ToolButton label="Add line" onClick={onAddLine} onMouseDown={onMouseDown}>
-      <svg
-        viewBox="0 0 24 24"
-        className="size-4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      >
-        <path d="M4 18L20 6" />
-        <circle cx="4" cy="18" r="1.5" fill="currentColor" stroke="none" />
-        <circle cx="20" cy="6" r="1.5" fill="currentColor" stroke="none" />
-      </svg>
+      <Slash className="size-4" strokeWidth={2} aria-hidden />
     </ToolButton>
   );
 }
@@ -69,15 +52,7 @@ export function AddRectangleButton({
       onClick={onAddRectangle}
       onMouseDown={onMouseDown}
     >
-      <svg
-        viewBox="0 0 24 24"
-        className="size-4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      >
-        <rect x="4" y="7" width="16" height="10" rx="1.5" />
-      </svg>
+      <Square className="size-4" strokeWidth={2} aria-hidden />
     </ToolButton>
   );
 }
@@ -93,15 +68,7 @@ export function AddTextButton({
       onClick={() => onAddText()}
       onMouseDown={onMouseDown}
     >
-      <svg
-        viewBox="0 0 24 24"
-        className="size-4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      >
-        <path d="M5 6h14M12 6v12M8 18h8" />
-      </svg>
+      <Type className="size-4" strokeWidth={2} aria-hidden />
     </ToolButton>
   );
 }

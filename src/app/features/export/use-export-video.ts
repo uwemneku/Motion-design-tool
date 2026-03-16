@@ -9,11 +9,7 @@ import {
   type TFabricObjectProps,
 } from "fabric";
 import { useCallback, useState, type MutableRefObject } from "react";
-import {
-  EXPORT_DURATION_SECONDS,
-  EXPORT_FPS,
-  EXPORT_PIXEL_DENSITY,
-} from "../../../const";
+import { EXPORT_DURATION_SECONDS, EXPORT_FPS, EXPORT_PIXEL_DENSITY } from "../../../const";
 import { getVideoWorkAreaRect } from "./video-work-area";
 import { AnimatableObject } from "../shapes/animatable-object/object";
 import { useCanvasAppContext } from "../canvas/hooks/use-canvas-app-context";
@@ -30,10 +26,7 @@ type ExportMaskTrackingObject = FabricObject & {
 /**
  * Exports the current canvas scene to the selected format using the video work area.
  */
-function useExportVideo(
-  fabricCanvas: MutableRefObject<Canvas | null>,
-  activeAspectRatio: number,
-) {
+function useExportVideo(fabricCanvas: MutableRefObject<Canvas | null>, activeAspectRatio: number) {
   const { instancesRef } = useCanvasAppContext();
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
@@ -45,8 +38,7 @@ function useExportVideo(
       liveCanvas.discardActiveObject();
       liveCanvas.requestRenderAll();
 
-      const exportScale =
-        Math.max(0.5, Math.min(5, quality)) * EXPORT_PIXEL_DENSITY;
+      const exportScale = Math.max(0.5, Math.min(5, quality)) * EXPORT_PIXEL_DENSITY;
       let exportCanvas: StaticCanvas | null = null;
 
       setIsExporting(true);
@@ -55,19 +47,9 @@ function useExportVideo(
       try {
         const liveWidth = liveCanvas.getWidth();
         const liveHeight = liveCanvas.getHeight();
-        const videoArea = getVideoWorkAreaRect(
-          liveWidth,
-          liveHeight,
-          activeAspectRatio,
-        );
-        const exportWidth = Math.max(
-          2,
-          Math.round(videoArea.width * exportScale),
-        );
-        const exportHeight = Math.max(
-          2,
-          Math.round(videoArea.height * exportScale),
-        );
+        const videoArea = getVideoWorkAreaRect(liveWidth, liveHeight, activeAspectRatio);
+        const exportWidth = Math.max(2, Math.round(videoArea.width * exportScale));
+        const exportHeight = Math.max(2, Math.round(videoArea.height * exportScale));
         const scaleX = exportWidth / videoArea.width;
         const scaleY = exportHeight / videoArea.height;
 
@@ -96,8 +78,7 @@ function useExportVideo(
             continue;
           }
 
-          const clonedObject =
-            await cloneFabricObjectWithCustomId(sourceObject);
+          const clonedObject = await cloneFabricObjectWithCustomId(sourceObject);
           const sourceLeft = sourceObject.left ?? 0;
           const sourceTop = sourceObject.top ?? 0;
           const sourceScaleX = sourceObject.scaleX ?? 1;
@@ -127,19 +108,13 @@ function useExportVideo(
                 fill: sourceInstance.colorKeyframes.fill?.map((keyframe) => ({
                   ...keyframe,
                 })),
-                stroke: sourceInstance.colorKeyframes.stroke?.map(
-                  (keyframe) => ({
-                    ...keyframe,
-                  }),
-                ),
+                stroke: sourceInstance.colorKeyframes.stroke?.map((keyframe) => ({
+                  ...keyframe,
+                })),
               };
               exportInstances.set(
                 customId,
-                new AnimatableObject(
-                  clonedObject,
-                  exportKeyframes,
-                  exportColorKeyframes,
-                ),
+                new AnimatableObject(clonedObject, exportKeyframes, exportColorKeyframes),
               );
             }
           }
@@ -168,11 +143,7 @@ function useExportVideo(
               instance.seek(timeInSeconds);
               syncExportMaskProxyForObject(instance.fabricObject);
             });
-            ensureTransparentCanvasFrame(
-              exportElement,
-              exportWidth,
-              exportHeight,
-            );
+            ensureTransparentCanvasFrame(exportElement, exportWidth, exportHeight);
             exportCanvas?.renderAll();
           },
           onProgress: (progress) => {
@@ -182,17 +153,16 @@ function useExportVideo(
 
         const url = URL.createObjectURL(blob);
         window.open(url, "_blank", "noopener,noreferrer");
-        const anchor = document.createElement("a");
-        const timestamp = new Date().toISOString().replaceAll(":", "-");
-        anchor.href = url;
-        anchor.download = `motion-export-${timestamp}.${format}`;
-        anchor.click();
+        // const anchor = document.createElement("a");
+        // const timestamp = new Date().toISOString().replaceAll(":", "-");
+        // anchor.href = url;
+        // anchor.download = `motion-export-${timestamp}.${format}`;
+        // anchor.click();
         window.setTimeout(() => {
           URL.revokeObjectURL(url);
         }, 60_000);
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown export error";
+        const message = error instanceof Error ? error.message : "Unknown export error";
         toast.error(`Export failed: ${message}`);
       } finally {
         setIsExporting(false);
@@ -209,11 +179,7 @@ function useExportVideo(
 export default useExportVideo;
 
 /** Clears the export surface so every rendered frame starts from transparent pixels. */
-function ensureTransparentCanvasFrame(
-  canvas: HTMLCanvasElement,
-  width: number,
-  height: number,
-) {
+function ensureTransparentCanvasFrame(canvas: HTMLCanvasElement, width: number, height: number) {
   const context = canvas.getContext("2d", { alpha: true });
   if (!context) return;
   context.clearRect(0, 0, width, height);
@@ -235,9 +201,7 @@ function cloneKeyframesForExport(
 ): KeyframesByProperty {
   const next: KeyframesByProperty = {};
 
-  for (const [property, propertyKeyframes] of Object.entries(
-    keyframes,
-  ) as Array<
+  for (const [property, propertyKeyframes] of Object.entries(keyframes) as Array<
     [keyof KeyframesByProperty, KeyframesByProperty[keyof KeyframesByProperty]]
   >) {
     if (!propertyKeyframes) continue;
@@ -268,9 +232,7 @@ function cloneKeyframesForExport(
 /**
  * Creates a canvas snapshot for image-backed Fabric objects when clone fails.
  */
-function cloneImageElementToCanvas(
-  sourceObject: FabricImage,
-): HTMLCanvasElement {
+function cloneImageElementToCanvas(sourceObject: FabricImage): HTMLCanvasElement {
   const element = sourceObject.getElement();
   const isImageElement = element instanceof HTMLImageElement;
   const isCanvasElement = element instanceof HTMLCanvasElement;
@@ -314,10 +276,11 @@ async function cloneFabricObjectWithCustomId<
     }
 
     const snapshotCanvas = cloneImageElementToCanvas(sourceObject);
-    clonedObject = new FabricImage(
-      snapshotCanvas,
-      sourceObject.toObject(),
-    ) as FabricObject<Props, SProps, EventSpec>;
+    clonedObject = new FabricImage(snapshotCanvas, sourceObject.toObject()) as FabricObject<
+      Props,
+      SProps,
+      EventSpec
+    >;
   }
 
   const customId = sourceObject.customId;
@@ -345,8 +308,7 @@ async function remapExportClipPaths(
     if (!sourceClipPath) continue;
 
     const clipPathCustomIdId =
-      "customId" in sourceClipPath &&
-      typeof sourceClipPath.customId === "string"
+      "customId" in sourceClipPath && typeof sourceClipPath.customId === "string"
         ? sourceClipPath.customId
         : null;
     const exportObject = exportObjectsById.get(sourceId)?.fabricObject;
@@ -355,8 +317,7 @@ async function remapExportClipPaths(
     let exportClipPath: FabricObject | undefined;
     let exportMaskSourceForSync: FabricObject | undefined;
     if (clipPathCustomIdId) {
-      const exportMaskSource =
-        exportObjectsById.get(clipPathCustomIdId)?.fabricObject;
+      const exportMaskSource = exportObjectsById.get(clipPathCustomIdId)?.fabricObject;
       if (exportMaskSource) {
         // Use a dedicated clip-path clone so the visible source object is not reused as mask.
         exportClipPath = await cloneFabricObjectWithCustomId(exportMaskSource);
@@ -398,16 +359,9 @@ async function remapExportClipPaths(
       exportClipPath.setCoords();
     }
 
-    exportClipPath.set(
-      "absolutePositioned",
-      Boolean(sourceClipPath.absolutePositioned),
-    );
+    exportClipPath.set("absolutePositioned", Boolean(sourceClipPath.absolutePositioned));
     exportObject.set("clipPath", exportClipPath);
-    setExportMaskTracking(
-      exportObject,
-      exportClipPath,
-      exportMaskSourceForSync,
-    );
+    setExportMaskTracking(exportObject, exportClipPath, exportMaskSourceForSync);
     exportObject.setCoords();
   }
 }

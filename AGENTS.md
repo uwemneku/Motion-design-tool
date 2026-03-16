@@ -9,6 +9,7 @@
 - Use semicolons.
 - Use Prettier as the source of truth for formatting. Run `npm run format` to write formatting changes and `npm run format:check` to verify them.
 - Follow the repo-level guidance in `STYLEGUIDE.md` for code organization, React/Redux usage, styling, and testing decisions.
+- Follow `UI_UX_GUIDE.md` for UI/UX decisions, visual hierarchy, interaction behavior, spacing, color usage, and review standards when working on product surfaces.
 - Write functions so a human reader can follow them quickly: prefer small helpers, clear naming, and linear control flow over dense cleverness.
 - Always comment functions with concise purpose/behavior notes.
 
@@ -39,6 +40,10 @@
 - Run `npm run test:ui:update` only when intentionally accepting new visual baselines.
 - Visual screenshots are emitted under `test-results/playwright/**`; review those images before making UI follow-up changes.
 - When working on layout or styling, prefer this loop: run visual test, inspect screenshots, adjust UI, rerun.
+- When taking screenshots for visual inspection, do not rely only on the default empty shell. Interact with the page first so the captured states reflect real use.
+- For editor visual review, prefer building realistic states before capture: add a few items to the canvas, select items, scrub or play the timeline briefly, switch between `Design` and `Anim`, and scroll panels when relevant.
+- Capture multiple screenshots for distinct states instead of one static image when evaluating UI changes. At minimum, prefer a shell state, a populated design state, and an animation/timeline-focused state when those areas are affected.
+- Review the generated screenshots before deciding what to change next. Use those images as the basis for follow-up UI decisions rather than guessing from code alone.
 
 ## Safety
 

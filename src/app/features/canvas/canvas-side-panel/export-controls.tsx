@@ -1,7 +1,9 @@
 /** Export Controls.Tsx canvas side panel export UI logic. */
-import * as Tooltip from "@radix-ui/react-tooltip";
+import * as Popover from "@radix-ui/react-popover";
 import { AnimatePresence, motion } from "framer-motion";
-import { useState, type MouseEvent } from "react";
+import { FileOutput } from "lucide-react";
+import { useRef, useState, type MouseEvent } from "react";
+import { RadixMenuSelect } from "../../../components/radix-menu-select";
 import { useAppSelector } from "../../../store";
 import { SliderPanelControl } from "../../../components/slider-panel-control";
 import type { ExportVideoFormat } from "../../export/export-media";
@@ -10,11 +12,17 @@ import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 
 export const EXPORT_VIDEO_LABEL = "Export video";
 const EXPORT_FORMAT_OPTIONS: ExportVideoFormat[] = ["mp4", "webm"];
+const EXPORT_FORMAT_MENU_OPTIONS = EXPORT_FORMAT_OPTIONS.map((format) => ({
+  label: format === "mp4" ? "MP4" : "WebM",
+  value: format,
+}));
 
 /** Export button and quality controls for the right inspector toolbar. */
 export function CanvasSidePanelExportControls() {
   const [exportQuality, setExportQuality] = useState(1);
   const [exportFormat, setExportFormat] = useState<ExportVideoFormat>("mp4");
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const closeTimerRef = useRef<number | null>(null);
   const activeAspectRatio =
     useAppSelector((state) => state.editor.projectInfo.videoAspectRatio) ?? 1;
   const { fabricCanvasRef } = useCanvasAppContext();
@@ -23,10 +31,30 @@ export function CanvasSidePanelExportControls() {
     activeAspectRatio,
   );
 
+  /** Opens the hoverable export settings panel immediately. */
+  const openMenu = () => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    setIsMenuOpen(true);
+  };
+
+  /** Closes the hoverable export settings panel after a brief grace period. */
+  const closeMenuSoon = () => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+    }
+    closeTimerRef.current = window.setTimeout(() => {
+      setIsMenuOpen(false);
+      closeTimerRef.current = null;
+    }, 120);
+  };
+
   return (
-    <Tooltip.Provider>
-      <Tooltip.Root delayDuration={120}>
-        <Tooltip.Trigger asChild>
+    <Popover.Root open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+      <div onMouseEnter={openMenu} onMouseLeave={closeMenuSoon}>
+        <Popover.Anchor asChild>
           <button
             type="button"
             onClick={() => {
@@ -36,9 +64,9 @@ export function CanvasSidePanelExportControls() {
             disabled={isExporting}
             aria-label={EXPORT_VIDEO_LABEL}
             title={EXPORT_VIDEO_LABEL}
-            className="rounded-[12px] border border-[#4ba4ff]/35 bg-[linear-gradient(180deg,#1591ff,#0a84ff)] px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_10px_22px_rgba(10,132,255,0.24)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
+            className="relative rounded-full border flex justify-center items-center border-[#7189c2] bg-[#4d68d1] size-8 text-[11px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            <motion.span
+            <motion.p
               layout
               className="flex items-center gap-2"
               transition={{
@@ -46,42 +74,53 @@ export function CanvasSidePanelExportControls() {
                 ease: "easeOut",
               }}
             >
-              <span>Export</span>
+              <FileOutput className="size-3.5" strokeWidth={1.9} aria-hidden />
               <AnimatePresence initial={false}>
                 {isExporting ? (
-                  <ExportProgressIndicator
-                    key="progress"
-                    progress={exportProgress}
-                  />
+                  <p className="absolute w-full h-full scale-200 top-0 left-0 rounded-full flex items-center justify-center">
+                    <ExportProgressIndicator key="progress" progress={exportProgress} />
+                  </p>
                 ) : null}
               </AnimatePresence>
-            </motion.span>
+            </motion.p>
           </button>
-        </Tooltip.Trigger>
-        <Tooltip.Portal>
-          <Tooltip.Content
+        </Popover.Anchor>
+        <Popover.Portal>
+          <Popover.Content
+            side="bottom"
+            align="end"
             sideOffset={8}
-            className="z-50 w-56 rounded-[14px] border border-white/10 bg-[rgba(20,24,33,0.88)] p-3 text-xs text-[#e6e6e6] shadow-[0_18px_40px_rgba(0,0,0,0.38)] backdrop-blur-2xl"
+            onOpenAutoFocus={(event) => {
+              event.preventDefault();
+            }}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+            }}
+            onMouseEnter={openMenu}
+            onMouseLeave={closeMenuSoon}
+            className="z-50 w-56 rounded-[12px] border border-[#7189c2] bg-[#4d68d1] p-3 text-xs text-white shadow-[0_18px_40px_rgba(0,0,0,0.32)] backdrop-blur-2xl"
           >
             <div className="mb-3 space-y-1.5">
-              <div className="text-[11px] font-medium text-[#c9ccd6]">
-                Format
-              </div>
-              <select
+              <div className="text-[11px] font-medium text-white/85">Format</div>
+              <RadixMenuSelect
+                ariaLabel="Select export format"
+                contentClassName="z-50 min-w-[160px] rounded-[8px] border border-[#7189c2] bg-[#4d68d1] p-1 shadow-[0_16px_36px_rgba(0,0,0,0.35)] backdrop-blur-xl"
+                options={EXPORT_FORMAT_MENU_OPTIONS}
+                triggerClassName="inline-flex h-8 w-full items-center justify-between gap-2 rounded-[5px] border border-white/15 bg-[rgba(255,255,255,0.09)] px-2.5 text-[12px] font-semibold text-white outline-none transition hover:bg-[rgba(255,255,255,0.12)]"
                 value={exportFormat}
-                onChange={(event) => {
-                  setExportFormat(event.target.value as ExportVideoFormat);
+                onValueChange={(value) => {
+                  setExportFormat(value as ExportVideoFormat);
                 }}
-                className="h-8 w-full rounded-[10px] border border-white/10 bg-[rgba(255,255,255,0.04)] px-2.5 text-[11px] font-medium uppercase text-[#e6e6e6] outline-none transition focus:border-white/60 focus:ring-1 focus:ring-white/20"
-              >
-                {EXPORT_FORMAT_OPTIONS.map((format) => (
-                  <option key={format} value={format}>
-                    {format}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <SliderPanelControl
+              classNames={{
+                label: "text-[11px] font-medium text-white/85",
+                rangeLabels: "flex items-center justify-between text-[10px] font-medium text-white/60",
+                shell: "mb-1 rounded-[5px] border border-white/15 bg-[rgba(0,0,0,0.24)] px-2 py-2",
+                value:
+                  "rounded-[5px] border border-white/15 bg-[rgba(255,255,255,0.12)] px-1.5 py-0.5 text-[11px] font-semibold text-white",
+              }}
               label="Export quality"
               min={0.5}
               max={5}
@@ -92,11 +131,11 @@ export function CanvasSidePanelExportControls() {
               valueText={`${exportQuality.toFixed(1)}x`}
               onChange={setExportQuality}
             />
-            <Tooltip.Arrow className="fill-[rgba(20,24,33,0.88)]" />
-          </Tooltip.Content>
-        </Tooltip.Portal>
-      </Tooltip.Root>
-    </Tooltip.Provider>
+            <Popover.Arrow className="fill-[#4d68d1]" />
+          </Popover.Content>
+        </Popover.Portal>
+      </div>
+    </Popover.Root>
   );
 }
 
@@ -116,40 +155,46 @@ function ExportProgressIndicator({ progress }: ExportProgressIndicatorProps) {
   const clampedProgress = Math.min(1, Math.max(0, progress));
   const radius = 8;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference * (1 - clampedProgress);
+  const visibleArc = Math.max(circumference * clampedProgress, circumference * 0.14);
+  const dashArray = `${visibleArc} ${circumference}`;
 
   return (
     <motion.span
       layout
       initial={{ opacity: 0, width: 0, scale: 0.85 }}
-      animate={{ opacity: 1, width: 20, scale: 1 }}
+      animate={{ opacity: 1, width: 22, scale: 1 }}
       exit={{ opacity: 0, width: 0, scale: 0.85 }}
       transition={{ duration: 0.18, ease: "easeOut" }}
-      className="flex h-5 items-center justify-center overflow-hidden text-[#c6c6c6]"
+      className="flex h-5 items-center justify-center overflow-hidden text-white"
       aria-label="Export in progress"
       role="status"
     >
-      <svg viewBox="0 0 24 24" className="-rotate-90 size-5">
-        <circle
-          cx="12"
-          cy="12"
-          r={radius}
-          className="stroke-white/15"
-          fill="none"
-          strokeWidth="2"
-        />
-        <circle
-          cx="12"
-          cy="12"
-          r={radius}
-          className="stroke-current transition-all duration-200 ease-out"
-          fill="none"
-          strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          strokeWidth="2"
-        />
-      </svg>
+      <motion.span
+        animate={{ rotate: 360 }}
+        transition={{ duration: 1.05, ease: "linear", repeat: Number.POSITIVE_INFINITY }}
+        className="relative flex size-5 items-center justify-center"
+      >
+        <svg viewBox="0 0 24 24" className="-rotate-90 size-9">
+          <circle
+            cx="12"
+            cy="12"
+            r={radius}
+            className="stroke-white/18"
+            fill="none"
+            strokeWidth="1.75"
+          />
+          <circle
+            cx="12"
+            cy="12"
+            r={radius}
+            className="stroke-current transition-all duration-200 ease-out"
+            fill="none"
+            strokeDasharray={dashArray}
+            strokeLinecap="round"
+            strokeWidth="1.75"
+          />
+        </svg>
+      </motion.span>
     </motion.span>
   );
 }

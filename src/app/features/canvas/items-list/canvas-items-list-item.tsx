@@ -1,18 +1,17 @@
 /** Canvas Items List Item.Tsx module implementation. */
+import {
+  ChevronRight,
+  Eye,
+  EyeOff,
+  GripVertical,
+  Lock,
+  LockOpen,
+  Trash2,
+} from "lucide-react";
 import { Reorder, useDragControls } from "framer-motion";
-import {
-  useEffect,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type PointerEvent,
-} from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { useAppDispatch, useAppSelector } from "../../../store";
-import {
-  setSelectedId,
-  toggleItemLocked,
-  updateItemName,
-} from "../../../store/editor-slice";
+import { setSelectedId, toggleItemLocked, updateItemName } from "../../../store/editor-slice";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 import { useCanvasItems } from "../hooks/use-canvas-items";
 
@@ -27,21 +26,24 @@ type CanvasItemsListItemProps = {
 export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
   const dispatch = useAppDispatch();
   const name = useAppSelector((state) => state.editor.itemsRecord?.[id]?.name);
-  const isLocked = useAppSelector(
-    (state) => state.editor.itemsRecord?.[id]?.isLocked ?? false,
-  );
+  const childIds = useAppSelector((state) => state.editor.itemsRecord?.[id]?.childIds ?? []);
+  const isLocked = useAppSelector((state) => state.editor.itemsRecord?.[id]?.isLocked ?? false);
   const selectedIds = useAppSelector((state) => state.editor.selectedId);
   const fabricCanvas = useCanvasAppContext();
   const dragControls = useDragControls();
   const { removeItemById } = useCanvasItems({
     fabricCanvas: fabricCanvas.fabricCanvasRef,
   });
+  const instance = fabricCanvas.getObjectById(id);
+  const fabricObject = instance?.fabricObject;
   const displayName = name ?? id;
   const isSelected = selectedIds.includes(id);
   const [isVisible, setIsVisible] = useState(true);
   const [draftName, setDraftName] = useState(displayName);
   const [isEditingName, setIsEditingName] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const isGroup = childIds.length > 0;
 
   useEffect(() => {
     if (!isEditingName) return;
@@ -53,7 +55,6 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
   const handleClick = () => {
     if (isLocked) return;
     dispatch(setSelectedId([id]));
-    const instance = fabricCanvas.getObjectById(id);
     if (instance) {
       instance.fabricObject.canvas?.setActiveObject(instance.fabricObject);
     }
@@ -66,18 +67,16 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
 
   /** Toggles whether the linked Fabric object is rendered on the canvas. */
   const toggleVisibility = () => {
-    const instance = fabricCanvas.getObjectById(id);
-    const object = instance?.fabricObject;
-    if (!object) return;
+    if (!fabricObject) return;
 
     setIsVisible((isVisible) => {
       const nextVisible = !isVisible;
-      if (!nextVisible && object.canvas?.getActiveObject() === object) {
-        object.canvas.discardActiveObject();
+      if (!nextVisible && fabricObject.canvas?.getActiveObject() === fabricObject) {
+        fabricObject.canvas.discardActiveObject();
         dispatch(setSelectedId([]));
       }
-      object.set("visible", nextVisible);
-      object.canvas?.requestRenderAll();
+      fabricObject.set("visible", nextVisible);
+      fabricObject.canvas?.requestRenderAll();
       return nextVisible;
     });
   };
@@ -89,23 +88,21 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
 
   /** Toggles whether this layer can participate in Fabric selection. */
   const toggleLocked = () => {
-    const instance = fabricCanvas.getObjectById(id);
-    const object = instance?.fabricObject;
-    if (!object) return;
+    if (!fabricObject) return;
 
     const nextLocked = !isLocked;
-    object.set({
+    fabricObject.set({
       evented: !nextLocked,
       hasControls: !nextLocked,
       selectable: !nextLocked,
     });
 
-    if (nextLocked && object.canvas?.getActiveObject() === object) {
-      object.canvas.discardActiveObject();
+    if (nextLocked && fabricObject.canvas?.getActiveObject() === fabricObject) {
+      fabricObject.canvas.discardActiveObject();
       dispatch(setSelectedId([]));
     }
 
-    object.canvas?.requestRenderAll();
+    fabricObject.canvas?.requestRenderAll();
     dispatch(toggleItemLocked({ id, isLocked: nextLocked }));
   };
 
@@ -114,6 +111,7 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
     if (!name) return;
     const nextName = draftName.trim() || id;
     dispatch(updateItemName({ id, name: nextName }));
+    fabricObject?.set("layerName", nextName);
 
     setDraftName(nextName);
     setIsEditingName(false);
@@ -140,14 +138,15 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
   return (
     <Reorder.Item
       value={id}
-      className="group relative"
+      className={`group relative`}
       dragListener={false}
       dragControls={dragControls}
       whileDrag={{ scale: 1.01 }}
       style={{ zIndex: index }}
+      layout="position"
     >
       <div
-        className={`flex  items-center gap-2 rounded-md border pl-1 px-2 py-2 text-left text-sm transition ${
+        className={`flex items-center gap-1.5 rounded-md border pl-1 pr-2 py-1.5text-left text-sm transition ${
           isSelected
             ? "border-white/14 bg-[rgba(255,255,255,0.12)] font-semibold text-[#f5f7fb] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
             : "border-transparent bg-[rgba(255,255,255,0.025)] text-[#dfe7f3] hover:border-white/10 hover:bg-[rgba(255,255,255,0.06)]"
@@ -160,20 +159,25 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
           aria-label={`Drag ${name}`}
           title="Drag to reorder"
         >
-          <svg
-            viewBox="0 0 8 16"
-            className="h-4 w-2"
-            fill="currentColor"
-            aria-hidden
-          >
-            <circle cx="2" cy="3" r="1" />
-            <circle cx="6" cy="3" r="1" />
-            <circle cx="2" cy="8" r="1" />
-            <circle cx="6" cy="8" r="1" />
-            <circle cx="2" cy="13" r="1" />
-            <circle cx="6" cy="13" r="1" />
-          </svg>
+          <GripVertical className="h-4 w-4" strokeWidth={1.8} aria-hidden />
         </button>
+        {isGroup && (
+          <button
+            type="button"
+            onClick={() => {
+              setIsExpanded((isExpanded) => !isExpanded);
+            }}
+            className="grid h-6 w-4 shrink-0 place-items-center text-[#8f9aac] transition hover:text-[#d7dfeb]"
+            aria-label={isExpanded ? `Collapse ${displayName}` : `Expand ${displayName}`}
+            title={isExpanded ? "Collapse group" : "Expand group"}
+          >
+            <ChevronRight
+              className={`h-3.5 w-3.5 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+              strokeWidth={1.8}
+              aria-hidden
+            />
+          </button>
+        )}
 
         <button
           type="button"
@@ -206,7 +210,10 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
           )}
         </button>
 
-        <div className="flex items-center">
+        <div
+          className={`flex items-center bg-inherit absolute right-0 top-1/2 -translate-y-1/2 opacity-0 transition group-hover:opacity-100`}
+          key={id}
+        >
           <button
             type="button"
             onClick={toggleLocked}
@@ -216,28 +223,11 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
             aria-label={isLocked ? `Unlock ${displayName}` : `Lock ${displayName}`}
             title={isLocked ? "Unlock layer" : "Lock layer"}
           >
-            <svg
-              viewBox="0 0 16 16"
-              className="h-3.5 w-3.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              {isLocked ? (
-                <>
-                  <path d="M5.5 7V5.5a2.5 2.5 0 1 1 5 0V7" />
-                  <rect x="3.5" y="7" width="9" height="6" rx="1.5" />
-                </>
-              ) : (
-                <>
-                  <path d="M10.5 7V5.5a2.5 2.5 0 0 0-4.8-1" />
-                  <path d="M12.5 9.5V7A1.5 1.5 0 0 0 11 5.5H5A1.5 1.5 0 0 0 3.5 7v6A1.5 1.5 0 0 0 5 14.5h6" />
-                </>
-              )}
-            </svg>
+            {isLocked ? (
+              <Lock className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden />
+            ) : (
+              <LockOpen className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden />
+            )}
           </button>
           <button
             type="button"
@@ -246,30 +236,11 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
             aria-label={isVisible ? `Hide ${name}` : `Show ${name}`}
             title={isVisible ? "Hide layer" : "Show layer"}
           >
-            <svg
-              viewBox="0 0 16 16"
-              className="h-3.5 w-3.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              {isVisible ? (
-                <>
-                  <path d="M1.5 8s2.4-4 6.5-4 6.5 4 6.5 4-2.4 4-6.5 4-6.5-4-6.5-4Z" />
-                  <circle cx="8" cy="8" r="2.1" />
-                </>
-              ) : (
-                <>
-                  <path d="m2 2 12 12" />
-                  <path d="M6.2 4.4A7.1 7.1 0 0 1 8 4c4.1 0 6.5 4 6.5 4a11.7 11.7 0 0 1-2.4 2.8" />
-                  <path d="M9.7 9.9A2.5 2.5 0 0 1 6.1 6.3" />
-                  <path d="M4.2 6A11 11 0 0 0 1.5 8s2.4 4 6.5 4c.7 0 1.4-.1 2-.3" />
-                </>
-              )}
-            </svg>
+            {isVisible ? (
+              <Eye className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden />
+            ) : (
+              <EyeOff className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden />
+            )}
           </button>
 
           <button
@@ -279,24 +250,17 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
             aria-label={`Delete ${displayName}`}
             title="Delete layer"
           >
-            <svg
-              viewBox="0 0 16 16"
-              className="h-3.5 w-3.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <path d="M3.5 4h9" />
-              <path d="M6.2 4V3a1 1 0 0 1 1-1h1.6a1 1 0 0 1 1 1v1" />
-              <path d="M5.2 5.3v6a1 1 0 0 0 1 1H9.8a1 1 0 0 0 1-1v-6" />
-              <path d="M6.9 6.6v3.4M9.1 6.6v3.4" />
-            </svg>
+            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden />
           </button>
         </div>
       </div>
+      {isGroup && isExpanded ? (
+        <div className="ml-3 mt-1 space-y-1 border-l border-white/8 pl-2 ">
+          {childIds.map((childId, childIndex) => (
+            <CanvasItemsListItem key={childId} id={childId} index={childIndex + 10} />
+          ))}
+        </div>
+      ) : null}
     </Reorder.Item>
   );
 }

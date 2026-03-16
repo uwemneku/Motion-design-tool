@@ -1,5 +1,6 @@
 /** Add Polygon Button.Tsx reusable UI component. */
 import * as Tooltip from "@radix-ui/react-tooltip";
+import { Pentagon } from "lucide-react";
 import { useState, type MouseEvent } from "react";
 import { SliderPanelControl } from "../slider-panel-control";
 import { TOOL_BUTTON_CLASS } from "../../../const";
@@ -30,15 +31,7 @@ export function AddPolygonButton({
           onMouseDown={onMouseDown}
           className={TOOL_BUTTON_CLASS}
         >
-          <svg
-            viewBox="0 0 24 24"
-            className="size-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M12 3L4 9l3 10h10l3-10-8-6z" />
-          </svg>
+          <Pentagon className="size-4" strokeWidth={2} aria-hidden />
         </button>
       </Tooltip.Trigger>
       <Tooltip.Portal>

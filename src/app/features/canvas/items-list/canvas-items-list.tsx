@@ -13,7 +13,9 @@ export default function CanvasItemsList() {
   const { fabricCanvasRef, getObjectById } = useCanvasAppContext();
   const canvasItemIds = useAppSelector((state) => state.editor.canvasItemIds);
   const selectedIds = useAppSelector((state) => state.editor.selectedId);
-  const { removeItemById } = useCanvasItems({ fabricCanvas: fabricCanvasRef });
+  const { groupSelectedItems, removeItemById } = useCanvasItems({
+    fabricCanvas: fabricCanvasRef,
+  });
 
   useEffect(() => {
     /** Deletes the selected item unless focus is inside an editable field. */
@@ -81,9 +83,22 @@ export default function CanvasItemsList() {
 
   return (
     <div
-      className="pointer-events-auto absolute left-4 top-4 z-20 flex max-h-[min(440px,calc(100vh-184px))] w-50.5 flex-col overflow-hidden rounded-xl border border-white/10 bg-[rgba(18,22,30,0.72)] p-1 shadow-[0_16px_34px_rgba(0,0,0,0.26)] backdrop-blur-2xl"
+      className="pointer-events-auto absolute left-4 top-4 z-20 flex max-h-[min(440px,calc(100vh-184px))] w-50.5 flex-col overflow-hidden rounded-xl border border-white/8 bg-[rgba(43,43,46,0.9)] p-1 shadow-[0_16px_34px_rgba(0,0,0,0.22)] backdrop-blur-2xl"
       data-testid="floating-layers-panel"
     >
+      {selectedIds.length > 1 ? (
+        <div className="border-b border-white/8 px-1 pb-1">
+          <button
+            type="button"
+            onClick={() => {
+              groupSelectedItems();
+            }}
+            className="flex h-7 w-full items-center justify-center rounded-md border border-white/8 bg-[rgba(255,255,255,0.045)] px-2 text-[11px] font-medium text-[#f3f4f6] transition hover:border-white/14 hover:bg-[rgba(255,255,255,0.08)]"
+          >
+            Group selected
+          </button>
+        </div>
+      ) : null}
       <section className="min-h-0 flex-1 overflow-y-auto overflow-x-visible">
         <Reorder.Group
           axis="y"

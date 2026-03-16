@@ -1,3 +1,4 @@
+import { Pause, Play } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { TIMELINE_DURATION } from "../../../../const";
 import { dispatchableSelector, useAppDispatch, useAppSelector } from "../../../store";
@@ -83,13 +84,9 @@ function TimeStampControl() {
         aria-label={isPaused ? "Play timeline" : "Pause timeline"}
       >
         {isPaused ? (
-          <svg viewBox="0 0 12 12" className="h-4 w-4 fill-current">
-            <path d="M3 2.2l6 3.8-6 3.8z" />
-          </svg>
+          <Play className="h-4 w-4 fill-current" strokeWidth={2} aria-hidden />
         ) : (
-          <svg viewBox="0 0 12 12" className="h-4 w-4 fill-current">
-            <path d="M2.5 2h2v8h-2zM7.5 2h2v8h-2z" />
-          </svg>
+          <Pause className="h-4 w-4" strokeWidth={2} aria-hidden />
         )}
       </button>
 

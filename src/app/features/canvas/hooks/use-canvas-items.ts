@@ -1,11 +1,16 @@
 /** Use Canvas Items.Ts hook logic. */
-import { loadSVGFromString, Point, type Canvas, type FabricObject } from "fabric";
+import { Group, loadSVGFromString, Point, type Canvas, type FabricObject } from "fabric";
 import type { MutableRefObject } from "react";
 import { toast } from "sonner";
 import { AnimatableObject } from "../../shapes/animatable-object/object";
 import type { KeyframeEasing } from "../../shapes/animatable-object/types";
 import { getVideoWorkAreaRect } from "../../export/video-work-area";
-import { removeItemRecord, setSelectedId, upsertItemRecord } from "../../../store/editor-slice";
+import {
+  removeItemRecord,
+  setCanvasItemIds,
+  setSelectedId,
+  upsertItemRecord,
+} from "../../../store/editor-slice";
 import { dispatchableSelector, useAppDispatch, useAppSelector } from "../../../store";
 import {
   CircleObject,
@@ -238,6 +243,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
 
     object.customId = customId;
     object.set("customId", customId);
+    object.set("layerName", options.name ?? typeName);
     registerInstance(customId, instance);
     instance.addSnapshotKeyframe(playheadTime, instance.getSnapshot());
 
@@ -326,6 +332,71 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     unregisterInstance(id);
     dispatch(removeItemRecord(id));
     canvas.requestRenderAll();
+  };
+
+  /** Collapses the current Fabric multi-selection into one grouped canvas item. */
+  const groupSelectedItems = () => {
+    const canvas = fabricCanvas.current;
+    if (!canvas) return null;
+
+    const activeObjects = canvas.getActiveObjects().filter((object) => {
+      const customId = object.customId ?? object.get("customId");
+      return typeof customId === "string";
+    });
+    if (activeObjects.length < 2) return null;
+
+    const groupedIds = activeObjects
+      .map((object) => object.customId ?? object.get("customId"))
+      .filter((customId): customId is string => typeof customId === "string");
+
+    const groupedNames = groupedIds.map((id) => {
+      const itemRecord = dispatch(dispatchableSelector((state) => state.editor.itemsRecord[id]));
+      return itemRecord?.name ?? id;
+    });
+    const previousCanvasItemIds = dispatch(
+      dispatchableSelector((state) => state.editor.canvasItemIds),
+    );
+
+    canvas.discardActiveObject();
+    activeObjects.forEach((object, index) => {
+      object.set("layerName", groupedNames[index] ?? getSvgLayerName(object, index));
+    });
+
+    const fabricGroup = new Group(activeObjects, {
+      originX: "center",
+      originY: "center",
+      subTargetCheck: true,
+    });
+
+    const groupId = addObjectToCanvas(new AnimatableObject(fabricGroup), "group", {
+      name: `group (${groupedIds.length})`,
+      shouldSetSelected: true,
+    });
+    if (groupId) {
+      const groupRecord = dispatch(
+        dispatchableSelector((state) => state.editor.itemsRecord[groupId]),
+      );
+      if (groupRecord) {
+        dispatch(
+          upsertItemRecord({
+            id: groupId,
+            value: {
+              ...groupRecord,
+              childIds: groupedIds,
+            },
+          }),
+        );
+      }
+      dispatch(
+        setCanvasItemIds([
+          groupId,
+          ...previousCanvasItemIds.filter((canvasItemId) => !groupedIds.includes(canvasItemId)),
+        ]),
+      );
+    }
+
+    canvas.requestRenderAll();
+    return groupId;
   };
 
   const addCircle = (options: AddItemOptions = {}) => {
@@ -719,6 +790,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     addImageFromFile,
     addSvgFromFile,
     addImageFromURL,
+    groupSelectedItems,
     removeItemById,
     updateItemById,
     addText,

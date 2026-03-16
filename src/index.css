@@ -12,15 +12,15 @@
       "Arial",
       sans-serif;
     color-scheme: dark;
-    --wise-accent: #0a84ff;
-    --wise-primary: #02040a;
-    --wise-content-primary: #f5f7fb;
-    --wise-content-secondary: #c7d1df;
-    --wise-border: rgba(255, 255, 255, 0.12);
-    --wise-surface: rgba(13, 17, 24, 0.74);
-    --wise-surface-raised: rgba(22, 27, 37, 0.82);
-    --wise-surface-muted: rgba(255, 255, 255, 0.08);
-    --wise-focus: rgba(10, 132, 255, 0.28);
+    --wise-accent: #7ea6ff;
+    --wise-primary: #1d1d1f;
+    --wise-content-primary: #f3f4f6;
+    --wise-content-secondary: #b7bbc3;
+    --wise-border: rgba(255, 255, 255, 0.09);
+    --wise-surface: rgba(34, 34, 36, 0.94);
+    --wise-surface-raised: rgba(48, 48, 51, 0.96);
+    --wise-surface-muted: rgba(255, 255, 255, 0.055);
+    --wise-focus: rgba(126, 166, 255, 0.18);
   }
 
   html,
@@ -36,9 +36,8 @@
 
   body {
     background:
-      radial-gradient(circle at top, rgba(255, 255, 255, 0.09), transparent 34%),
-      radial-gradient(circle at bottom left, rgba(255, 255, 255, 0.06), transparent 28%),
-      linear-gradient(180deg, #070a10 0%, #030507 100%);
+      radial-gradient(circle at top, rgba(255, 255, 255, 0.045), transparent 30%),
+      linear-gradient(180deg, #292929 0%, #1f1f1f 100%);
     color: #ffffff;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

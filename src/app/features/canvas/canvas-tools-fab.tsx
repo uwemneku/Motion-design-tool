@@ -144,12 +144,12 @@ export default function CanvasToolsFab() {
           top: position?.y ?? FAB_EDGE_PADDING,
         }}
       >
-        <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-[rgba(20,24,33,0.72)] p-1 shadow-[0_16px_34px_rgba(0,0,0,0.26)] backdrop-blur-2xl">
+        <div className="flex items-center gap-1 rounded-lg border border-white/8 bg-[rgba(46,46,49,0.9)] p-1 shadow-[0_16px_34px_rgba(0,0,0,0.22)] backdrop-blur-2xl">
           <button
             type="button"
             aria-label="Move tools"
             onMouseDown={onHandleMouseDown}
-            className="grid h-8 w-5 place-items-center rounded-sm border border-white/10 bg-[rgba(255,255,255,0.05)] text-[#c6d0de] hover:bg-[rgba(255,255,255,0.09)]"
+            className="grid h-8 w-5 place-items-center rounded-sm border border-white/8 bg-[rgba(255,255,255,0.045)] text-[#d1d5db] hover:bg-[rgba(255,255,255,0.08)]"
             title="Drag to move tools"
           >
             <svg

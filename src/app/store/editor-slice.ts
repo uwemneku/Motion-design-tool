@@ -3,6 +3,7 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { INITIAL_CANVAS_ZOOM } from "../../const";
 
 export type EditorItemRecord = {
+  childIds?: string[];
   isLocked?: boolean;
   name: string;
   keyframe: Array<{

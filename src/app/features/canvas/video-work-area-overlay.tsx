@@ -1,6 +1,7 @@
 /** Video Work Area Overlay.Tsx module implementation. */
 import { type FabricObject } from "fabric";
 import { useEffect, useRef, useState } from "react";
+import { RadixMenuSelect } from "../../components/radix-menu-select";
 import { VIDEO_ASPECT_PRESETS } from "../../../const";
 import { getVideoWorkAreaRect, type VideoWorkAreaRect } from "../export/video-work-area";
 import { useCanvasAppContext } from "./hooks/use-canvas-app-context";
@@ -33,6 +34,10 @@ export default function VideoWorkAreaOverlay() {
     VIDEO_ASPECT_PRESETS.find((preset) => Math.abs(preset.ratio - aspectRation) < 0.0001) ??
     VIDEO_ASPECT_PRESETS[0];
   const dispatch = useAppDispatch();
+  const aspectMenuOptions = VIDEO_ASPECT_PRESETS.map((option) => ({
+    label: option.label,
+    value: option.label,
+  }));
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
@@ -243,11 +248,21 @@ export default function VideoWorkAreaOverlay() {
             </svg>
           )}
         </button>
-        <select
+        <RadixMenuSelect
+          ariaLabel="Change video aspect ratio"
+          contentClassName="z-50 min-w-[120px] rounded-[8px] border border-[#2563eb] bg-[rgba(20,24,33,0.96)] p-1 shadow-[0_16px_36px_rgba(0,0,0,0.35)] backdrop-blur-xl"
+          options={aspectMenuOptions}
+          side="bottom"
+          triggerClassName={
+            "inline-flex items-center gap-2 rounded-[5px] border " +
+            "border-[#2563eb] bg-[var(--wise-surface-raised)]/95 px-2 py-0.5 text-[10px] " +
+            "font-semibold uppercase tracking-wide text-[#d4d4d4] outline-none " +
+            "hover:bg-[var(--wise-surface-muted)]"
+          }
           value={activeAspectPreset.label}
-          onChange={(event) => {
+          onValueChange={(value) => {
             const selected = VIDEO_ASPECT_PRESETS.find(
-              (option) => option.label === event.target.value,
+              (option) => option.label === value,
             );
             if (selected) {
               dispatch(
@@ -257,27 +272,7 @@ export default function VideoWorkAreaOverlay() {
               );
             }
           }}
-          className={
-            "appearance-none rounded border " +
-            "bg-[var(--wise-surface-raised)]/95 px-2 py-0.5 text-[10px] " +
-            "font-semibold uppercase tracking-wide text-[#d4d4d4] outline-none " +
-            "ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none " +
-            "focus-visible:ring-0 hover:bg-[var(--wise-surface-muted)]"
-          }
-          style={{
-            WebkitAppearance: "none",
-            MozAppearance: "none",
-            backgroundImage: "none",
-            borderColor: "#2563eb",
-          }}
-          aria-label="Change video aspect ratio"
-        >
-          {VIDEO_ASPECT_PRESETS.map((option) => (
-            <option key={option.label} value={option.label}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        />
       </div>
     </div>
   );

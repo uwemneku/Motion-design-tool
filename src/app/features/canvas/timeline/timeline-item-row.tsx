@@ -1,12 +1,9 @@
 /** Timeline Item Row.Tsx timeline UI and behavior. */
+import { ChevronRight } from "lucide-react";
 import { useState, type MouseEvent } from "react";
 import { KEYFRAME_SECTION_HORIZONTAL_PADDING } from "../../../../const";
 import { useAppDispatch, useAppSelector } from "../../../store";
-import {
-  setPlayheadTime,
-  setSelectedId,
-  setSelectedKeyframe,
-} from "../../../store/editor-slice";
+import { setPlayheadTime, setSelectedId, setSelectedKeyframe } from "../../../store/editor-slice";
 import { TimelineItemPropertyRow } from "./timeline-item-property-row";
 import type { AnimatableProperties } from "../../shapes/animatable-object/types";
 
@@ -45,21 +42,19 @@ export default function TimelineItemRow({
   timelineDuration,
 }: TimelineItemRowProps) {
   const dispatch = useAppDispatch();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isGroupExpanded, setIsGroupExpanded] = useState(false);
+  const [isKeyframeExpanded, setIsKeyframeExpanded] = useState(false);
 
-  const isSelected = useAppSelector((state) =>
-    state.editor.selectedId.includes(id),
+  const isSelected = useAppSelector((state) => state.editor.selectedId.includes(id));
+  const name = useAppSelector((state) => state.editor.itemsRecord[id]?.name ?? id);
+  const childIds = useAppSelector(
+    (state) => state.editor.itemsRecord[id]?.childIds ?? [],
   );
-  const name = useAppSelector(
-    (state) => state.editor.itemsRecord[id]?.name ?? id,
-  );
-  const itemKeyFrames = useAppSelector(
-    (state) => state.editor.itemsRecord[id]?.keyframe ?? null,
-  );
+  const itemKeyFrames = useAppSelector((state) => state.editor.itemsRecord[id]?.keyframe ?? null);
   // TODO: This should be derived from the item's keyframe data, not the markers.
   const animationSpan = getAnimationSpan(itemKeyFrames ?? []);
   const hasKeyframes = (itemKeyFrames?.length ?? 0) > 1;
-  console.log(itemKeyFrames?.length);
+  const isGroup = childIds.length > 0;
 
   /** Updates the editor playhead using normalized timeline precision. */
   const seekToTime = (time: number) => {
@@ -71,40 +66,51 @@ export default function TimelineItemRow({
       <div className="grid grid-cols-[210px_1fr]">
         <div
           className={`sticky left-0 z-20 border-r border-[var(--wise-border)] px-3 py-2 text-slate-100 ${
-            isSelected
-              ? "bg-[var(--wise-accent)]/16 font-semibold"
-              : "bg-[var(--wise-surface)]"
+            isSelected ? "bg-[var(--wise-accent)]/16 font-semibold" : "bg-[var(--wise-surface)]"
           }`}
           onClick={() => {
             dispatch(setSelectedId([id]));
           }}
         >
           <div className="flex items-center gap-2">
-            {hasKeyframes && (
+            {isGroup ? (
+              <button
+                type="button"
+                className="rounded p-0.5 text-slate-400 hover:bg-[var(--wise-surface-muted)] hover:text-slate-100"
+                aria-label={isGroupExpanded ? "Collapse group rows" : "Expand group rows"}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setIsGroupExpanded((prev) => !prev);
+                }}
+              >
+                <ChevronRight
+                  className={`size-3 transition-transform ${isGroupExpanded ? "rotate-90" : "rotate-0"}`}
+                  strokeWidth={2}
+                  aria-hidden
+                />
+              </button>
+            ) : (
+              <span className="block size-4 shrink-0" aria-hidden />
+            )}
+            {hasKeyframes ? (
               <button
                 type="button"
                 className="rounded p-0.5 text-slate-400 hover:bg-[var(--wise-surface-muted)] hover:text-slate-100"
                 aria-label={
-                  isExpanded
-                    ? "Collapse keyframe details"
-                    : "Expand keyframe details"
+                  isKeyframeExpanded ? "Collapse keyframe details" : "Expand keyframe details"
                 }
                 onClick={(event) => {
                   event.stopPropagation();
-                  setIsExpanded((prev) => !prev);
+                  setIsKeyframeExpanded((prev) => !prev);
                 }}
               >
-                <svg
-                  viewBox="0 0 24 24"
-                  className={`size-3 transition-transform ${isExpanded ? "rotate-90" : "rotate-0"}`}
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M9 6l6 6-6 6" />
-                </svg>
+                <ChevronRight
+                  className={`size-3 transition-transform ${isKeyframeExpanded ? "rotate-90" : "rotate-0"}`}
+                  strokeWidth={2}
+                  aria-hidden
+                />
               </button>
-            )}
+            ) : null}
             <div className="w-full cursor-pointer text-left">{name}</div>
           </div>
         </div>
@@ -147,7 +153,7 @@ export default function TimelineItemRow({
         </div>
       </div>
 
-      {isExpanded ? (
+      {isKeyframeExpanded ? (
         <div className="border-t border-[var(--wise-border)] bg-[var(--wise-surface)]/60">
           {DETAIL_ROW_DEFINITIONS.map((row) => (
             <TimelineItemPropertyRow
@@ -158,6 +164,20 @@ export default function TimelineItemRow({
               valueType={row.valueType}
               timelineDuration={timelineDuration}
             />
+          ))}
+        </div>
+      ) : null}
+
+      {isGroupExpanded ? (
+        <div className="border-t border-[var(--wise-border)] bg-[var(--wise-surface)]/50">
+          {childIds.map((childId) => (
+            <div key={childId} className="ml-5 border-l border-[var(--wise-border)]/70">
+              <TimelineItemRow
+                id={childId}
+                onSeekFromPointer={onSeekFromPointer}
+                timelineDuration={timelineDuration}
+              />
+            </div>
           ))}
         </div>
       ) : null}
@@ -177,11 +197,9 @@ function getAnimationSpan(
     timestamp: number;
   }>,
 ): AnimationSpan | null {
-  if (markers.length < 0) return null;
+  if (markers.length === 0) return null;
 
-  const sortedMarkers = [...markers].sort(
-    (left, right) => left.timestamp - right.timestamp,
-  );
+  const sortedMarkers = [...markers].sort((left, right) => left.timestamp - right.timestamp);
   return {
     start: sortedMarkers[0].timestamp,
     end: sortedMarkers[sortedMarkers.length - 1].timestamp,

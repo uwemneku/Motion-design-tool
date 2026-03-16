@@ -19,7 +19,7 @@ export default function EditorCanvas() {
         className="flex min-h-0 flex-1 flex-col"
         style={{
           background:
-            "radial-gradient(circle at top, rgba(124,149,185,0.14), transparent 30%), linear-gradient(180deg, rgba(9,12,18,0.96), rgba(4,6,10,0.98))",
+            "linear-gradient(180deg, rgba(45,45,47,0.98), rgba(30,30,32,0.98))",
         }}
       >
         <div className="relative min-h-0 flex min-w-0 flex-1 items-stretch overflow-hidden border-b border-[var(--wise-border)]/80 xl:h-full">
@@ -27,7 +27,7 @@ export default function EditorCanvas() {
             className="relative min-w-0 flex-1 overflow-hidden"
             style={{
               background:
-                "linear-gradient(180deg, rgba(8,10,16,0.55), rgba(3,5,9,0.78)), repeating-linear-gradient(45deg, rgba(255,255,255,0.016), rgba(255,255,255,0.016) 18px, rgba(255,255,255,0.03) 18px, rgba(255,255,255,0.03) 36px)",
+                "linear-gradient(180deg, rgba(24,24,26,0.92), rgba(18,18,20,0.96)), repeating-linear-gradient(45deg, rgba(255,255,255,0.012), rgba(255,255,255,0.012) 18px, rgba(255,255,255,0.022) 18px, rgba(255,255,255,0.022) 36px)",
             }}
           >
             <div data-testid="floating-layers-panel">

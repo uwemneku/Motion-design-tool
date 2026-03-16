@@ -1,7 +1,6 @@
 /** Index.Tsx canvas side panel UI logic. */
 import { useMemo, useState } from "react";
 import { useAppSelector } from "../../../store";
-import CanvasHistoryControls from "../canvas-header/canvas-history-controls";
 import CanvasSidePanelAnimations from "./animations";
 import CanvasSidePanelDesign from "./design";
 import { CanvasSidePanelExportControls } from "./export-controls";
@@ -38,21 +37,14 @@ export default function CanvasSidePanel({
       data-testid="canvas-side-panel"
       className={`pointer-events-auto border-l flex h-full max-h-full w-[240px] max-w-[240px] min-w-[240px] shrink-0 flex-col overflow-hidden ${
         floating
-          ? " border-white/10 bg-[rgba(16,20,28,0.72)] shadow-[0_16px_34px_rgba(0,0,0,0.26)] backdrop-blur-2xl"
-          : " border-[var(--wise-border)] bg-[rgba(12,12,15,0.96)]"
+          ? " border-white/8 bg-[rgba(42,42,44,0.9)] shadow-[0_16px_34px_rgba(0,0,0,0.22)] backdrop-blur-2xl"
+          : " border-[var(--wise-border)] bg-[rgba(35,35,37,0.98)]"
       }`}
     >
-      <div className="shrink-0 border-b border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))]">
-        {showToolbar ? (
-          <>
-            <div className="flex items-center justify-between gap-2 px-2.5 py-2.5">
-              <CanvasHistoryControls />
-              <CanvasSidePanelExportControls />
-            </div>
-            <div className="border-t border-white/10" />
-          </>
-        ) : null}
-        <div className={`grid grid-cols-2 ${showToolbar ? "border-t border-white/10" : ""}`}>
+      <div className="shrink-0 border-b border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.01))]">
+        <div
+          className={`flex items-center gap-2 px-2 py-2 ${showToolbar ? " border-white/8" : ""}`}
+        >
           <PanelTabButton
             active={activeTab === "design"}
             label="Design"
@@ -62,11 +54,16 @@ export default function CanvasSidePanel({
           />
           <PanelTabButton
             active={activeTab === "animations"}
-            label="Anim"
+            label="Animation"
             onClick={() => {
               setActiveTab("animations");
             }}
           />
+          {showToolbar ? (
+            <div className="flex items-center justify-end gap-2 flex-1">
+              <CanvasSidePanelExportControls />
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -101,10 +98,10 @@ function PanelTabButton({ active, label, onClick }: PanelTabButtonProps) {
     <button
       type="button"
       onClick={onClick}
-      className={`group flex h-8 w-full items-center justify-center gap-1.5 px-2 text-sm font-medium transition ${
+      className={`group flex h-6 items-center justify-center gap-1.5 px-2.5 font-medium transition ${
         active
-          ? "bg-[rgba(10,132,255,0.18)] text-[#f5f7fb] shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.05)]"
-          : "text-[#aab6c8] hover:bg-white/5 hover:text-[#eef4ff]"
+          ? "rounded-[5px] bg-[rgba(255,255,255,0.12)] text-[#f3f4f6]"
+          : "rounded-[5px] text-[#b7bbc3] hover:bg-white/5 hover:text-[#f3f4f6]"
       }`}
       aria-pressed={active}
     >

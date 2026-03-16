@@ -1,10 +1,9 @@
 /** Animations.Tsx canvas side panel UI logic. */
 import { Textbox } from "fabric";
-import { useDispatch, useSelector } from "react-redux";
 import {
   dispatchableSelector,
-  type AppDispatch,
-  type RootState,
+  useAppDispatch,
+  useAppSelector,
 } from "../../../store";
 import {
   removeItemRecord,
@@ -34,10 +33,10 @@ export default function CanvasSidePanelAnimations({
   canApplyAnimation,
   keyframeTimesText,
 }: CanvasSidePanelAnimationsProps) {
-  const dispatch = useDispatch<AppDispatch>();
-  const selectedIds = useSelector((state: RootState) => state.editor.selectedId);
+  const dispatch = useAppDispatch();
+  const selectedIds = useAppSelector((state) => state.editor.selectedId);
   const selectedId = selectedIds[0] ?? null;
-  const selectedItem = useSelector((state: RootState) =>
+  const selectedItem = useAppSelector((state) =>
     selectedId ? state.editor.itemsRecord[selectedId] : null,
   );
   const isTextSelected = selectedItem?.name.trim().toLowerCase() === "text";
@@ -262,12 +261,12 @@ export default function CanvasSidePanelAnimations({
           @keyframes preview-text-char-rise { 0% { opacity: 0; transform: translateY(8px); letter-spacing: -0.08em; } 100% { opacity: 1; transform: translateY(0); letter-spacing: 0; } }`}
       </style>
 
-      <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
+      <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-[#cfd3db]">
         Animation Templates
       </h3>
 
       {canApplyAnimation ? null : (
-        <p className="rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-500">
+        <p className="rounded-[8px] border border-white/10 bg-[rgba(255,255,255,0.045)] px-2.5 py-2 text-xs text-[#9da5b2]">
           Select an item in the canvas to apply templates.
         </p>
       )}
@@ -281,30 +280,30 @@ export default function CanvasSidePanelAnimations({
             onClick={() => {
               applyAnimationTemplate(template);
             }}
-            className="group flex min-h-[116px] flex-col rounded-xl border border-white/8 bg-[rgba(255,255,255,0.02)] p-2.5 text-left transition hover:border-white/18 hover:bg-[rgba(255,255,255,0.04)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="group flex min-h-[116px] flex-col rounded-[12px] border border-white/8 bg-[rgba(255,255,255,0.03)] p-2.5 text-left transition hover:border-white/16 hover:bg-[rgba(255,255,255,0.045)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <div className="mb-2 flex items-start justify-between gap-2">
-              <p className="text-[11px] leading-4 text-slate-200">
+              <p className="text-[11px] leading-4 text-[#edf0f5]">
                 {template.name}
               </p>
-              <span className="text-[10px] uppercase tracking-wide text-slate-500">
+              <span className="text-[10px] uppercase tracking-wide text-[#7e8794]">
                 {template.duration.toFixed(1)}s
               </span>
             </div>
 
             <div
-              className={`h-14 w-full rounded-lg bg-gradient-to-br from-slate-300/90 to-slate-500/80 ${getPreviewShapeClass(template.id)}`}
+              className={`h-14 w-full rounded-[10px] bg-gradient-to-br from-[#cfd5df] to-[#7f8998] ${getPreviewShapeClass(template.id)}`}
             />
           </button>
         ))}
       </div>
 
       <div className="pt-1">
-        <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+        <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#cfd3db]">
           Text Effects
         </h4>
         {!isTextSelected ? (
-          <p className="rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-500">
+          <p className="rounded-[8px] border border-white/10 bg-[rgba(255,255,255,0.045)] px-2.5 py-2 text-xs text-[#9da5b2]">
             Select a text item to enable special text effects.
           </p>
         ) : null}
@@ -317,17 +316,17 @@ export default function CanvasSidePanelAnimations({
               onClick={() => {
                 applyTextAnimationTemplate(template);
               }}
-              className="group rounded-xl border border-white/8 bg-[rgba(255,255,255,0.02)] p-2.5 text-left transition hover:border-white/18 hover:bg-[rgba(255,255,255,0.04)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="group rounded-[12px] border border-white/8 bg-[rgba(255,255,255,0.03)] p-2.5 text-left transition hover:border-white/16 hover:bg-[rgba(255,255,255,0.045)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <div className="mb-2 flex items-start justify-between gap-2">
-                <p className="text-[11px] font-semibold leading-4 text-slate-200">
+                <p className="text-[11px] font-semibold leading-4 text-[#edf0f5]">
                   {template.name}
                 </p>
-                <span className="text-[10px] uppercase tracking-wide text-slate-500">
+                <span className="text-[10px] uppercase tracking-wide text-[#7e8794]">
                   {template.duration.toFixed(2)}s
                 </span>
               </div>
-              <div className="mb-2 h-12 rounded-lg border border-slate-800 bg-slate-900/70 p-2">
+              <div className="mb-2 h-12 rounded-[10px] border border-white/8 bg-[rgba(18,18,20,0.7)] p-2">
                 <div
                   className={`h-full bg-(--wise-raised) ${getTextPreviewShapeClass(template.id)}`}
                 ></div>
@@ -338,7 +337,7 @@ export default function CanvasSidePanelAnimations({
       </div>
 
       {keyframeTimesText ? (
-        <p className="text-xs text-slate-500">{keyframeTimesText}</p>
+        <p className="text-xs text-[#7e8794]">{keyframeTimesText}</p>
       ) : null}
     </section>
   );

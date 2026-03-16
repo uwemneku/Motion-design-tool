@@ -416,7 +416,7 @@ export default function CanvasSidePanelDesign() {
         {!transformTargetObject ? (
           <p className="text-xs text-[#8f8f8f]">Select an item to edit properties.</p>
         ) : (
-          <>
+          <div className="space-y-3.5">
             <h4 className={sectionTitleClass}>Transform</h4>
             <DesignAlignmentControls onAlign={alignSelectionToVideoArea} />
             {TRANSFORM_FIELD_ROWS.map((row) => (
@@ -441,14 +441,14 @@ export default function CanvasSidePanelDesign() {
                 ))}
               </div>
             ))}
-          </>
+          </div>
         )}
       </section>
 
       {!isMultiSelected && selectedContext.instance && (supportsFill || supportsStroke) ? (
         <section className={cardClass}>
-          <h4 className={sectionTitleClass}>Appearance</h4>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="space-y-3.5">
+            <h4 className={sectionTitleClass}>Appearance</h4>
             {supportsFill ? (
               <DesignColorField
                 inputValue={designForm.fill}
@@ -464,10 +464,7 @@ export default function CanvasSidePanelDesign() {
                   setColorField("fill", value, false);
                 }}
               />
-            ) : (
-              <div />
-            )}
-
+            ) : null}
             {supportsStroke ? (
               <DesignColorField
                 fallbackColor="#2c2c2c"
@@ -484,9 +481,7 @@ export default function CanvasSidePanelDesign() {
                   setColorField("stroke", value, false);
                 }}
               />
-            ) : (
-              <div />
-            )}
+            ) : null}
           </div>
           {supportsStroke || supportsBorderRadius ? (
             <div className="grid grid-cols-2 gap-2.5">
