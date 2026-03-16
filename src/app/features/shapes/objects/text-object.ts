@@ -12,8 +12,10 @@ export class TextObject extends AnimatableObject {
     keyframes: KeyframesByProperty = {},
   ) {
     const fabricObject = new Textbox(text, {
-      textAlign: 'center',
-      fontFamily: 'Inter',
+      textAlign: "center",
+      fontFamily:
+        "\"SF Pro Display\", \"SF Pro Text\", -apple-system, BlinkMacSystemFont, " +
+        "\"Segoe UI\", \"Helvetica Neue\", Arial, sans-serif",
       ...options,
     });
     super(fabricObject, keyframes);

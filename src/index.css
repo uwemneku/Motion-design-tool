@@ -2,7 +2,7 @@
 
 @layer base {
   :root {
-    font-family:
+    --wise-font-ui:
       "SF Pro Display",
       "SF Pro Text",
       -apple-system,
@@ -11,6 +11,29 @@
       "Helvetica Neue",
       "Arial",
       sans-serif;
+    --wise-font-display:
+      "SF Pro Display",
+      "SF Pro Text",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      "Helvetica Neue",
+      "Arial",
+      sans-serif;
+    --wise-font-mono:
+      "SF Mono",
+      "IBM Plex Mono",
+      "JetBrains Mono",
+      "Fira Code",
+      "Source Code Pro",
+      ui-monospace,
+      "SFMono-Regular",
+      Menlo,
+      Monaco,
+      Consolas,
+      "Liberation Mono",
+      monospace;
+    font-family: var(--wise-font-ui);
     color-scheme: dark;
     --wise-accent: #7ea6ff;
     --wise-primary: #1d1d1f;
@@ -39,7 +62,18 @@
       radial-gradient(circle at top, rgba(255, 255, 255, 0.045), transparent 30%),
       linear-gradient(180deg, #292929 0%, #1f1f1f 100%);
     color: #ffffff;
+    font-family: var(--wise-font-ui);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  button,
+  input,
+  optgroup,
+  option,
+  select,
+  textarea {
+    font: inherit;
   }
 }

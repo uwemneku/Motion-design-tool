@@ -89,6 +89,54 @@ It should not feel:
 - Labels, values, metadata, and section headings should each have a consistent role.
 - Avoid unnecessary uppercase except for short utility labels and micro-headings.
 
+### Font Selection
+
+- Default app UI typography should stay in the Apple-system family first:
+  - `SF Pro Display`
+  - `SF Pro Text`
+  - `-apple-system`
+  - then platform fallbacks
+- Use sans-serif UI fonts for most product surfaces.
+- Prefer one UI family across the app shell rather than mixing multiple sans-serif personalities.
+- Use monospaced fonts only where they improve precision:
+  - time readouts
+  - numeric inputs
+  - values where alignment matters
+- Avoid decorative display fonts in utility surfaces like:
+  - inspectors
+  - timelines
+  - toolbars
+  - menus
+- If a custom font is introduced, it should have a clear product reason and should not reduce clarity.
+- Dropdowns, popovers, badges, and panels should inherit the same font family as nearby controls unless there is a strong reason not to.
+- Font choices should reinforce hierarchy through weight and size first, not through constantly changing families.
+- When choosing between two fonts, prefer the one that feels:
+  - calmer
+  - more legible at small sizes
+  - more neutral beside the rest of the interface
+
+### Font Usage by Role
+
+- Section titles:
+  - primary UI family
+  - semibold
+  - slightly tighter tracking when needed
+- Field labels and metadata:
+  - primary UI family
+  - regular or medium
+  - quieter color instead of thinner weight
+- Editable values:
+  - primary UI family for general text inputs
+  - monospaced family for compact numeric or time-based fields
+- Buttons:
+  - primary UI family
+  - medium or semibold
+  - avoid overly heavy weights on small buttons
+- Menus and dropdown options:
+  - primary UI family
+  - consistent with the trigger
+  - no novelty font treatment
+
 ### Hierarchy
 
 - Section headings:

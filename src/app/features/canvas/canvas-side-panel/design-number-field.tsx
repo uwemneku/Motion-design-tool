@@ -179,7 +179,7 @@ export default function DesignNumberField({
             commitCurrentValue(true);
           }}
           onKeyDown={onKeyDown}
-          className={`h-full w-full bg-transparent pl-2 font-mono text-[11px] tracking-[0.01em] text-[#f6f7fb] outline-none ${
+          className={`h-full w-full bg-transparent pl-2 font-[var(--wise-font-mono)] text-[11px] tracking-[0.01em] text-[#f6f7fb] outline-none ${
             showKeyframeAction ? "pr-9" : "pr-2.5"
           }`}
         />

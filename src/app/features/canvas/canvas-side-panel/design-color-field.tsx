@@ -59,7 +59,7 @@ export default function DesignColorField({
                 onFocus={() => {
                   setIsOpen(true);
                 }}
-                className="min-w-0 h-full flex-1 bg-transparent font-mono text-[11px] tracking-[0.01em] text-[#f6f7fb] outline-none"
+                className="min-w-0 h-full flex-1 bg-transparent font-[var(--wise-font-mono)] text-[11px] tracking-[0.01em] text-[#f6f7fb] outline-none"
               />
               <div className="h-3.5 w-px shrink-0 bg-white/8" />
               <KeyframeActionButton

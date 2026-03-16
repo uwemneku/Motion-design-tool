@@ -43,7 +43,9 @@ export default function CanvasSidePanel({
     >
       <div className="shrink-0 border-b border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.01))]">
         <div
-          className={`flex items-center gap-2 px-2 py-2 ${showToolbar ? " border-white/8" : ""}`}
+          className={`flex items-center gap-2 px-2 py-2 font-[var(--wise-font-ui)] ${
+            showToolbar ? " border-white/8" : ""
+          }`}
         >
           <PanelTabButton
             active={activeTab === "design"}
@@ -105,7 +107,9 @@ function PanelTabButton({ active, label, onClick }: PanelTabButtonProps) {
       }`}
       aria-pressed={active}
     >
-      <span className="text-[10px] font-semibold tracking-[0.02em]">{label}</span>
+      <span className="font-[var(--wise-font-display)] text-[10px] font-semibold tracking-[0.02em]">
+        {label}
+      </span>
     </button>
   );
 }

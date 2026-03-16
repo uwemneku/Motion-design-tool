@@ -119,7 +119,9 @@ export const EMPTY_FORM: DesignFormState = {
   stroke: "",
   strokeWidth: "1",
   text: "",
-  fontFamily: "ui-sans-serif, system-ui, sans-serif",
+  fontFamily:
+    "\"SF Pro Display\", \"SF Pro Text\", -apple-system, BlinkMacSystemFont, " +
+    "\"Segoe UI\", \"Helvetica Neue\", Arial, sans-serif",
   fontSize: "44",
   fontStyle: "normal",
   fontWeight: "700",

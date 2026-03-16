@@ -112,11 +112,12 @@ import type {
 } from "../../../../types";
 
 export const sectionTitleClass =
-  "text-[15px] font-semibold tracking-[-0.01em] text-[#f2f4f8]";
-export const labelClass = "space-y-1.5 text-[11px] font-medium text-[#aeb6c4]";
+  "font-[var(--wise-font-display)] text-[15px] font-semibold tracking-[-0.01em] text-[#f2f4f8]";
+export const labelClass =
+  "space-y-1.5 font-[var(--wise-font-ui)] text-[11px] font-medium text-[#aeb6c4]";
 export const fieldClass =
   "h-6 max-h-6 w-full rounded-[6px] border border-white/8 " +
-  "bg-[rgba(255,255,255,0.055)] px-2.5 text-[11px] text-[#efefef] " +
+  "bg-[rgba(255,255,255,0.055)] px-2.5 font-[var(--wise-font-ui)] text-[11px] text-[#efefef] " +
   "outline-none transition focus:border-white/15 focus:bg-[rgba(255,255,255,0.075)]";
 export const cardClass =
   "space-y-4 border-t border-white/10 pt-5 first:border-t-0 first:pt-0";

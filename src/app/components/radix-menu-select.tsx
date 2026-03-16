@@ -37,7 +37,7 @@ export function RadixMenuSelect({
           aria-label={ariaLabel}
           className={
             triggerClassName ??
-            "inline-flex items-center gap-2 rounded-[5px] border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] text-white"
+            "inline-flex items-center gap-2 rounded-[5px] border border-white/10 bg-white/5 px-2.5 py-1.5 font-[var(--wise-font-ui)] text-[11px] text-white"
           }
         >
           <span>{activeOption?.label ?? value}</span>
@@ -59,7 +59,7 @@ export function RadixMenuSelect({
               <DropdownMenu.RadioItem
                 key={option.value}
                 value={option.value}
-                className="flex h-8 cursor-default items-center justify-between rounded-[5px] px-2.5 text-[11px] font-medium text-white outline-none transition data-[highlighted]:bg-white/8"
+                className="flex h-8 cursor-default items-center justify-between rounded-[5px] px-2.5 font-[var(--wise-font-ui)] text-[11px] font-medium text-white outline-none transition data-[highlighted]:bg-white/8"
               >
                 <span>{option.label}</span>
                 <DropdownMenu.ItemIndicator>
