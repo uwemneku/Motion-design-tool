@@ -4,6 +4,7 @@ import type { MutableRefObject } from "react";
 import { toast } from "sonner";
 import { AnimatableObject } from "../../shapes/animatable-object/object";
 import type { KeyframeEasing } from "../../shapes/animatable-object/types";
+import { setObjectAnimationPosition } from "../../shapes/animatable-object/util";
 import { getVideoWorkAreaRect } from "../../export/video-work-area";
 import {
   removeItemRecord,
@@ -353,6 +354,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       const itemRecord = dispatch(dispatchableSelector((state) => state.editor.itemsRecord[id]));
       return itemRecord?.name ?? id;
     });
+    const groupedInstances = groupedIds.map((id) => getInstanceById(id));
     const previousCanvasItemIds = dispatch(
       dispatchableSelector((state) => state.editor.canvasItemIds),
     );
@@ -366,6 +368,9 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       originX: "center",
       originY: "center",
       subTargetCheck: true,
+    });
+    groupedInstances.forEach((instance) => {
+      instance?.rebasePositionKeyframes("toParent");
     });
 
     const groupId = addObjectToCanvas(new AnimatableObject(fabricGroup), "group", {
@@ -613,7 +618,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     if (options.props) {
       const nextProps = options.props;
       if (typeof nextProps.left === "number") {
-        object.set("left", nextProps.left);
+        setObjectAnimationPosition(object, "left", nextProps.left);
         instance.addKeyframe({
           property: "left",
           value: nextProps.left,
@@ -622,7 +627,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
         });
       }
       if (typeof nextProps.top === "number") {
-        object.set("top", nextProps.top);
+        setObjectAnimationPosition(object, "top", nextProps.top);
         instance.addKeyframe({
           property: "top",
           value: nextProps.top,

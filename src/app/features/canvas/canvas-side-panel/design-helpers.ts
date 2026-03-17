@@ -7,6 +7,7 @@ import type {
   ColorAnimatableProperties,
   NumericAnimatableProperties,
 } from "../../shapes/animatable-object/types";
+import { getObjectAnimationPosition } from "../../shapes/animatable-object/util";
 
 export type ColorFieldKey = keyof ColorAnimatableProperties;
 export type KeyframeField = keyof Omit<DesignFormState, "text">;
@@ -237,6 +238,9 @@ export function getNumericKeyframeFields(fields: KeyframeField[]) {
 
 /** Reads the current numeric value for a keyframe-capable field from a Fabric object. */
 export function getNumericKeyframeValue(object: FabricObject, field: NumericKeyframeField) {
+  if (field === "left" || field === "top") {
+    return getObjectAnimationPosition(object)[field];
+  }
   if (field === "width") return object.getScaledWidth();
   if (field === "height") return object.getScaledHeight();
   if (field === "borderRadius") return Number(object.get("rx"));

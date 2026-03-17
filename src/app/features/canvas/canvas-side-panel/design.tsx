@@ -5,7 +5,10 @@ import { dispatchableSelector, useAppDispatch, useAppSelector } from "../../../s
 import { upsertItemRecord } from "../../../store/editor-slice";
 import type { EditorItemRecord } from "../../../store/editor-slice";
 import { getVideoWorkAreaRect } from "../../export/video-work-area";
-import { hasKeyframeNearTime } from "../../shapes/animatable-object/util";
+import {
+  hasKeyframeNearTime,
+  setObjectAnimationPosition,
+} from "../../shapes/animatable-object/util";
 import { appendUniqueMarkerTimes } from "../util/animations-utils";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 import {
@@ -228,8 +231,8 @@ export default function CanvasSidePanelDesign() {
       const angle = toPrecisionNumber(Number(nextForm.angle));
       const strokeWidth = clampMin(toPrecisionNumber(Number(nextForm.strokeWidth)), 0);
 
-      if (Number.isFinite(left)) object.set("left", left);
-      if (Number.isFinite(top)) object.set("top", top);
+      if (Number.isFinite(left)) setObjectAnimationPosition(object, "left", left);
+      if (Number.isFinite(top)) setObjectAnimationPosition(object, "top", top);
       if (Number.isFinite(width) && width > 0) {
         const currentWidth = object.getScaledWidth();
         const currentScaleX = object.scaleX ?? 1;

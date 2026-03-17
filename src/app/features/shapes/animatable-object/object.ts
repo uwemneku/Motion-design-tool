@@ -24,9 +24,11 @@ import {
   cloneColorBytes,
   colorToRgbaBytes,
   getNumeric,
+  getObjectAnimationPosition,
   interpolateColorBytes,
   lerp,
   rgbaBytesToCss,
+  setObjectAnimationPosition,
 } from "./util";
 
 export class AnimatableObject {
@@ -77,10 +79,10 @@ export class AnimatableObject {
   }
 
   getSnapshot(): AnimatableSnapshot {
-    const { x, y } = this.fabricObject.getXY();
+    const { left, top } = getObjectAnimationPosition(this.fabricObject);
     return {
-      left: getNumeric(x, 0),
-      top: getNumeric(y, 0),
+      left,
+      top,
       width: Math.max(1, this.fabricObject.getScaledWidth()),
       height: Math.max(1, this.fabricObject.getScaledHeight()),
       borderRadius: clamp(getNumeric(this.fabricObject.get("rx"), 0), 0, 9999),
@@ -94,6 +96,33 @@ export class AnimatableObject {
     const snapshot = this.getSnapshot();
     this.addSnapshotKeyframe(time, snapshot);
     this.addColorSnapshotKeyframe(time, this.getColorSnapshot());
+  }
+
+  /** Re-bases stored position keyframes between canvas space and the current parent space. */
+  rebasePositionKeyframes(direction: "toCanvas" | "toParent") {
+    if (!this.fabricObject.group) return;
+
+    const absolutePosition = this.fabricObject.getXY();
+    const relativePosition = this.fabricObject.getRelativeXY();
+    const offsetMultiplier = direction === "toParent" ? -1 : 1;
+    const leftOffset =
+      (absolutePosition.x - relativePosition.x) * offsetMultiplier;
+    const topOffset =
+      (absolutePosition.y - relativePosition.y) * offsetMultiplier;
+
+    if (Math.abs(leftOffset) > 0.0001 && this.keyframes.left) {
+      this.keyframes.left = this.keyframes.left.map((keyframe) => ({
+        ...keyframe,
+        value: keyframe.value + leftOffset,
+      }));
+    }
+
+    if (Math.abs(topOffset) > 0.0001 && this.keyframes.top) {
+      this.keyframes.top = this.keyframes.top.map((keyframe) => ({
+        ...keyframe,
+        value: keyframe.value + topOffset,
+      }));
+    }
   }
 
   addSnapshotKeyframe(time: number, snapshot: AnimatableSnapshot) {
@@ -325,6 +354,10 @@ export class AnimatableObject {
     property: K,
     value: NumericAnimatableProperties[K],
   ) {
+    if (property === "left" || property === "top") {
+      setObjectAnimationPosition(this.fabricObject, property, value as number);
+      return;
+    }
     if (property === "width") {
       const currentWidth = this.fabricObject.getScaledWidth();
       const currentScaleX = this.fabricObject.scaleX ?? 1;

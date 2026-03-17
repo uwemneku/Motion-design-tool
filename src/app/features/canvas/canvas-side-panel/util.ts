@@ -7,6 +7,7 @@ import {
 } from "../../../../const";
 import type { DesignFormState } from "../../../../types";
 import type { AnimatableObject } from "../../shapes/animatable-object/object";
+import { getObjectAnimationPosition } from "../../shapes/animatable-object/util";
 
 export function toNumberInput(value: unknown, fallback: number) {
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
@@ -23,10 +24,11 @@ export function readDesignFormFromObject(
 ): DesignFormState {
   if (!object) return EMPTY_FORM;
   const supportsImageBorder = object.type === "image";
+  const position = getObjectAnimationPosition(object);
 
   return {
-    left: toNumberInput(object.left, 0),
-    top: toNumberInput(object.top, 0),
+    left: toNumberInput(position.left, 0),
+    top: toNumberInput(position.top, 0),
     width: toNumberInput(object.getScaledWidth(), 1),
     height: toNumberInput(object.getScaledHeight(), 1),
     borderRadius: toNumberInput(object.get("rx"), 0),

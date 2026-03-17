@@ -1,4 +1,6 @@
 /** Util.Ts shape model and behavior. */
+import { Point, type FabricObject } from "fabric";
+
 import type { ColorVector, Keyframe, KeyframeEasing } from "./types";
 
 export function clamp(value: number, min: number, max: number) {
@@ -53,6 +55,33 @@ export function createId(prefix: string) {
 
 export function getNumeric(value: number | undefined, fallback: number) {
   return Number.isFinite(value) ? (value as number) : fallback;
+}
+
+/** Reads object position in the same coordinate space used by grouped keyframes. */
+export function getObjectAnimationPosition(object: FabricObject) {
+  const position = object.group ? object.getRelativeXY() : object.getXY();
+  return {
+    left: getNumeric(position.x, 0),
+    top: getNumeric(position.y, 0),
+  };
+}
+
+/** Writes object position in parent-relative space for grouped children. */
+export function setObjectAnimationPosition(
+  object: FabricObject,
+  property: "left" | "top",
+  value: number,
+) {
+  const current = object.group ? object.getRelativeXY() : object.getXY();
+  const nextPoint =
+    property === "left" ? new Point(value, current.y) : new Point(current.x, value);
+
+  if (object.group) {
+    object.setRelativeXY(nextPoint);
+    return;
+  }
+
+  object.setXY(nextPoint);
 }
 
 export function byTimeAsc(a: { time: number }, b: { time: number }) {
