@@ -46,7 +46,7 @@ export function loadVideoElementFromFile(file: File) {
     video.preload = "auto";
     video.autoplay = true;
     video.defaultMuted = true;
-    video.muted = true;
+    video.muted = false;
     video.loop = true;
     video.playsInline = true;
     video.src = objectUrl;

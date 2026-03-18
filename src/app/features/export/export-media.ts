@@ -1,11 +1,14 @@
 /** Export Media.Ts media export utilities. */
 import {
+  AudioBufferSource,
   BufferTarget,
   canEncodeVideo,
   CanvasSource,
+  getFirstEncodableAudioCodec,
   getFirstEncodableVideoCodec,
   Mp4OutputFormat,
   Output,
+  QUALITY_HIGH,
   QUALITY_VERY_HIGH,
   WebMOutputFormat,
 } from "mediabunny";
@@ -13,6 +16,7 @@ import {
 export type ExportVideoFormat = "mp4" | "webm";
 
 export type ExportOptions = {
+  audioBuffer?: AudioBuffer | null;
   canvas: HTMLCanvasElement;
   width: number;
   height: number;
@@ -28,6 +32,7 @@ export async function exportCanvasAsVideo(
   options: ExportOptions,
 ): Promise<Blob> {
   const {
+    audioBuffer,
     canvas,
     width,
     height,
@@ -60,7 +65,14 @@ export async function exportCanvasAsVideo(
   });
 
   output.addVideoTrack(source, { frameRate: fps });
+  const audioSource = await createAudioSource(format, output, audioBuffer);
+  if (audioSource) {
+    output.addAudioTrack(audioSource);
+  }
   await output.start();
+  if (audioSource && audioBuffer) {
+    await audioSource.add(audioBuffer);
+  }
 
   const totalFrames = Math.max(1, Math.floor(durationInSeconds * fps));
 
@@ -73,6 +85,7 @@ export async function exportCanvasAsVideo(
   }
 
   source.close();
+  audioSource?.close();
   await output.finalize();
 
   if (!output.target.buffer) {
@@ -82,6 +95,24 @@ export async function exportCanvasAsVideo(
   return new Blob([output.target.buffer], { type: output.format.mimeType });
 }
 
+/** Creates an encoded audio source when export audio is available. */
+async function createAudioSource(
+  format: ExportVideoFormat,
+  output: Output,
+  audioBuffer: AudioBuffer | null | undefined,
+) {
+  if (!audioBuffer) return null;
+
+  const audioCodec = await getExportAudioCodec(format, output, audioBuffer);
+  if (!audioCodec) return null;
+
+  const source = new AudioBufferSource({
+    bitrate: QUALITY_HIGH,
+    codec: audioCodec,
+  });
+  return source;
+}
+
 /** Creates the MediaBunny container format for the requested export type. */
 function createOutputFormat(format: ExportVideoFormat) {
   if (format === "webm") {
@@ -89,6 +120,26 @@ function createOutputFormat(format: ExportVideoFormat) {
   }
 
   return new Mp4OutputFormat({});
+}
+
+/** Picks a browser-supported audio codec for the selected export format. */
+async function getExportAudioCodec(
+  format: ExportVideoFormat,
+  output: Output,
+  audioBuffer: AudioBuffer,
+) {
+  const supportedCodecs = output.format.getSupportedAudioCodecs();
+  const preferredCodecs =
+    format === "webm"
+      ? supportedCodecs.filter((codec) => codec === "opus")
+      : supportedCodecs.filter((codec) => codec === "aac");
+  const codecsToTry = preferredCodecs.length > 0 ? preferredCodecs : supportedCodecs;
+
+  return getFirstEncodableAudioCodec(codecsToTry, {
+    bitrate: QUALITY_HIGH,
+    numberOfChannels: audioBuffer.numberOfChannels,
+    sampleRate: audioBuffer.sampleRate,
+  });
 }
 
 /** Picks a browser-supported codec for the selected format, preserving alpha for WebM. */

@@ -1,10 +1,12 @@
 import { FabricObject } from "fabric";
 import { useEffect } from "react";
 
+import { VideoObject } from "../../shapes/objects";
 import { useCanvasAppContext } from "./use-canvas-app-context";
 import { useAppSelector } from "../../../store";
 
 function useSeekObjects() {
+  const isPaused = useAppSelector((state) => state.editor.isPaused);
   const playHeadTime = useAppSelector((state) => state.editor.playHeadTime);
   const { fabricCanvasRef, instancesRef } = useCanvasAppContext();
 
@@ -14,7 +16,11 @@ function useSeekObjects() {
 
     const update = () => {
       instancesRef.current.forEach((instance) => {
-        instance.seek(playHeadTime);
+        if (instance instanceof VideoObject) {
+          instance.syncPlaybackState(isPaused, playHeadTime);
+        } else {
+          instance.seek(playHeadTime);
+        }
         syncMaskProxyForObject(instance.fabricObject);
         const isActive =
           instance.fabricObject.customId === canvas.getActiveObject()?.customId;
@@ -27,7 +33,7 @@ function useSeekObjects() {
       canvas.requestRenderAll();
     };
     update();
-  }, [fabricCanvasRef, instancesRef, playHeadTime]);
+  }, [fabricCanvasRef, instancesRef, isPaused, playHeadTime]);
 }
 
 export function SeekObjects() {

@@ -54,6 +54,32 @@ export class VideoObject extends AnimatableObject {
     });
   }
 
+  /** Keeps the media element in the right mode for scrubbing versus live playback. */
+  syncPlaybackState(isPaused: boolean, timeInSeconds: number) {
+    const video = this.getVideoElement();
+    if (!video) return;
+
+    if (isPaused) {
+      video.pause();
+      void this.syncVideoToTime(timeInSeconds);
+      return;
+    }
+
+    this.seekAnimationState(timeInSeconds);
+    video.muted = false;
+
+    const drift = Math.abs(video.currentTime - timeInSeconds);
+    if (drift > 0.12) {
+      video.currentTime = Math.max(0, Math.min(timeInSeconds, video.duration || timeInSeconds));
+    }
+
+    if (video.paused) {
+      void video.play().catch(() => {
+        // Browsers may still block audio playback if the gesture chain is interrupted.
+      });
+    }
+  }
+
   /** Returns the live HTML video element that backs this Fabric object. */
   private getVideoElement() {
     const element = this.fabricObject.getElement();

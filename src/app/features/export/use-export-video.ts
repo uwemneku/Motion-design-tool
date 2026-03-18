@@ -68,6 +68,10 @@ function useExportVideo(fabricCanvas: MutableRefObject<Canvas | null>, activeAsp
         exportCanvas.overlayImage = undefined;
 
         const sourceObjects = liveCanvas.getObjects();
+        const exportAudioBuffer = await buildMixedVideoAudioTrack(
+          sourceObjects,
+          EXPORT_DURATION_SECONDS,
+        );
         /**Store the instance of the fabric object from the live canvas */
         const sourceObjectsById = new Map<string, FabricObject>();
         /**Store the animatable object created from the cloned instance of a fabric object in the live canvas for export */
@@ -142,6 +146,7 @@ function useExportVideo(fabricCanvas: MutableRefObject<Canvas | null>, activeAsp
         exportCanvas.renderAll();
 
         const blob = await exportCanvasAsVideo({
+          audioBuffer: exportAudioBuffer,
           canvas: exportElement,
           width: exportWidth,
           height: exportHeight,
@@ -512,4 +517,59 @@ function syncExportMaskProxyForObject(targetObject: FabricObject) {
     targetObject.set("clipPath", maskProxy);
   }
   maskProxy.setCoords();
+}
+
+/** Mixes audio from imported video layers into one offline buffer aligned to the global timeline. */
+async function buildMixedVideoAudioTrack(
+  sourceObjects: FabricObject[],
+  durationInSeconds: number,
+) {
+  const sourceUrls = sourceObjects.flatMap((object) => {
+    if (!(object instanceof FabricImage)) return [];
+    const element = object.getElement();
+    if (!(element instanceof HTMLVideoElement)) return [];
+    const sourceUrl = element.currentSrc || element.src;
+    if (!sourceUrl) return [];
+    return [sourceUrl];
+  });
+
+  if (sourceUrls.length === 0) return null;
+
+  const audioContext = new AudioContext();
+
+  try {
+    const decodedBuffers = await Promise.all(
+      sourceUrls.map(async (sourceUrl) => {
+        try {
+          const response = await fetch(sourceUrl);
+          const blob = await response.blob();
+          const arrayBuffer = await blob.arrayBuffer();
+          return await audioContext.decodeAudioData(arrayBuffer);
+        } catch {
+          return null;
+        }
+      }),
+    );
+    const audioBuffers = decodedBuffers.filter((buffer): buffer is AudioBuffer => Boolean(buffer));
+    if (audioBuffers.length === 0) return null;
+
+    const maxChannels = Math.max(...audioBuffers.map((buffer) => buffer.numberOfChannels));
+    const sampleRate = audioBuffers[0].sampleRate;
+    const offlineContext = new OfflineAudioContext(
+      maxChannels,
+      Math.ceil(durationInSeconds * sampleRate),
+      sampleRate,
+    );
+
+    audioBuffers.forEach((buffer) => {
+      const sourceNode = offlineContext.createBufferSource();
+      sourceNode.buffer = buffer;
+      sourceNode.connect(offlineContext.destination);
+      sourceNode.start(0);
+    });
+
+    return await offlineContext.startRendering();
+  } finally {
+    await audioContext.close();
+  }
 }
