@@ -65,8 +65,8 @@ export default function TimelineItemRow({
     <div className="border-b border-[var(--wise-border)] text-sm">
       <div className="grid grid-cols-[210px_1fr]">
         <div
-          className={`sticky left-0 z-20 border-r border-[var(--wise-border)] px-3 py-2 text-slate-100 ${
-            isSelected ? "bg-[var(--wise-accent)]/16 font-semibold" : "bg-[var(--wise-surface)]"
+          className={`sticky left-0 z-20 border-r border-[var(--wise-border)] px-3 py-2 text-[12px] text-slate-100 ${
+            isSelected ? "bg-[var(--wise-accent)]/16 font-medium" : "bg-[var(--wise-surface)]"
           }`}
           onClick={() => {
             dispatch(setSelectedId([id]));
@@ -111,7 +111,7 @@ export default function TimelineItemRow({
                 />
               </button>
             ) : null}
-            <div className="w-full cursor-pointer text-left">{name}</div>
+            <div className="min-w-0 flex-1 cursor-pointer truncate text-left">{name}</div>
           </div>
         </div>
 

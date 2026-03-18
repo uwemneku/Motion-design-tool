@@ -2,6 +2,7 @@
 import { Group, loadSVGFromString, Point, type Canvas, type FabricObject } from "fabric";
 import type { MutableRefObject } from "react";
 import { toast } from "sonner";
+import { loadVideoElementFromFile } from "../util/video-import";
 import { AnimatableObject } from "../../shapes/animatable-object/object";
 import type { KeyframeEasing } from "../../shapes/animatable-object/types";
 import { setObjectAnimationPosition } from "../../shapes/animatable-object/util";
@@ -20,6 +21,7 @@ import {
   PolygonObject,
   RectangleObject,
   TextObject,
+  VideoObject,
 } from "../../shapes/objects";
 
 import { useCanvasAppContext } from "./use-canvas-app-context";
@@ -85,6 +87,11 @@ const CANVAS_ITEM_COLOR_KEYFRAME_FIELDS = ["fill", "stroke"] as const;
 function isSvgFile(file: File) {
   // Detect SVG uploads by MIME type or extension so we can parse vector data.
   return file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg");
+}
+
+function isVideoFile(file: File) {
+  // Detect video uploads before passing them into the Fabric video path.
+  return file.type.startsWith("video/");
 }
 
 function getBoundsForObjects(objects: FabricObject[]) {
@@ -165,6 +172,27 @@ function applyStrokeUniformRecursively(object: FabricObject) {
       applyStrokeUniformRecursively(child);
     });
   }
+}
+
+function fitVisualMediaToCanvas(
+  object: FabricObject,
+  canvas: Canvas,
+  maxWidthRatio = 0.4,
+  maxHeightRatio = 0.8,
+) {
+  // Scale images and videos into the work area with the same placement rules.
+  const mediaWidth = object.width ?? 1;
+  const mediaHeight = object.height ?? 1;
+  const maxWidth = canvas.getWidth() * maxWidthRatio;
+  const maxHeight = canvas.getHeight() * maxHeightRatio;
+  const widthScale = maxWidth / mediaWidth;
+  const heightScale = maxHeight / mediaHeight;
+  const scale = Math.min(1, widthScale, heightScale);
+
+  object.set({
+    scaleX: scale,
+    scaleY: scale,
+  });
 }
 
 export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
@@ -498,21 +526,13 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     const imageObject = await ImageObject.fromURL(url, {
       crossOrigin: "anonymous",
     });
-    const imageWidth = imageObject.fabricObject.width ?? 1;
-    const imageHeight = imageObject.fabricObject.height ?? 1;
-    const maxWidth = canvas.getWidth() * 0.4;
-    const maxHeight = canvas.getHeight() * 0.8;
-    const widthScale = maxWidth / imageWidth;
-    const heightScale = maxHeight / imageHeight;
-    const scale = Math.min(1, widthScale, heightScale);
+    fitVisualMediaToCanvas(imageObject.fabricObject, canvas);
 
     imageObject.fabricObject.set({
       left,
       top,
       originX: "center",
       originY: "center",
-      scaleX: scale,
-      scaleY: scale,
       stroke: "#ffffff",
       strokeWidth: 0,
       strokeUniform: true,
@@ -529,6 +549,50 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       await addImageFromURL(fileUrl, options);
     } finally {
       URL.revokeObjectURL(fileUrl);
+    }
+  };
+
+  const addVideoFromFile = async (file: File, options: AddItemOptions = {}) => {
+    // Import video files into Fabric through a live HTMLVideoElement.
+    if (!isVideoFile(file)) {
+      toast.error("Please select a video file.");
+      return;
+    }
+
+    const canvas = fabricCanvas.current;
+    if (!canvas) return;
+
+    try {
+      const videoElement = await loadVideoElementFromFile(file);
+      const { left, top } = getVideoCenter(canvas);
+      const videoObject = new VideoObject(videoElement, {
+        left,
+        top,
+        originX: "center",
+        originY: "center",
+        width: videoElement.videoWidth,
+        height: videoElement.videoHeight,
+        objectCaching: false,
+        stroke: "#ffffff",
+        strokeWidth: 0,
+        strokeUniform: true,
+        ...options,
+      });
+
+      fitVisualMediaToCanvas(videoObject.fabricObject, canvas);
+      const defaultVideoName = file.name.replace(/\.[^/.]+$/, "") || "video";
+      const objectId = addObjectToCanvas(videoObject, "video", {
+        ...options,
+        name: options.name ?? defaultVideoName,
+      });
+      if (!objectId) return;
+
+      videoElement.pause();
+      videoElement.currentTime = 0;
+      canvas.requestRenderAll();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not load the video.";
+      toast.error(`Video import failed: ${message}`);
     }
   };
 
@@ -794,6 +858,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     addRectangle,
     addImageFromFile,
     addSvgFromFile,
+    addVideoFromFile,
     addImageFromURL,
     groupSelectedItems,
     removeItemById,

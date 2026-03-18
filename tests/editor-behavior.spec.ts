@@ -1,5 +1,5 @@
 import path from "node:path";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { EXPORT_VIDEO_LABEL } from "../src/app/features/canvas/canvas-side-panel/export-controls";
 
 /** Opens the editor and waits for the main workspace shell. */
@@ -88,6 +88,53 @@ async function dragLayerHandle(page: Page, fromIndex: number, toIndex: number) {
     { steps: 12 },
   );
   await page.mouse.up();
+}
+
+/** Builds a tiny in-browser WebM so upload tests can use a real video file. */
+async function createTestVideoBuffer(page: Page) {
+  const bytes = await page.evaluate(async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error("Could not create test video canvas.");
+    }
+
+    const stream = canvas.captureStream(8);
+    const recorder = new MediaRecorder(stream, {
+      mimeType: "video/webm;codecs=vp8",
+    });
+    const chunks: Blob[] = [];
+
+    recorder.addEventListener("dataavailable", (event) => {
+      if (event.data.size > 0) {
+        chunks.push(event.data);
+      }
+    });
+
+    const stopped = new Promise<void>((resolve) => {
+      recorder.addEventListener("stop", () => resolve(), { once: true });
+    });
+
+    recorder.start();
+
+    for (let frame = 0; frame < 6; frame += 1) {
+      context.fillStyle = frame % 2 === 0 ? "#ff4d4f" : "#4f8cff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = "#ffffff";
+      context.fillRect(frame * 4, 12, 16, 16);
+      await new Promise((resolve) => window.setTimeout(resolve, 140));
+    }
+
+    recorder.stop();
+    await stopped;
+
+    const blob = new Blob(chunks, { type: "video/webm" });
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+
+  return Buffer.from(bytes);
 }
 
 test.describe("Editor behavior", () => {
@@ -219,6 +266,61 @@ test.describe("Editor behavior", () => {
     await expect(page.getByRole("button", { name: "Select export format" })).toContainText(
       "MP4",
     );
+  });
+
+  test("imports a local video file onto the canvas", async ({ page }, testInfo: TestInfo) => {
+    await gotoEditor(page);
+
+    const videoBuffer = await createTestVideoBuffer(page);
+    const videoInput = page.locator('input[type="file"][accept="video/*"]').first();
+    await videoInput.setInputFiles({
+      name: "sample-video.webm",
+      mimeType: "video/webm",
+      buffer: videoBuffer,
+    });
+
+    await expect(
+      page
+        .getByTestId("floating-layers-panel")
+        .last()
+        .getByRole("button", { name: "sample-video", exact: true }),
+    ).toBeVisible();
+
+    await page.screenshot({
+      path: testInfo.outputPath("video-import-review.png"),
+      fullPage: true,
+    });
+  });
+
+  test("seeks imported video frames with the timeline playhead", async ({ page }, testInfo) => {
+    await gotoEditor(page);
+
+    const videoBuffer = await createTestVideoBuffer(page);
+    const videoInput = page.locator('input[type="file"][accept="video/*"]').first();
+    await videoInput.setInputFiles({
+      name: "sample-video.webm",
+      mimeType: "video/webm",
+      buffer: videoBuffer,
+    });
+
+    await expect(
+      page
+        .getByTestId("floating-layers-panel")
+        .last()
+        .getByRole("button", { name: "sample-video", exact: true }),
+    ).toBeVisible();
+
+    await seekTimeline(page, 0);
+    await page.screenshot({
+      path: testInfo.outputPath("video-playhead-start.png"),
+      fullPage: true,
+    });
+
+    await seekTimeline(page, 0.35);
+    await page.screenshot({
+      path: testInfo.outputPath("video-playhead-middle.png"),
+      fullPage: true,
+    });
   });
 
   test("allows changing the export format from the export menu", async ({ page }) => {

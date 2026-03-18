@@ -5,3 +5,4 @@ export { LineObject } from "./line-object";
 export { PolygonObject } from "./polygon-object";
 export { RectangleObject } from "./rectangle-object";
 export { TextObject } from "./text-object";
+export { VideoObject } from "./video-object";

@@ -1,5 +1,5 @@
 /** Add File Buttons.Tsx reusable UI component. */
-import { FileImage, ImagePlus } from "lucide-react";
+import { FileImage, Film, ImagePlus } from "lucide-react";
 import { useRef, type ChangeEvent, type MouseEvent } from "react";
 import { ToolButton } from "./tool-button";
 
@@ -8,6 +8,7 @@ type ButtonMouseDown = (event: MouseEvent<HTMLButtonElement>) => void;
 type AddFileButtonsProps = {
   onAddImageFile: (file: File) => void | Promise<void>;
   onAddSvgFile: (file: File) => void | Promise<void>;
+  onAddVideoFile: (file: File) => void | Promise<void>;
   onMouseDown: ButtonMouseDown;
 };
 
@@ -81,6 +82,44 @@ export function AddSvgButton({
         type="file"
         accept=".svg,image/svg+xml"
         onChange={onSvgSelected}
+        className="hidden"
+      />
+    </>
+  );
+}
+
+/**
+ * Tool button that opens a video picker and forwards the selected file.
+ */
+export function AddVideoButton({
+  onAddVideoFile,
+  onMouseDown,
+}: Pick<AddFileButtonsProps, "onAddVideoFile" | "onMouseDown">) {
+  const videoInputRef = useRef<HTMLInputElement | null>(null);
+
+  const onVideoSelected = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    void onAddVideoFile(file);
+    event.target.value = "";
+  };
+
+  return (
+    <>
+      <ToolButton
+        label="Add video"
+        onClick={() => {
+          videoInputRef.current?.click();
+        }}
+        onMouseDown={onMouseDown}
+      >
+        <Film className="size-4" strokeWidth={2} aria-hidden />
+      </ToolButton>
+      <input
+        ref={videoInputRef}
+        type="file"
+        accept="video/*"
+        onChange={onVideoSelected}
         className="hidden"
       />
     </>

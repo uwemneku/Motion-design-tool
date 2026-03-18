@@ -10,6 +10,7 @@ import {
 import {
   AddImageButton,
   AddSvgButton,
+  AddVideoButton,
 } from "../../components/canvas-tools/add-file-buttons";
 import { AddPolygonButton } from "../../components/canvas-tools/add-polygon-button";
 import { useCanvasItems } from "./hooks/use-canvas-items";
@@ -28,6 +29,7 @@ export default function CanvasToolsFab() {
     addCircle,
     addImageFromFile,
     addSvgFromFile,
+    addVideoFromFile,
     addLine,
     addPolygon,
     addRectangle,
@@ -184,6 +186,10 @@ export default function CanvasToolsFab() {
           />
           <AddImageButton
             onAddImageFile={addImageFromFile}
+            onMouseDown={onMouseDown}
+          />
+          <AddVideoButton
+            onAddVideoFile={addVideoFromFile}
             onMouseDown={onMouseDown}
           />
           <AddTextButton onAddText={addText} onMouseDown={onMouseDown} />

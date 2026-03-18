@@ -199,8 +199,8 @@ export function TimelineItemPropertyRow({
 
   return (
     <div className="grid grid-cols-[210px_1fr] border-b border-[var(--wise-border)] last:border-b-0">
-      <div className="sticky left-0 z-20 border-r border-[var(--wise-border)] bg-[var(--wise-surface)] px-3 py-2 pl-8 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-        {label}
+      <div className="sticky left-0 z-20 border-r border-[var(--wise-border)] bg-[var(--wise-surface)] px-3 py-2 pl-8 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+        <div className="truncate">{label}</div>
       </div>
       <div
         className="py-2"

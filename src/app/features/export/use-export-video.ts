@@ -12,6 +12,7 @@ import { useCallback, useState, type MutableRefObject } from "react";
 import { EXPORT_DURATION_SECONDS, EXPORT_FPS, EXPORT_PIXEL_DENSITY } from "../../../const";
 import { getVideoWorkAreaRect } from "./video-work-area";
 import { AnimatableObject } from "../shapes/animatable-object/object";
+import { VideoObject } from "../shapes/objects";
 import { useCanvasAppContext } from "../canvas/hooks/use-canvas-app-context";
 import { exportCanvasAsVideo, type ExportVideoFormat } from "./export-media";
 import type { KeyframesByProperty } from "../shapes/animatable-object/types";
@@ -70,7 +71,8 @@ function useExportVideo(fabricCanvas: MutableRefObject<Canvas | null>, activeAsp
         /**Store the instance of the fabric object from the live canvas */
         const sourceObjectsById = new Map<string, FabricObject>();
         /**Store the animatable object created from the cloned instance of a fabric object in the live canvas for export */
-        const exportInstances = new Map<string, AnimatableObject>();
+        const exportInstances = new Map<string, AnimatableObject | VideoObject>();
+        const exportVideoInstances: VideoObject[] = [];
 
         for (const sourceObject of sourceObjects) {
           const customId = sourceObject.customId;
@@ -112,10 +114,18 @@ function useExportVideo(fabricCanvas: MutableRefObject<Canvas | null>, activeAsp
                   ...keyframe,
                 })),
               };
+              const exportInstance = createExportAnimatableObject(
+                clonedObject,
+                exportKeyframes,
+                exportColorKeyframes,
+              );
               exportInstances.set(
                 customId,
-                new AnimatableObject(clonedObject, exportKeyframes, exportColorKeyframes),
+                exportInstance,
               );
+              if (exportInstance instanceof VideoObject) {
+                exportVideoInstances.push(exportInstance);
+              }
             }
           }
         }
@@ -140,9 +150,16 @@ function useExportVideo(fabricCanvas: MutableRefObject<Canvas | null>, activeAsp
           fps: EXPORT_FPS,
           onFrame: async (timeInSeconds) => {
             exportInstances.forEach((instance) => {
-              instance.seek(timeInSeconds);
+              if (instance instanceof VideoObject) {
+                instance.seekAnimationState(timeInSeconds);
+              } else {
+                instance.seek(timeInSeconds);
+              }
               syncExportMaskProxyForObject(instance.fabricObject);
             });
+            await Promise.all(
+              exportVideoInstances.map((instance) => instance.syncVideoToTime(timeInSeconds)),
+            );
             ensureTransparentCanvasFrame(exportElement, exportWidth, exportHeight);
             exportCanvas?.renderAll();
           },
@@ -268,19 +285,27 @@ async function cloneFabricObjectWithCustomId<
   EventSpec extends ObjectEvents = ObjectEvents,
 >(sourceObject: FabricObject<Props, SProps, EventSpec>) {
   let clonedObject: FabricObject<Props, SProps, EventSpec>;
-  try {
-    clonedObject = await sourceObject.clone();
-  } catch (error) {
-    if (!(sourceObject instanceof FabricImage)) {
-      throw error;
+  if (sourceObject instanceof FabricImage) {
+    const sourceElement = sourceObject.getElement();
+    if (sourceElement instanceof HTMLVideoElement) {
+      clonedObject = (await cloneVideoFabricObject(
+        sourceObject,
+        sourceElement,
+      )) as FabricObject<Props, SProps, EventSpec>;
+    } else {
+      try {
+        clonedObject = await sourceObject.clone();
+      } catch {
+        const snapshotCanvas = cloneImageElementToCanvas(sourceObject);
+        clonedObject = new FabricImage(snapshotCanvas, sourceObject.toObject()) as FabricObject<
+          Props,
+          SProps,
+          EventSpec
+        >;
+      }
     }
-
-    const snapshotCanvas = cloneImageElementToCanvas(sourceObject);
-    clonedObject = new FabricImage(snapshotCanvas, sourceObject.toObject()) as FabricObject<
-      Props,
-      SProps,
-      EventSpec
-    >;
+  } else {
+    clonedObject = await sourceObject.clone();
   }
 
   const customId = sourceObject.customId;
@@ -289,6 +314,86 @@ async function cloneFabricObjectWithCustomId<
     clonedObject.set("customId", customId);
   }
   return clonedObject;
+}
+
+/** Creates the right animatable wrapper for exported objects, including live video-backed layers. */
+function createExportAnimatableObject(
+  object: FabricObject,
+  keyframes: KeyframesByProperty,
+  colorKeyframes: AnimatableObject["colorKeyframes"],
+) {
+  if (object instanceof FabricImage && object.getElement() instanceof HTMLVideoElement) {
+    return new VideoObject(object, {}, keyframes, colorKeyframes);
+  }
+
+  return new AnimatableObject(object, keyframes, colorKeyframes);
+}
+
+/** Builds a separate export-only video element so export seeking does not disturb the editor preview. */
+async function cloneVideoFabricObject(sourceObject: FabricImage, sourceVideo: HTMLVideoElement) {
+  const video = document.createElement("video");
+  video.preload = "auto";
+  video.defaultMuted = true;
+  video.muted = true;
+  video.loop = sourceVideo.loop;
+  video.playsInline = true;
+  video.src = sourceVideo.currentSrc || sourceVideo.src;
+
+  await new Promise<void>((resolve, reject) => {
+    const onLoadedData = () => {
+      cleanup();
+      video.width = video.videoWidth;
+      video.height = video.videoHeight;
+      resolve();
+    };
+
+    const onError = () => {
+      cleanup();
+      reject(new Error("Could not clone video for export."));
+    };
+
+    const cleanup = () => {
+      video.removeEventListener("loadeddata", onLoadedData);
+      video.removeEventListener("error", onError);
+    };
+
+    if (video.readyState >= 2) {
+      onLoadedData();
+      return;
+    }
+
+    video.addEventListener("loadeddata", onLoadedData);
+    video.addEventListener("error", onError);
+    video.load();
+  });
+
+  const cloneOptions = {
+    angle: sourceObject.angle,
+    cropX: sourceObject.cropX,
+    cropY: sourceObject.cropY,
+    flipX: sourceObject.flipX,
+    flipY: sourceObject.flipY,
+    height: video.videoHeight,
+    left: sourceObject.left,
+    objectCaching: false,
+    opacity: sourceObject.opacity,
+    originX: sourceObject.originX,
+    originY: sourceObject.originY,
+    scaleX: sourceObject.scaleX,
+    scaleY: sourceObject.scaleY,
+    skewX: sourceObject.skewX,
+    skewY: sourceObject.skewY,
+    stroke: sourceObject.stroke,
+    strokeUniform: sourceObject.strokeUniform,
+    strokeWidth: sourceObject.strokeWidth,
+    top: sourceObject.top,
+    visible: sourceObject.visible,
+    width: video.videoWidth,
+  } satisfies ConstructorParameters<typeof FabricImage>[1];
+
+  return new FabricImage(video, {
+    ...cloneOptions,
+  });
 }
 
 /**
