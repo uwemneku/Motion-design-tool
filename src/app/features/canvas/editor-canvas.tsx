@@ -1,7 +1,6 @@
 /** Editor Canvas.Tsx module implementation. */
 import CanvasSidePanel from "./canvas-side-panel";
 import CanvasToolsFab from "./canvas-tools-fab";
-import CanvasZoomControl from "./canvas-zoom-control";
 import CanvasItemsList from "./items-list/canvas-items-list";
 import TimelinePanel from "./timeline/timeline-panel";
 import VideoWorkAreaOverlay from "./video-work-area-overlay";
@@ -43,7 +42,6 @@ export default function EditorCanvas() {
               <canvas className="h-full w-full" ref={bindHost}></canvas>
               <VideoWorkAreaOverlay />
             </div>
-            <CanvasZoomControl />
           </div>
         </div>
       </div>

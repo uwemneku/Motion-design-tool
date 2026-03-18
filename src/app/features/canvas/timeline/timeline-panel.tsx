@@ -11,6 +11,7 @@ import {
   TIMELINE_MAX_HEIGHT,
   TIMELINE_MIN_HEIGHT,
 } from "../../../../const";
+import CanvasZoomControl from "../canvas-zoom-control";
 import TimelineItemRow from "./timeline-item-row";
 import TimelinePlayhead from "./timeline-playhead";
 import { useAppDispatch, useAppSelector } from "../../../store";
@@ -31,8 +32,7 @@ export default function TimelinePanel() {
 
   const [timelineHeight, setTimelineHeight] = useState(TIMELINE_DEFAULT_HEIGHT);
   const [timelineZoom, setTimelineZoom] = useState(1);
-  const timelineZoomScale =
-    1 + (timelineZoom - TIMELINE_ZOOM_MIN) * TIMELINE_ZOOM_SCALE_FACTOR;
+  const timelineZoomScale = 1 + (timelineZoom - TIMELINE_ZOOM_MIN) * TIMELINE_ZOOM_SCALE_FACTOR;
   const timelineLabelStep = getTimelineLabelStep(timelineZoom);
   const timelineContentWidth = `calc(${LABEL_COLUMN_WIDTH}px + (100% - ${LABEL_COLUMN_WIDTH}px) * ${timelineZoomScale})`;
 
@@ -76,11 +76,7 @@ export default function TimelinePanel() {
         }}
         onResizeStop={(_, __, ___, delta) => {
           setTimelineHeight((prev) =>
-            clamp(
-              prev + delta.height,
-              TIMELINE_MIN_HEIGHT,
-              TIMELINE_MAX_HEIGHT,
-            ),
+            clamp(prev + delta.height, TIMELINE_MIN_HEIGHT, TIMELINE_MAX_HEIGHT),
           );
         }}
       >
@@ -89,12 +85,16 @@ export default function TimelinePanel() {
           data-testid="timeline-toolbar"
           style={{ height: TIMELINE_TOOLBAR_HEIGHT }}
         >
-          <div className="grid h-full grid-cols-[210px_1fr_210px] items-center px-3 py-2">
-            <div />
-            <div className="flex items-center justify-center">
-              <TimeStampControl />
+          <div className="relative flex h-full items-center justify-between px-3 py-2">
+            <div className="relative z-10 flex items-center justify-start">
+              <CanvasZoomControl />
             </div>
-            <div className="flex items-center justify-end gap-1.5">
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="pointer-events-auto">
+                <TimeStampControl />
+              </div>
+            </div>
+            <div className="relative z-10 flex items-center justify-end gap-1.5">
               <button
                 type="button"
                 className="inline-flex size-6 items-center justify-center rounded border border-[var(--wise-border)] bg-[var(--wise-surface)] text-slate-300 transition hover:bg-[var(--wise-surface-muted)]"
@@ -155,9 +155,7 @@ export default function TimelinePanel() {
             >
               <TimelinePlayhead
                 duration={TIMELINE_DURATION}
-                keyframeSectionOffset={
-                  LABEL_COLUMN_WIDTH + KEYFRAME_SECTION_HORIZONTAL_PADDING
-                }
+                keyframeSectionOffset={LABEL_COLUMN_WIDTH + KEYFRAME_SECTION_HORIZONTAL_PADDING}
                 keyframeSectionRightOffset={KEYFRAME_SECTION_HORIZONTAL_PADDING}
                 rulerHeight={TIMELINE_RULER_HEIGHT}
               />
@@ -185,18 +183,11 @@ export default function TimelinePanel() {
                   <div className="relative h-full">
                     {Array.from(
                       {
-                        length:
-                          Math.floor(TIMELINE_DURATION / timelineLabelStep) + 1,
+                        length: Math.floor(TIMELINE_DURATION / timelineLabelStep) + 1,
                       },
                       (_, index) => {
-                        const time = Number(
-                          (index * timelineLabelStep).toFixed(3),
-                        );
-                        const left = clamp(
-                          (time / TIMELINE_DURATION) * 100,
-                          0,
-                          100,
-                        );
+                        const time = Number((index * timelineLabelStep).toFixed(3));
+                        const left = clamp((time / TIMELINE_DURATION) * 100, 0, 100);
                         return (
                           <div
                             key={`timeline-label-${time}`}
@@ -216,9 +207,7 @@ export default function TimelinePanel() {
               </div>
 
               {canvasItemIds.length === 0 ? (
-                <div className="px-3 py-4 text-sm text-slate-500">
-                  No items yet
-                </div>
+                <div className="px-3 py-4 text-sm text-slate-500">No items yet</div>
               ) : (
                 <div className=" relative">
                   {canvasItemIds.map((id) => (
