@@ -83,7 +83,7 @@ export default function CanvasItemsList() {
 
   return (
     <div
-      className="pointer-events-auto absolute left-4 top-4 z-20 flex max-h-[min(440px,calc(100vh-184px))] w-50.5 flex-col overflow-hidden rounded-xl border border-white/8 bg-[rgba(43,43,46,0.9)] p-1 shadow-[0_16px_34px_rgba(0,0,0,0.22)] backdrop-blur-2xl"
+      className="pointer-events-auto absolute left-4 top-4 z-20 flex max-h-[min(440px,calc(100vh-184px))] w-60 flex-col overflow-hidden rounded-xl border border-white/8 bg-[rgba(43,43,46,0.9)] p-1 shadow-[0_16px_34px_rgba(0,0,0,0.22)] backdrop-blur-2xl"
       data-testid="floating-layers-panel"
     >
       {selectedIds.length > 1 ? (

@@ -23,6 +23,25 @@ async function selectLayer(page: Page, name: string) {
     .click();
 }
 
+/** Renames a layer row through the inline edit flow. */
+async function renameLayer(page: Page, currentName: string, nextName: string) {
+  const layerButton = page
+    .getByTestId("floating-layers-panel")
+    .getByRole("button", { name: new RegExp(`^${escapeRegex(currentName)}$`) })
+    .first();
+
+  await layerButton.dblclick();
+
+  const renameInput = page
+    .getByTestId("floating-layers-panel")
+    .locator('input[type="text"]')
+    .first();
+
+  await expect(renameInput).toBeVisible();
+  await renameInput.fill(nextName);
+  await renameInput.press("Enter");
+}
+
 /** Moves the timeline playhead to a relative position across the ruler. */
 async function seekTimeline(page: Page, fraction: number) {
   const ruler = page
@@ -237,6 +256,36 @@ test.describe("Editor visual review", () => {
       page.getByTestId("canvas-side-panel"),
       testInfo,
       "export-dropdown-closeup.png",
+    );
+  });
+
+  test("captures long layer names with hover controls", async ({ page }, testInfo) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add rectangle");
+    await renameLayer(
+      page,
+      "rectangle",
+      "marketing hero background rectangle with very long descriptive layer name",
+    );
+
+    const floatingLayersPanel = page.getByTestId("floating-layers-panel");
+    const longLayerButton = floatingLayersPanel
+      .getByRole("button", {
+        name: /marketing hero background rectangle with very long descriptive layer name/,
+      })
+      .first();
+
+    await longLayerButton.hover();
+    await expect(
+      floatingLayersPanel.getByRole("button", {
+        name: /Delete marketing hero background rectangle with very long descriptive layer name/,
+      }),
+    ).toBeVisible();
+
+    await saveLocatorShot(
+      floatingLayersPanel.nth(1),
+      testInfo,
+      "long-layer-name-controls.png",
     );
   });
 });

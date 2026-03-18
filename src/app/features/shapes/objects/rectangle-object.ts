@@ -4,7 +4,7 @@ import { AnimatableObject } from "../animatable-object/object";
 import type { KeyframesByProperty } from "../animatable-object/types";
 
 export class RectangleObject extends AnimatableObject {
-  declare fabricObject: Rect;
+  override fabricObject: Rect;
 
   constructor(
     options: ConstructorParameters<typeof Rect>[0] = {},
@@ -15,5 +15,6 @@ export class RectangleObject extends AnimatableObject {
       ...options,
     });
     super(fabricObject, keyframes);
+    this.fabricObject = fabricObject;
   }
 }

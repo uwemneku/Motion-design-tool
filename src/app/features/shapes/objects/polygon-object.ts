@@ -4,7 +4,7 @@ import { AnimatableObject } from "../animatable-object/object";
 import type { KeyframesByProperty } from "../animatable-object/types";
 
 export class PolygonObject extends AnimatableObject {
-  declare fabricObject: Polygon;
+  override fabricObject: Polygon;
 
   constructor(
     points: XY[] = [],
@@ -16,5 +16,6 @@ export class PolygonObject extends AnimatableObject {
       ...options,
     });
     super(fabricObject, keyframes);
+    this.fabricObject = fabricObject;
   }
 }

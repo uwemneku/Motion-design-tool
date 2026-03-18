@@ -4,7 +4,7 @@ import { AnimatableObject } from "../animatable-object/object";
 import type { KeyframesByProperty } from "../animatable-object/types";
 
 export class TextObject extends AnimatableObject {
-  declare fabricObject: Textbox;
+  override fabricObject: Textbox;
 
   constructor(
     text: string,
@@ -19,5 +19,6 @@ export class TextObject extends AnimatableObject {
       ...options,
     });
     super(fabricObject, keyframes);
+    this.fabricObject = fabricObject;
   }
 }

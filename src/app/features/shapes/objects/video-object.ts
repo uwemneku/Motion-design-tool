@@ -7,7 +7,7 @@ import type {
 import { AnimatableObject } from "../animatable-object/object";
 
 export class VideoObject extends AnimatableObject {
-  declare fabricObject: FabricImage;
+  override fabricObject: FabricImage;
 
   constructor(
     source: HTMLVideoElement | FabricImage,
@@ -18,6 +18,7 @@ export class VideoObject extends AnimatableObject {
     // Wrap videos with FabricImage so they behave like other animatable canvas items.
     const fabricObject = source instanceof FabricImage ? source : new FabricImage(source, options);
     super(fabricObject, keyframes, colorKeyframes);
+    this.fabricObject = fabricObject;
   }
 
   /** Seeks numeric animation state first, then aligns the backing video element to the same time. */

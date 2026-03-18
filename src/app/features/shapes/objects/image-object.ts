@@ -4,7 +4,7 @@ import { AnimatableObject } from "../animatable-object/object";
 import type { KeyframesByProperty } from "../animatable-object/types";
 
 export class ImageObject extends AnimatableObject {
-  declare fabricObject: FabricImage;
+  override fabricObject: FabricImage;
 
   constructor(
     source: FabricImage | ConstructorParameters<typeof FabricImage>[0],
@@ -14,6 +14,7 @@ export class ImageObject extends AnimatableObject {
     const fabricObject =
       source instanceof FabricImage ? source : new FabricImage(source, options);
     super(fabricObject, keyframes);
+    this.fabricObject = fabricObject;
   }
 
   static async fromURL(

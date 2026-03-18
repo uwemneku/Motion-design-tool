@@ -4,7 +4,7 @@ import { AnimatableObject } from "../animatable-object/object";
 import type { KeyframesByProperty } from "../animatable-object/types";
 
 export class CircleObject extends AnimatableObject {
-  declare fabricObject: Circle;
+  override fabricObject: Circle;
 
   constructor(
     options: ConstructorParameters<typeof Circle>[0] = {},
@@ -15,5 +15,6 @@ export class CircleObject extends AnimatableObject {
       ...options,
     });
     super(fabricObject, keyframes);
+    this.fabricObject = fabricObject;
   }
 }

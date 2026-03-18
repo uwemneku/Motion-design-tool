@@ -135,6 +135,9 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
     }
   };
 
+  /** Keeps the trailing action cluster width stable so long labels truncate cleanly. */
+  const actionAreaWidthClass = isGroup ? "w-[4.75rem]" : "w-[3.75rem]";
+
   return (
     <Reorder.Item
       value={id}
@@ -146,9 +149,9 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
       layout="position"
     >
       <div
-        className={`flex items-center gap-1.5 rounded-md border pl-1 pr-2 py-1.5text-left text-sm transition ${
+        className={`flex items-center gap-1.5 rounded-md border px-1 py-1.5 text-left text-sm transition ${
           isSelected
-            ? "border-white/14 bg-[rgba(255,255,255,0.12)] font-semibold text-[#f5f7fb] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+            ? "border-[rgba(255,255,255,0.18)] bg-transparent font-semibold text-[#f5f7fb] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
             : "border-transparent bg-[rgba(255,255,255,0.025)] text-[#dfe7f3] hover:border-white/10 hover:bg-[rgba(255,255,255,0.06)]"
         }`}
       >
@@ -181,7 +184,7 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
 
         <button
           type="button"
-          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden text-left"
           onClick={handleClick}
           onDoubleClick={() => {
             setIsEditingName(true);
@@ -211,14 +214,18 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
         </button>
 
         <div
-          className={`flex items-center bg-inherit absolute right-0 top-1/2 -translate-y-1/2 opacity-0 transition group-hover:opacity-100`}
+          className={`ml-auto flex shrink-0 items-center justify-end gap-px bg-inherit transition ${actionAreaWidthClass} ${
+            isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+          }`}
           key={id}
         >
           <button
             type="button"
             onClick={toggleLocked}
-            className={`grid size-5 shrink-0 place-items-center text-[#8f9aac] transition hover:text-[#d7dfeb] ${
-              isLocked ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            className={`grid size-5 shrink-0 place-items-center rounded-[4px] text-[#8f9aac] transition hover:bg-white/6 hover:text-[#d7dfeb] ${
+              isLocked
+                ? "opacity-100"
+                : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
             }`}
             aria-label={isLocked ? `Unlock ${displayName}` : `Lock ${displayName}`}
             title={isLocked ? "Unlock layer" : "Lock layer"}
@@ -232,7 +239,9 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
           <button
             type="button"
             onClick={toggleVisibility}
-            className={`grid size-5 shrink-0 place-items-center text-[#8f9aac]  ${isVisible ? "opacity-0" : ""} transition hover:text-[#d7dfeb] group-hover:opacity-100`}
+            className={`grid size-5 shrink-0 place-items-center rounded-[4px] text-[#8f9aac] transition hover:bg-white/6 hover:text-[#d7dfeb] ${
+              isVisible ? "opacity-0" : ""
+            } group-hover:opacity-100 group-focus-within:opacity-100`}
             aria-label={isVisible ? `Hide ${name}` : `Show ${name}`}
             title={isVisible ? "Hide layer" : "Show layer"}
           >
@@ -246,7 +255,7 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
           <button
             type="button"
             onClick={deleteItem}
-            className="grid size-5 shrink-0 place-items-center text-[#8f9aac] opacity-0 transition hover:text-[#ffb4bf] group-hover:opacity-100"
+            className="grid size-5 shrink-0 place-items-center rounded-[4px] text-[#8f9aac] opacity-0 transition hover:bg-white/6 hover:text-[#ffb4bf] group-hover:opacity-100 group-focus-within:opacity-100"
             aria-label={`Delete ${displayName}`}
             title="Delete layer"
           >
