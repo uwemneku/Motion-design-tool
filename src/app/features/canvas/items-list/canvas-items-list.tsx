@@ -13,13 +13,44 @@ export default function CanvasItemsList() {
   const { fabricCanvasRef, getObjectById } = useCanvasAppContext();
   const canvasItemIds = useAppSelector((state) => state.editor.canvasItemIds);
   const selectedIds = useAppSelector((state) => state.editor.selectedId);
-  const { groupSelectedItems, removeItemById } = useCanvasItems({
+  const { copySelectedItems, groupSelectedItems, pasteCopiedItems, removeItemById } = useCanvasItems({
     fabricCanvas: fabricCanvasRef,
   });
 
   useEffect(() => {
-    /** Deletes the selected item unless focus is inside an editable field. */
-    const onWindowKeyDown = (event: KeyboardEvent) => {
+    /** Handles global canvas shortcuts unless focus is inside an editable field. */
+    const onWindowKeyDown = async (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isEditingText =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable);
+
+      const isCopyShortcut =
+        (event.metaKey || event.ctrlKey) &&
+        !event.shiftKey &&
+        (event.key.toLowerCase() === "c" || event.code === "KeyC");
+      if (isCopyShortcut) {
+        if (isEditingText || selectedIds.length === 0) return;
+        event.preventDefault();
+        await copySelectedItems();
+        return;
+      }
+
+      const isPasteShortcut =
+        (event.metaKey || event.ctrlKey) &&
+        !event.shiftKey &&
+        (event.key.toLowerCase() === "v" || event.code === "KeyV");
+      if (isPasteShortcut) {
+        if (isEditingText) return;
+        event.preventDefault();
+        await pasteCopiedItems();
+        return;
+      }
+
+      /** Deletes the selected item unless focus is inside an editable field. */
       const isDeleteKey =
         event.key === "Delete" ||
         event.key === "Backspace" ||
@@ -27,17 +58,7 @@ export default function CanvasItemsList() {
         event.code === "Backspace";
       if (!isDeleteKey) return;
       if (selectedIds.length === 0) return;
-
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.tagName === "SELECT" ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
+      if (isEditingText) return;
 
       event.preventDefault();
       selectedIds.forEach((id) => {
@@ -49,7 +70,7 @@ export default function CanvasItemsList() {
     return () => {
       window.removeEventListener("keydown", onWindowKeyDown);
     };
-  }, [removeItemById, selectedIds]);
+  }, [copySelectedItems, pasteCopiedItems, removeItemById, selectedIds]);
 
   /** Syncs the visual list order back into the Fabric canvas stacking order. */
   const syncCanvasStackOrder = (idsInOrder: string[]) => {

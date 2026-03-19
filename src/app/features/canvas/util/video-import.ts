@@ -1,5 +1,13 @@
 /** Video Import.Ts canvas video helpers. */
 const VIDEO_HOST_ID = "__newMotionVideoHost";
+const ORIGINAL_VIDEO_SOURCE_DATA_KEY = "originalSource";
+
+type VideoLoadSource = File | HTMLVideoElement | string;
+
+type VideoLoadOptions = {
+  onLoadedData?: (video: HTMLVideoElement) => void;
+  onLoadError?: () => void;
+};
 
 function ensureVideoHost() {
   let host = document.getElementById(VIDEO_HOST_ID);
@@ -19,10 +27,24 @@ function ensureVideoHost() {
   return host;
 }
 
-/** Wait for initial frame data so Fabric can size the video from real dimensions. */
-export function loadVideoElementFromFile(file: File) {
+/** Creates a hidden video element from a file, url, or existing video element. */
+export function loadVideoElement(
+  source: VideoLoadSource,
+  options: VideoLoadOptions = {},
+) {
   return new Promise<HTMLVideoElement>((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
+    const sourceUrl =
+      source instanceof HTMLVideoElement
+        ? source.dataset[ORIGINAL_VIDEO_SOURCE_DATA_KEY] || source.currentSrc || source.src
+        : source instanceof File
+          ? URL.createObjectURL(source)
+          : source;
+
+    if (!sourceUrl) {
+      reject(new Error("Could not load the selected video."));
+      return;
+    }
+
     const video = document.createElement("video");
 
     const cleanupListeners = () => {
@@ -34,22 +56,34 @@ export function loadVideoElementFromFile(file: File) {
       cleanupListeners();
       video.width = video.videoWidth;
       video.height = video.videoHeight;
+      options.onLoadedData?.(video);
       resolve(video);
     };
 
     const onError = () => {
       cleanupListeners();
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("Could not load the selected video."));
+      if (source instanceof File) {
+        URL.revokeObjectURL(sourceUrl);
+      }
+      options.onLoadError?.();
+      reject(
+        new Error(
+          source instanceof HTMLVideoElement
+            ? "Could not clone the selected video."
+            : "Could not load the selected video.",
+        ),
+      );
     };
 
-    video.preload = "auto";
-    video.autoplay = true;
-    video.defaultMuted = true;
-    video.muted = false;
-    video.loop = true;
-    video.playsInline = true;
-    video.src = objectUrl;
+    video.preload = source instanceof HTMLVideoElement ? source.preload || "auto" : "auto";
+    video.autoplay = source instanceof File;
+    video.defaultMuted = source instanceof HTMLVideoElement ? source.defaultMuted : true;
+    video.muted = source instanceof HTMLVideoElement ? source.muted : false;
+    video.loop = source instanceof HTMLVideoElement ? source.loop : true;
+    video.playsInline = source instanceof HTMLVideoElement ? source.playsInline : true;
+    video.crossOrigin = source instanceof HTMLVideoElement ? source.crossOrigin : null;
+    video.dataset[ORIGINAL_VIDEO_SOURCE_DATA_KEY] = sourceUrl;
+    video.src = sourceUrl;
     ensureVideoHost().appendChild(video);
     video.addEventListener("loadeddata", onLoadedData);
     video.addEventListener("error", onError);

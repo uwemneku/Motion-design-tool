@@ -2,6 +2,8 @@ import path from "node:path";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { EXPORT_VIDEO_LABEL } from "../src/app/features/canvas/canvas-side-panel/export-controls";
 
+const KEYBOARD_COPY_MODIFIER = process.platform === "darwin" ? "Meta" : "Control";
+
 /** Opens the editor and waits for the main workspace shell. */
 async function gotoEditor(page: Page) {
   await page.goto("/");
@@ -131,6 +133,42 @@ async function createTestVideoBuffer(page: Page) {
     await stopped;
 
     const blob = new Blob(chunks, { type: "video/webm" });
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+
+  return Buffer.from(bytes);
+}
+
+/** Builds a tiny PNG image buffer for local image import tests. */
+async function createTestImageBuffer(page: Page) {
+  const bytes = await page.evaluate(async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error("Could not create test image canvas.");
+    }
+
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#111827";
+    context.fillRect(8, 8, 48, 48);
+    context.fillStyle = "#60a5fa";
+    context.beginPath();
+    context.arc(32, 32, 12, 0, Math.PI * 2);
+    context.fill();
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((nextBlob) => {
+        if (!nextBlob) {
+          reject(new Error("Could not encode test image."));
+          return;
+        }
+        resolve(nextBlob);
+      }, "image/png");
+    });
+
     return Array.from(new Uint8Array(await blob.arrayBuffer()));
   });
 
@@ -285,6 +323,92 @@ test.describe("Editor behavior", () => {
         return readout.textContent();
       })
       .not.toBe("0.00");
+  });
+
+  test("copies and pastes selected items with duplicated animation data", async ({
+    page,
+  }) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add rectangle");
+    await selectLayer(page, "rectangle");
+
+    const positionXInput = page
+      .getByTestId("canvas-side-panel")
+      .locator("input[data-shape-id]")
+      .first();
+    await positionXInput.fill("240");
+    await positionXInput.press("Enter");
+
+    await seekTimeline(page, 0.5);
+    await page.getByRole("button", { name: "Add keyframe for Position X" }).click();
+    await expect(page.getByTitle(/rectangle animation 0\.00s - 5\.00s/)).toBeVisible();
+
+    await page.keyboard.press(`${KEYBOARD_COPY_MODIFIER}+c`);
+    await page.keyboard.press(`${KEYBOARD_COPY_MODIFIER}+v`);
+
+    const layersPanel = page.getByTestId("floating-layers-panel").last();
+    await expect(
+      layersPanel.getByRole("button", { name: "rectangle copy", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByTitle(/animation 0\.00s - 5\.00s/)).toHaveCount(2);
+  });
+
+  test("copies and pastes imported image files", async ({ page }) => {
+    await gotoEditor(page);
+
+    const imageBuffer = await createTestImageBuffer(page);
+    await page.evaluate(
+      async ({ bytes, name }) => {
+        const file = new File([new Uint8Array(bytes)], name, { type: "image/png" });
+        const input = document.querySelector('input[type="file"][accept="image/*"]') as HTMLInputElement | null;
+        if (!input) {
+          throw new Error("Image input not found.");
+        }
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        input.files = dataTransfer.files;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      },
+      { bytes: [...imageBuffer], name: "copy-source-image.png" },
+    );
+
+    await selectLayer(page, "image");
+    await page.keyboard.press(`${KEYBOARD_COPY_MODIFIER}+c`);
+    await page.keyboard.press(`${KEYBOARD_COPY_MODIFIER}+v`);
+
+    const layersPanel = page.getByTestId("floating-layers-panel").last();
+    await expect(
+      layersPanel.getByRole("button", { name: "image copy", exact: true }),
+    ).toBeVisible();
+  });
+
+  test("copies and pastes imported video files", async ({ page }) => {
+    await gotoEditor(page);
+
+    const videoBuffer = await createTestVideoBuffer(page);
+    await page.evaluate(
+      async ({ bytes, name }) => {
+        const file = new File([new Uint8Array(bytes)], name, { type: "video/webm" });
+        const input = document.querySelector('input[type="file"][accept="video/*"]') as HTMLInputElement | null;
+        if (!input) {
+          throw new Error("Video input not found.");
+        }
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        input.files = dataTransfer.files;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      },
+      { bytes: [...videoBuffer], name: "copied-video.webm" },
+    );
+
+    await selectLayer(page, "copied-video");
+    await page.keyboard.press(`${KEYBOARD_COPY_MODIFIER}+c`);
+    await page.keyboard.press(`${KEYBOARD_COPY_MODIFIER}+v`);
+
+    const layersPanel = page.getByTestId("floating-layers-panel").last();
+    await expect(
+      layersPanel.getByRole("button", { name: "copied-video copy", exact: true }),
+    ).toBeVisible();
   });
 
   test("keeps export and inspector controls reachable in the normal flow", async ({

@@ -98,6 +98,24 @@ export class AnimatableObject {
     this.addColorSnapshotKeyframe(time, this.getColorSnapshot());
   }
 
+  /** Clones the animatable object with fresh keyframe ids and an optional position offset. */
+  async clone(positionOffset: { left: number; top: number } = { left: 0, top: 0 }) {
+    const clonedFabricObject = await this.fabricObject.clone();
+    if (typeof clonedFabricObject.left === "number") {
+      clonedFabricObject.set("left", clonedFabricObject.left + positionOffset.left);
+    }
+    if (typeof clonedFabricObject.top === "number") {
+      clonedFabricObject.set("top", clonedFabricObject.top + positionOffset.top);
+    }
+    clonedFabricObject.setCoords();
+
+    return new AnimatableObject(
+      clonedFabricObject,
+      cloneAnimatableNumericKeyframes(this.keyframes, positionOffset),
+      cloneAnimatableColorKeyframes(this.colorKeyframes),
+    );
+  }
+
   /** Re-bases stored position keyframes between canvas space and the current parent space. */
   rebasePositionKeyframes(direction: "toCanvas" | "toParent") {
     if (!this.fabricObject.group) return;
@@ -396,6 +414,48 @@ export class AnimatableObject {
   ) {
     this.fabricObject.set(property, value);
   }
+}
+
+/** Clones numeric keyframes with fresh ids and an optional position offset. */
+export function cloneAnimatableNumericKeyframes(
+  keyframes: KeyframesByProperty,
+  positionOffset: { left: number; top: number },
+) {
+  const nextKeyframes: KeyframesByProperty = {};
+
+  Object.entries(keyframes).forEach(([property, propertyKeyframes]) => {
+    if (!propertyKeyframes || propertyKeyframes.length === 0) return;
+
+    nextKeyframes[property as keyof KeyframesByProperty] = propertyKeyframes.map((keyframe) => ({
+      ...keyframe,
+      id: createId("kf"),
+      value:
+        property === "left"
+          ? keyframe.value + positionOffset.left
+          : property === "top"
+            ? keyframe.value + positionOffset.top
+            : keyframe.value,
+    }));
+  });
+
+  return nextKeyframes;
+}
+
+/** Clones color keyframes with fresh ids so duplicate objects do not share vectors. */
+export function cloneAnimatableColorKeyframes(colorKeyframes: ColorKeyframesByProperty) {
+  const nextKeyframes: ColorKeyframesByProperty = {};
+
+  Object.entries(colorKeyframes).forEach(([property, propertyKeyframes]) => {
+    if (!propertyKeyframes || propertyKeyframes.length === 0) return;
+
+    nextKeyframes[property as keyof ColorKeyframesByProperty] = propertyKeyframes.map((keyframe) => ({
+      ...keyframe,
+      id: createId("ckf"),
+      value: cloneColorBytes(keyframe.value),
+    }));
+  });
+
+  return nextKeyframes;
 }
 
 /** Drops invalid loaded numeric keyframes and enforces time ordering once at hydration. */

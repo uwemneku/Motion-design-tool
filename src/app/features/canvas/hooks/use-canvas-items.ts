@@ -1,8 +1,8 @@
 /** Use Canvas Items.Ts hook logic. */
-import { Group, loadSVGFromString, Point, type Canvas, type FabricObject } from "fabric";
+import { ActiveSelection, Group, loadSVGFromString, Point, type Canvas, type FabricObject } from "fabric";
 import type { MutableRefObject } from "react";
 import { toast } from "sonner";
-import { loadVideoElementFromFile } from "../util/video-import";
+import { loadVideoElement } from "../util/video-import";
 import { AnimatableObject } from "../../shapes/animatable-object/object";
 import type { KeyframeEasing } from "../../shapes/animatable-object/types";
 import { setObjectAnimationPosition } from "../../shapes/animatable-object/util";
@@ -45,6 +45,7 @@ type AddItemOptions = {
   customId?: string;
   markers?: Array<{ id: string; timestamp: number }>;
   name?: string;
+  skipInitialSnapshot?: boolean;
   shouldSetSelected?: boolean;
 };
 
@@ -73,6 +74,16 @@ type UpdateItemProps = {
   width?: number;
 };
 
+type CanvasClipboardEntry = {
+  instance: AnimatableObject;
+  itemName: string;
+  timelineMarkers: Array<{ id: string; timestamp: number }>;
+};
+
+const PASTE_OFFSET = 24;
+let canvasClipboardEntries: CanvasClipboardEntry[] = [];
+let canvasClipboardEntriesPromise: Promise<Array<CanvasClipboardEntry | null>> | null = null;
+
 const CANVAS_ITEM_NUMERIC_KEYFRAME_FIELDS = [
   "left",
   "top",
@@ -92,6 +103,26 @@ function isSvgFile(file: File) {
 function isVideoFile(file: File) {
   // Detect video uploads before passing them into the Fabric video path.
   return file.type.startsWith("video/");
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.addEventListener("load", () => {
+      if (typeof reader.result !== "string") {
+        reject(new Error("Could not read the selected file."));
+        return;
+      }
+      resolve(reader.result);
+    });
+
+    reader.addEventListener("error", () => {
+      reject(new Error("Could not read the selected file."));
+    });
+
+    reader.readAsDataURL(file);
+  });
 }
 
 function getBoundsForObjects(objects: FabricObject[]) {
@@ -195,6 +226,14 @@ function fitVisualMediaToCanvas(
   });
 }
 
+/** Clones timeline markers while generating fresh marker ids for the pasted object. */
+function cloneTimelineMarkers(markers: Array<{ id: string; timestamp: number }>) {
+  return markers.map((marker) => ({
+    ...marker,
+    id: createKeyframeMarkerId(),
+  }));
+}
+
 export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
   const dispatch = useAppDispatch();
   const {
@@ -274,7 +313,9 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     object.set("customId", customId);
     object.set("layerName", options.name ?? typeName);
     registerInstance(customId, instance);
-    instance.addSnapshotKeyframe(playheadTime, instance.getSnapshot());
+    if (!options.skipInitialSnapshot) {
+      instance.addSnapshotKeyframe(playheadTime, instance.getSnapshot());
+    }
 
     const timelineMarkers = [...(options.markers ?? [])];
     const hasPlayheadMarker = timelineMarkers.some(
@@ -361,6 +402,98 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     unregisterInstance(id);
     dispatch(removeItemRecord(id));
     canvas.requestRenderAll();
+  };
+
+  /** Copies the current selection into an internal canvas clipboard. */
+  const copySelectedItems = async () => {
+    const selectedIds = dispatch(dispatchableSelector((state) => state.editor.selectedId));
+    const itemRecords = dispatch(dispatchableSelector((state) => state.editor.itemsRecord));
+    if (selectedIds.length === 0) return false;
+
+    canvasClipboardEntriesPromise = Promise.all(
+      selectedIds.map(async (id) => {
+        const instance = getInstanceById(id);
+        const itemRecord = itemRecords[id];
+        if (!instance || !itemRecord) return null;
+
+        return {
+          instance: await instance.clone(),
+          itemName: itemRecord.name,
+          timelineMarkers: cloneTimelineMarkers(itemRecord.keyframe),
+        } satisfies CanvasClipboardEntry;
+      }),
+    );
+
+    const nextClipboardEntries = await canvasClipboardEntriesPromise;
+    canvasClipboardEntries = nextClipboardEntries.filter(
+      (entry): entry is CanvasClipboardEntry => entry !== null,
+    );
+    canvasClipboardEntriesPromise = null;
+
+    return canvasClipboardEntries.length > 0;
+  };
+
+  /** Pastes the internal canvas clipboard as new objects with fresh ids and markers. */
+  const pasteCopiedItems = async () => {
+    const canvas = fabricCanvas.current;
+    if (!canvas) return [];
+
+    if (canvasClipboardEntriesPromise) {
+      const nextClipboardEntries = await canvasClipboardEntriesPromise;
+      canvasClipboardEntries = nextClipboardEntries.filter(
+        (entry): entry is CanvasClipboardEntry => entry !== null,
+      );
+      canvasClipboardEntriesPromise = null;
+    }
+
+    if (canvasClipboardEntries.length === 0) return [];
+
+    const pastedIds = await Promise.all(
+      canvasClipboardEntries.map(async (clipboardEntry, index) => {
+        const clonedInstance = await clipboardEntry.instance.clone({
+          left: PASTE_OFFSET,
+          top: PASTE_OFFSET,
+        });
+
+        const pastedId = addObjectToCanvas(
+          clonedInstance,
+          clonedInstance.fabricObject.type ?? "item",
+          {
+            markers: cloneTimelineMarkers(clipboardEntry.timelineMarkers),
+            name:
+              canvasClipboardEntries.length === 1
+                ? `${clipboardEntry.itemName} copy`
+                : `${clipboardEntry.itemName} copy ${index + 1}`,
+            shouldSetSelected: false,
+            skipInitialSnapshot: true,
+          },
+        );
+
+        return pastedId;
+      }),
+    );
+
+    const nextSelectedIds = pastedIds.filter((id): id is string => typeof id === "string");
+    if (nextSelectedIds.length > 0) {
+      const pastedObjects = nextSelectedIds
+        .map((id) => getInstanceById(id)?.fabricObject)
+        .filter((object): object is FabricObject => Boolean(object));
+
+      if (pastedObjects.length === 1) {
+        canvas.setActiveObject(pastedObjects[0]);
+      } else if (pastedObjects.length > 1) {
+        canvas.setActiveObject(
+          new ActiveSelection(pastedObjects, {
+            canvas,
+          }),
+        );
+      }
+
+      dispatch(setSelectedId(nextSelectedIds));
+      canvas.requestRenderAll();
+    }
+
+    return nextSelectedIds;
   };
 
   /** Collapses the current Fabric multi-selection into one grouped canvas item. */
@@ -543,13 +676,9 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
   };
 
   const addImageFromFile = async (file: File, options: AddItemOptions = {}) => {
-    // Import bitmap files through object URL and revoke URL after load.
-    const fileUrl = URL.createObjectURL(file);
-    try {
-      await addImageFromURL(fileUrl, options);
-    } finally {
-      URL.revokeObjectURL(fileUrl);
-    }
+    // Import bitmap files through a stable data URL so later clones can recreate the media.
+    const fileUrl = await readFileAsDataUrl(file);
+    await addImageFromURL(fileUrl, options);
   };
 
   const addVideoFromFile = async (file: File, options: AddItemOptions = {}) => {
@@ -563,7 +692,8 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     if (!canvas) return;
 
     try {
-      const videoElement = await loadVideoElementFromFile(file);
+      const fileUrl = await readFileAsDataUrl(file);
+      const videoElement = await loadVideoElement(fileUrl);
       const { left, top } = getVideoCenter(canvas);
       const videoObject = new VideoObject(videoElement, {
         left,
@@ -860,7 +990,9 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     addSvgFromFile,
     addVideoFromFile,
     addImageFromURL,
+    copySelectedItems,
     groupSelectedItems,
+    pasteCopiedItems,
     removeItemById,
     updateItemById,
     addText,
