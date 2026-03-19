@@ -1,4 +1,5 @@
 /** Render-only component helpers for the canvas design side panel. */
+import { ChevronDown } from "lucide-react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
 import type {
@@ -133,5 +134,42 @@ export function VerticalAlignIcon({ action }: VerticalAlignIconProps) {
       <span className={longBarClass} />
       <span className={shortBarClass} />
     </span>
+  );
+}
+
+type AccordionSectionProps = {
+  children: ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+  title: string;
+};
+
+/** Wraps an inspector block in a compact accordion shell. */
+export function AccordionSection({
+  children,
+  isOpen,
+  onToggle,
+  title,
+}: AccordionSectionProps) {
+  return (
+    <section className="space-y-2 border-t border-white/10 pt-4 first:border-t-0 first:pt-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-3 text-left"
+        aria-expanded={isOpen}
+        aria-label={`${isOpen ? "Collapse" : "Expand"} ${title}`}
+      >
+        <h4 className="font-[var(--wise-font-display)] text-[15px] font-semibold tracking-[-0.01em] text-[#f2f4f8]">
+          {title}
+        </h4>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 text-[#9ea5b2] transition-transform ${isOpen ? "" : "-rotate-90"}`}
+          strokeWidth={1.8}
+          aria-hidden
+        />
+      </button>
+      {isOpen ? children : null}
+    </section>
   );
 }

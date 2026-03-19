@@ -242,6 +242,32 @@ test.describe("Editor visual review", () => {
     await saveLocatorShot(transformSection, testInfo, "inspector-field-closeup.png");
   });
 
+  test("captures a close-up of selected canvas controls", async ({ page }, testInfo) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add rectangle");
+    await selectLayer(page, "rectangle");
+
+    const canvasContainer = page.locator("[data-canvas_container]");
+    await saveLocatorShot(
+      canvasContainer,
+      testInfo,
+      "selected-object-controls-closeup.png",
+    );
+  });
+
+  test("captures a close-up of selected line controls", async ({ page }, testInfo) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add line");
+    await selectLayer(page, "line");
+
+    const canvasContainer = page.locator("[data-canvas_container]");
+    await saveLocatorShot(
+      canvasContainer,
+      testInfo,
+      "selected-line-controls-closeup.png",
+    );
+  });
+
   test("captures the export dropdown close-up", async ({ page }, testInfo) => {
     await gotoEditor(page);
     await addCanvasItem(page, "Add rectangle");

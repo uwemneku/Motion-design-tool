@@ -22,6 +22,7 @@ import { MaskSourceControl } from "./mask-source-control";
 import type { DesignFormState } from "../../../../types";
 import DesignAlignmentControls from "./design-alignment-controls";
 import DesignColorField from "./design-color-field";
+import { AccordionSection } from "./design-components";
 import DesignNumberField from "./design-number-field";
 import {
   clamp,
@@ -41,19 +42,28 @@ import type {
   VerticalAlignment,
 } from "./design-helpers";
 import {
-  cardClass,
   ensureGoogleFontsLoaded,
   fieldClass,
   labelClass,
   readDesignFormFromObject,
-  sectionTitleClass,
 } from "./util";
+
+type DesignSectionId = "appearance" | "masking" | "transform" | "typography";
+
+const INITIAL_OPEN_SECTIONS: Record<DesignSectionId, boolean> = {
+  appearance: true,
+  masking: true,
+  transform: true,
+  typography: true,
+};
 
 /** Design form for editing transform, style, text, and mask settings. */
 export default function CanvasSidePanelDesign() {
   const dispatch = useAppDispatch();
   const { fabricCanvasRef, getObjectById: getInstanceById } = useCanvasAppContext();
   const [designForm, setDesignForm] = useState<DesignFormState>(EMPTY_FORM);
+  const [openSections, setOpenSections] =
+    useState<Record<DesignSectionId, boolean>>(INITIAL_OPEN_SECTIONS);
   const [transformTargetObject, setTransformTargetObject] = useState<FabricObject | null>(null);
 
   const selectedIds = useAppSelector((state) => state.editor.selectedId);
@@ -366,6 +376,14 @@ export default function CanvasSidePanelDesign() {
     });
   };
 
+  /** Toggles one inspector accordion section without affecting the others. */
+  const toggleSection = (section: DesignSectionId) => {
+    setOpenSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
   /** Aligns the active selection to the video area along a requested axis. */
   const alignSelectionToVideoArea = (
     axis: HorizontalAlignment | VerticalAlignment,
@@ -415,12 +433,17 @@ export default function CanvasSidePanelDesign() {
 
   return (
     <>
-      <section className={cardClass}>
-        {!transformTargetObject ? (
-          <p className="text-xs text-[#8f8f8f]">Select an item to edit properties.</p>
-        ) : (
-          <div className="space-y-3.5">
-            <h4 className={sectionTitleClass}>Transform</h4>
+      {!transformTargetObject ? (
+        <p className="text-xs text-[#8f8f8f]">Select an item to edit properties.</p>
+      ) : (
+        <AccordionSection
+          title="Transform"
+          isOpen={openSections.transform}
+          onToggle={() => {
+            toggleSection("transform");
+          }}
+        >
+          <div className="space-y-2.5">
             <DesignAlignmentControls onAlign={alignSelectionToVideoArea} />
             {TRANSFORM_FIELD_ROWS.map((row) => (
               <div className="grid grid-cols-2 gap-2.5" key={row[0].changedField}>
@@ -445,13 +468,18 @@ export default function CanvasSidePanelDesign() {
               </div>
             ))}
           </div>
-        )}
-      </section>
+        </AccordionSection>
+      )}
 
       {!isMultiSelected && selectedContext.instance && (supportsFill || supportsStroke) ? (
-        <section className={cardClass}>
-          <div className="space-y-3.5">
-            <h4 className={sectionTitleClass}>Appearance</h4>
+        <AccordionSection
+          title="Appearance"
+          isOpen={openSections.appearance}
+          onToggle={() => {
+            toggleSection("appearance");
+          }}
+        >
+          <div className="space-y-2.5">
             {supportsFill ? (
               <DesignColorField
                 inputValue={designForm.fill}
@@ -526,22 +554,32 @@ export default function CanvasSidePanelDesign() {
               )}
             </div>
           ) : null}
-        </section>
+        </AccordionSection>
       ) : null}
 
       {!isMultiSelected && selectedContext.instance ? (
-        <section className={cardClass}>
-          <h4 className={sectionTitleClass}>Masking</h4>
+        <AccordionSection
+          title="Masking"
+          isOpen={openSections.masking}
+          onToggle={() => {
+            toggleSection("masking");
+          }}
+        >
           <MaskSourceControl
             selectedId={selectedContext.id}
             selectedInstance={selectedContext.instance}
           />
-        </section>
+        </AccordionSection>
       ) : null}
 
       {!isMultiSelected && selectedContext.instance && supportsText ? (
-        <section className={cardClass}>
-          <h4 className={sectionTitleClass}>Typography</h4>
+        <AccordionSection
+          title="Typography"
+          isOpen={openSections.typography}
+          onToggle={() => {
+            toggleSection("typography");
+          }}
+        >
           <div className="space-y-2.5">
             <label className={`block ${labelClass}`}>
               <span>Font Family</span>
@@ -655,7 +693,7 @@ export default function CanvasSidePanelDesign() {
               />
             </label>
           </div>
-        </section>
+        </AccordionSection>
       ) : null}
     </>
   );

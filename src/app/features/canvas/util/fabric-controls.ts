@@ -1,12 +1,10 @@
 /** Fabric Controls.Ts module implementation. */
-import { Canvas, FabricObject } from "fabric";
-import {
-  FIGMA_BLUE,
-  FIGMA_BLUE_LIGHT,
-  MAX_BORDER_SCALE_FACTOR,
-  MIN_BORDER_SCALE_FACTOR,
-} from "../../../../const";
+import { Canvas, FabricObject, Line } from "fabric";
+import { FIGMA_BLUE, MAX_BORDER_SCALE_FACTOR, MIN_BORDER_SCALE_FACTOR } from "../../../../const";
 
+const SELECTION_PADDING = 6;
+
+/** Applies the app's simplified selection styling to one Fabric object. */
 function styleObjectControls(object: FabricObject) {
   object.set({
     borderColor: FIGMA_BLUE,
@@ -14,21 +12,47 @@ function styleObjectControls(object: FabricObject) {
     cornerColor: "#ffffff",
     cornerStrokeColor: FIGMA_BLUE,
     cornerStyle: "rect",
-    cornerSize: 10,
+    cornerSize: 9,
     transparentCorners: false,
-    padding: 0,
+    padding: SELECTION_PADDING,
+  });
+
+  if (object instanceof Line) {
+    object.setControlsVisibility({
+      bl: false,
+      br: false,
+      mb: false,
+      ml: true,
+      mr: true,
+      mt: false,
+      mtr: false,
+      tl: false,
+      tr: false,
+    });
+    return;
+  }
+
+  object.setControlsVisibility({
+    bl: true,
+    br: true,
+    mb: true,
+    ml: true,
+    mr: true,
+    mt: true,
+    mtr: true,
+    tl: true,
+    tr: true,
   });
 }
 
+/** Keeps selection strokes visually stable as the canvas zoom changes. */
 function getZoomAwareBorderScaleFactor(canvas: Canvas) {
   const zoom = canvas.getZoom();
   if (!Number.isFinite(zoom) || zoom <= 0) return 1;
-  return Math.min(
-    MAX_BORDER_SCALE_FACTOR,
-    Math.max(MIN_BORDER_SCALE_FACTOR, 1 / zoom),
-  );
+  return Math.min(MAX_BORDER_SCALE_FACTOR, Math.max(MIN_BORDER_SCALE_FACTOR, 1 / zoom));
 }
 
+/** Syncs border scale across all live Fabric objects after viewport zoom changes. */
 export function syncObjectControlBorderScale(canvas: Canvas) {
   const borderScaleFactor = getZoomAwareBorderScaleFactor(canvas);
   canvas.getObjects().forEach((object) => {
@@ -38,10 +62,11 @@ export function syncObjectControlBorderScale(canvas: Canvas) {
   });
 }
 
+/** Applies the global selection-control theme used by the editor canvas. */
 export function applyFigmaLikeControls(canvas: Canvas) {
   const borderScaleFactor = getZoomAwareBorderScaleFactor(canvas);
   canvas.set({
-    selectionColor: FIGMA_BLUE_LIGHT,
+    selectionColor: "rgba(0,0,0,0)",
     selectionBorderColor: FIGMA_BLUE,
     selectionLineWidth: 1,
   });
@@ -53,9 +78,9 @@ export function applyFigmaLikeControls(canvas: Canvas) {
     cornerColor: "#ffffff",
     cornerStrokeColor: FIGMA_BLUE,
     cornerStyle: "rect",
-    cornerSize: 10,
+    cornerSize: 9,
     transparentCorners: false,
-    padding: 0,
+    padding: SELECTION_PADDING,
   };
 
   canvas.getObjects().forEach((object) => {

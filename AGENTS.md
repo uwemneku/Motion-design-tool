@@ -43,6 +43,7 @@
 - When taking screenshots for visual inspection, do not rely only on the default empty shell. Interact with the page first so the captured states reflect real use.
 - For editor visual review, prefer building realistic states before capture: add a few items to the canvas, select items, scrub or play the timeline briefly, switch between `Design` and `Anim`, and scroll panels when relevant.
 - Capture multiple screenshots for distinct states instead of one static image when evaluating UI changes. At minimum, prefer a shell state, a populated design state, and an animation/timeline-focused state when those areas are affected.
+- When a UI update affects a specific section or component, always capture at least one focused screenshot of that exact section after the change and review it before deciding the work is done.
 - Review the generated screenshots before deciding what to change next. Use those images as the basis for follow-up UI decisions rather than guessing from code alone.
 
 ## Safety
