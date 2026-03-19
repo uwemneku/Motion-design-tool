@@ -17,7 +17,7 @@ export default function DesignAlignmentControls({ onAlign }: DesignAlignmentCont
     <div className="space-y-1.5">
       <span className={labelClass}>Alignment</span>
       <div className="grid grid-cols-2 gap-2">
-        <div className="grid grid-cols-3 overflow-hidden rounded-[6px] border border-white/8 bg-[rgba(255,255,255,0.055)]">
+        <div className="grid grid-cols-3 overflow-hidden rounded-[4px] border border-white/8 bg-[rgba(255,255,255,0.055)]">
           {HORIZONTAL_ALIGNMENT_CONTROLS.map((control, index) => (
             <button
               key={control.action}
@@ -35,7 +35,7 @@ export default function DesignAlignmentControls({ onAlign }: DesignAlignmentCont
             </button>
           ))}
         </div>
-        <div className="grid grid-cols-3 overflow-hidden rounded-[6px] border border-white/8 bg-[rgba(255,255,255,0.055)]">
+        <div className="grid grid-cols-3 overflow-hidden rounded-[4px] border border-white/8 bg-[rgba(255,255,255,0.055)]">
           {VERTICAL_ALIGNMENT_CONTROLS.map((control, index) => (
             <button
               key={control.action}

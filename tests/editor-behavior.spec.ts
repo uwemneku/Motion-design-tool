@@ -382,6 +382,40 @@ test.describe("Editor behavior", () => {
     ).toBeVisible();
   });
 
+  test("pastes a system clipboard image with the paste shortcut", async ({ page }) => {
+    await gotoEditor(page);
+
+    const imageBuffer = await createTestImageBuffer(page);
+    await page.evaluate(({ bytes }) => {
+      const imageBlob = new Blob([new Uint8Array(bytes)], { type: "image/png" });
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          read: async () => [
+            {
+              types: ["image/png"],
+              getType: async (type: string) => {
+                if (type !== "image/png") {
+                  throw new Error("Unsupported clipboard type requested.");
+                }
+                return imageBlob;
+              },
+            },
+          ],
+        },
+      });
+    }, { bytes: [...imageBuffer] });
+
+    await page.keyboard.press(`${KEYBOARD_COPY_MODIFIER}+v`);
+
+    await expect(
+      page
+        .getByTestId("floating-layers-panel")
+        .last()
+        .getByRole("button", { name: "image", exact: true }),
+    ).toBeVisible();
+  });
+
   test("copies and pastes imported video files", async ({ page }) => {
     await gotoEditor(page);
 

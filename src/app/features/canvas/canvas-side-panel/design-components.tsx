@@ -108,13 +108,13 @@ type HorizontalAlignIconProps = {
 /** Renders a horizontal alignment glyph for the inspector controls. */
 export function HorizontalAlignIcon({ action }: HorizontalAlignIconProps) {
   const barClass = "h-0.5 rounded-full bg-current";
-  const shortBarClass = `${barClass} w-3`;
-  const longBarClass = `${barClass} w-4.5`;
+  const shortBarClass = `${barClass} w-2.5`;
+  const longBarClass = `${barClass} w-4`;
   const containerClass =
     action === "left" ? "items-start" : action === "center" ? "items-center" : "items-end";
 
   return (
-    <span className={`flex w-4 flex-col ${containerClass} gap-1`}>
+    <span className={`flex w-3.5 flex-col ${containerClass} gap-[3px]`}>
       <span className={shortBarClass} />
       <span className={longBarClass} />
       <span className={shortBarClass} />
@@ -129,13 +129,13 @@ type VerticalAlignIconProps = {
 /** Renders a vertical alignment glyph for the inspector controls. */
 export function VerticalAlignIcon({ action }: VerticalAlignIconProps) {
   const barClass = "w-0.5 rounded-full bg-current";
-  const shortBarClass = `${barClass} h-3`;
-  const longBarClass = `${barClass} h-4.5`;
+  const shortBarClass = `${barClass} h-2.5`;
+  const longBarClass = `${barClass} h-4`;
   const containerClass =
     action === "top" ? "justify-start" : action === "middle" ? "justify-center" : "justify-end";
 
   return (
-    <span className={`flex h-4 w-4 ${containerClass} items-end gap-1`}>
+    <span className={`flex h-3.5 w-3.5 ${containerClass} items-end gap-[3px]`}>
       <span className={shortBarClass} />
       <span className={longBarClass} />
       <span className={shortBarClass} />

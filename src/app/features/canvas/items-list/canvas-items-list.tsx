@@ -13,7 +13,13 @@ export default function CanvasItemsList() {
   const { fabricCanvasRef, getObjectById } = useCanvasAppContext();
   const canvasItemIds = useAppSelector((state) => state.editor.canvasItemIds);
   const selectedIds = useAppSelector((state) => state.editor.selectedId);
-  const { copySelectedItems, groupSelectedItems, pasteCopiedItems, removeItemById } = useCanvasItems({
+  const {
+    copySelectedItems,
+    groupSelectedItems,
+    pasteCopiedItems,
+    pasteImageFromClipboard,
+    removeItemById,
+  } = useCanvasItems({
     fabricCanvas: fabricCanvasRef,
   });
 
@@ -46,7 +52,10 @@ export default function CanvasItemsList() {
       if (isPasteShortcut) {
         if (isEditingText) return;
         event.preventDefault();
-        await pasteCopiedItems();
+        const pastedIds = await pasteCopiedItems();
+        if (pastedIds.length > 0) return;
+
+        await pasteImageFromClipboard();
         return;
       }
 
@@ -70,7 +79,13 @@ export default function CanvasItemsList() {
     return () => {
       window.removeEventListener("keydown", onWindowKeyDown);
     };
-  }, [copySelectedItems, pasteCopiedItems, removeItemById, selectedIds]);
+  }, [
+    copySelectedItems,
+    pasteCopiedItems,
+    pasteImageFromClipboard,
+    removeItemById,
+    selectedIds,
+  ]);
 
   /** Syncs the visual list order back into the Fabric canvas stacking order. */
   const syncCanvasStackOrder = (idsInOrder: string[]) => {

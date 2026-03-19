@@ -17,6 +17,7 @@ import {
   getPropertiesForTransformAction,
   hoverOutlineRect,
   showGlobalHoverOutlineForObject,
+  syncCanvasSizeToContainer,
 } from "../hooks/util";
 import {
   applyFigmaLikeControls,
@@ -84,6 +85,20 @@ export function CanvasAppProvider({ children }: PropsWithChildren) {
       );
       syncObjectControlBorderScale(_canvas);
       dispatch(setProjectInfo({ canvasZoom: INITIAL_CANVAS_ZOOM }));
+      const stageContainer = node.parentElement;
+
+      if (stageContainer) {
+        /** Keeps Fabric's internal canvas dimensions aligned with the visible stage size. */
+        const syncStageSize = () => {
+          syncCanvasSizeToContainer(_canvas, stageContainer as HTMLDivElement);
+        };
+
+        const resizeObserver = new ResizeObserver(() => {
+          syncStageSize();
+        });
+        resizeObserver.observe(stageContainer);
+        syncStageSize();
+      }
 
       applyFigmaLikeControls(_canvas);
       _canvas.add(hoverOutlineRect);

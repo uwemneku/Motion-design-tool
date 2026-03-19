@@ -125,6 +125,14 @@ function readFileAsDataUrl(file: File) {
   });
 }
 
+/** Wraps a clipboard blob as a named file so media import can reuse file-based paths. */
+function createClipboardImageFile(blob: Blob) {
+  const extension = blob.type.split("/")[1] || "png";
+  return new File([blob], `clipboard-image.${extension}`, {
+    type: blob.type || "image/png",
+  });
+}
+
 function getBoundsForObjects(objects: FabricObject[]) {
   // Measure a combined bounding rectangle for all parsed SVG objects.
   let minLeft = Number.POSITIVE_INFINITY;
@@ -494,6 +502,36 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     }
 
     return nextSelectedIds;
+  };
+
+  /** Imports the first image currently available from the system clipboard. */
+  const pasteImageFromClipboard = async () => {
+    if (
+      typeof navigator === "undefined" ||
+      !("clipboard" in navigator) ||
+      typeof navigator.clipboard.read !== "function"
+    ) {
+      return false;
+    }
+
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      for (const clipboardItem of clipboardItems) {
+        const imageType = clipboardItem.types.find((type) => type.startsWith("image/"));
+        if (!imageType) continue;
+
+        const imageBlob = await clipboardItem.getType(imageType);
+        await addImageFromFile(createClipboardImageFile(imageBlob));
+        return true;
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not read an image from the clipboard.";
+      toast.error(`Clipboard image paste failed: ${message}`);
+      return false;
+    }
+
+    return false;
   };
 
   /** Collapses the current Fabric multi-selection into one grouped canvas item. */
@@ -992,6 +1030,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     addImageFromURL,
     copySelectedItems,
     groupSelectedItems,
+    pasteImageFromClipboard,
     pasteCopiedItems,
     removeItemById,
     updateItemById,

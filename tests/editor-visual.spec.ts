@@ -195,6 +195,41 @@ test.describe("Editor visual review", () => {
     });
   });
 
+  test("captures fitted video area review state", async ({ page }, testInfo) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add rectangle");
+    await addCanvasItem(page, "Add circle");
+    await selectLayer(page, "circle");
+
+    await page.getByRole("button", { name: "Fit video area to visible stage" }).click();
+    await saveShot(page, testInfo, "fit-video-area-review.png");
+  });
+
+  test("captures fitted video area with a tall timeline", async ({ page }, testInfo) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add rectangle");
+    await addCanvasItem(page, "Add circle");
+    await selectLayer(page, "circle");
+
+    const timeline = page.getByTestId("timeline");
+    const timelineBounds = await timeline.boundingBox();
+    if (!timelineBounds) {
+      throw new Error("Timeline was not measurable.");
+    }
+
+    await page.mouse.move(timelineBounds.x + timelineBounds.width / 2, timelineBounds.y + 1);
+    await page.mouse.down();
+    await page.mouse.move(
+      timelineBounds.x + timelineBounds.width / 2,
+      timelineBounds.y - 140,
+      { steps: 14 },
+    );
+    await page.mouse.up();
+
+    await page.getByRole("button", { name: "Fit video area to visible stage" }).click();
+    await saveShot(page, testInfo, "fit-video-area-tall-timeline-review.png");
+  });
+
   test("captures a tall timeline playhead state", async ({ page }, testInfo) => {
     await gotoEditor(page);
     await addCanvasItem(page, "Add rectangle");
