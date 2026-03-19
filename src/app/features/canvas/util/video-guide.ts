@@ -16,6 +16,7 @@ export type VideoGuideSet = {
   dimLeft: Rect;
   dimRight: Rect;
   dimTop: Rect;
+  snapTarget: Rect;
 };
 
 export type ViewportBounds = {
@@ -138,12 +139,19 @@ export function updateGuideObjects(
     top: rect.top,
     width: rect.width,
   });
+  guides.snapTarget.set({
+    height: rect.height,
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+  });
 
   guides.dimTop.setCoords();
   guides.dimBottom.setCoords();
   guides.dimLeft.setCoords();
   guides.dimRight.setCoords();
   guides.border.setCoords();
+  guides.snapTarget.setCoords();
 }
 
 /** Converts current Fabric viewport transform into world-space viewport bounds. */
@@ -182,6 +190,11 @@ export const guides: VideoGuideSet = {
   dimRight: createVideoGuideRect({
     fill: "rgba(0, 0, 0, 0.42)",
   }),
+  snapTarget: createVideoGuideRect({
+    fill: "transparent",
+    opacity: 0,
+    strokeWidth: 0,
+  }),
 };
 
 export function bringGuidesToFront(canvas: Canvas, guides: VideoGuideSet) {
@@ -207,8 +220,10 @@ export function bringGuidesToFront(canvas: Canvas, guides: VideoGuideSet) {
     guides.dimLeft,
     guides.dimRight,
     guides.border,
+    guides.snapTarget,
   );
   canvas.add(
+    guides.snapTarget,
     guides.dimTop,
     guides.dimBottom,
     guides.dimLeft,

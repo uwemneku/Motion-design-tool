@@ -9,6 +9,9 @@ import { useAppDispatch, useAppSelector } from "../../store";
 import {
   computeVideoAreaLabelPosition,
   getVideoAreaScreenRect,
+  getViewportBounds,
+  guides,
+  updateGuideObjects,
 } from "./util/video-guide";
 
 /** Overlay that marks the export-visible video area and aspect selector. */
@@ -42,6 +45,10 @@ export default function VideoWorkAreaOverlay() {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
+    if (!canvas.getObjects().includes(guides.snapTarget)) {
+      canvas.add(guides.snapTarget);
+    }
+
     /** Syncs the screen-space cutout and label position from the live canvas viewport. */
     const updateOverlayFromCanvas = () => {
       const rect = getVideoWorkAreaRect(
@@ -50,6 +57,12 @@ export default function VideoWorkAreaOverlay() {
         activeAspectPreset.ratio,
       );
       rectRef.current = rect;
+      updateGuideObjects(
+        guides,
+        rect,
+        getViewportBounds(canvas),
+        isVideoOnlyOverlay,
+      );
       const nextScreenRect = getVideoAreaScreenRect(canvas, rect);
       setScreenRect((previous) =>
         Math.abs(previous.left - nextScreenRect.left) > 0.5 ||
@@ -82,8 +95,9 @@ export default function VideoWorkAreaOverlay() {
     return () => {
       canvas.off("before:render", onBeforeRender);
       window.removeEventListener("resize", onWindowResize);
+      canvas.remove(guides.snapTarget);
     };
-  }, [activeAspectPreset.ratio, fabricCanvasRef]);
+  }, [activeAspectPreset.ratio, fabricCanvasRef, isVideoOnlyOverlay]);
 
   // Update project info in the store when canvas or aspect ratio changes.
   useEffect(() => {
