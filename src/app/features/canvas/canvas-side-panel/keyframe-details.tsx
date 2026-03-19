@@ -1,6 +1,7 @@
 /** Keyframe Details.Tsx canvas side panel UI logic. */
 import { useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../../store";
+import { RadixMenuSelect } from "../../../components/radix-menu-select";
 import { setSelectedKeyframe } from "../../../store/editor-slice";
 import { EASING_OPTIONS } from "../../../../const";
 import type { KeyframeEasing } from "../../shapes/animatable-object/types";
@@ -48,28 +49,28 @@ export function KeyframeDetailsPanel() {
         </div>
 
         {selectedKeyframeId ? (
-          <select
-            className="h-8 w-full rounded-[5px] border border-white/10 bg-[rgba(255,255,255,0.045)] px-2.5 text-[11px] text-[#f3f5f8] outline-none transition focus:border-white/40 focus:ring-1 focus:ring-white/12"
+          <RadixMenuSelect
+            ariaLabel="Select keyframe transition"
+            contentClassName="z-50 min-w-[160px] rounded-[6px] border border-[rgba(141,171,255,0.14)] bg-[rgba(25,25,28,0.98)] p-1 shadow-[0_28px_44px_rgba(141,171,255,0.06)] backdrop-blur-xl"
+            options={EASING_OPTIONS.map((option) => ({
+              label: option,
+              value: option,
+            }))}
+            triggerClassName="inline-flex h-8 w-full items-center justify-between gap-2 rounded-[4px] border border-[rgba(141,171,255,0.14)] bg-[var(--wise-surface-raised)] px-2.5 font-[var(--wise-font-ui)] text-[11px] text-[#f3f5f8] outline-none transition hover:bg-white/6"
             value={selectedEasing ?? "linear"}
-            onChange={(event) => {
+            onValueChange={(value) => {
               if (!selectedId || !selectedKeyframeId) return;
               const instance = getInstanceById(selectedId);
               if (!instance) return;
               applyEasingById(
                 instance,
                 selectedKeyframeId,
-                event.target.value as KeyframeEasing,
+                value as KeyframeEasing,
               );
               instance.fabricObject.canvas?.requestRenderAll();
               forceRefresh((prev) => prev + 1);
             }}
-          >
-            {EASING_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+          />
         ) : (
           <p className="text-[11px] text-[#8f97a4]">
             Select a keyframe to edit its transition type.

@@ -204,25 +204,63 @@ test.describe("Editor behavior", () => {
     await addCanvasItem(page, "Add rectangle");
     await selectLayer(page, "rectangle");
 
-    const scrubHandle = page.getByRole("button", { name: "Adjust X" }).first();
-    const positionXInput = scrubHandle.locator("..").locator("input");
+    const positionXInput = page
+      .getByTestId("canvas-side-panel")
+      .locator("input[data-shape-id]")
+      .first();
     await positionXInput.fill("240");
     await positionXInput.press("Enter");
     await expect(positionXInput).toHaveValue("240");
 
-    const handleBox = await scrubHandle.boundingBox();
-    if (!handleBox) {
-      throw new Error("Position X scrub handle was not measurable.");
+    const inputBox = await positionXInput.boundingBox();
+    if (!inputBox) {
+      throw new Error("Position X input field was not measurable.");
     }
 
     await page.mouse.move(
-      handleBox.x + handleBox.width / 2,
-      handleBox.y + handleBox.height / 2,
+      inputBox.x + inputBox.width / 2,
+      inputBox.y + inputBox.height / 2,
     );
     await page.mouse.down();
     await page.mouse.move(
-      handleBox.x + handleBox.width / 2 + 12,
-      handleBox.y + handleBox.height / 2,
+      inputBox.x + inputBox.width / 2 + 12,
+      inputBox.y + inputBox.height / 2,
+      { steps: 8 },
+    );
+    await page.mouse.up();
+
+    await expect(positionXInput).toHaveValue("252");
+  });
+
+  test("focuses on click and scrubs from the field body", async ({ page }) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add rectangle");
+    await selectLayer(page, "rectangle");
+
+    const positionXInput = page
+      .getByTestId("canvas-side-panel")
+      .locator("input[data-shape-id]")
+      .first();
+    await positionXInput.click();
+    await expect(positionXInput).toBeFocused();
+
+    await positionXInput.fill("240");
+    await positionXInput.press("Enter");
+    await expect(positionXInput).toHaveValue("240");
+
+    const inputBox = await positionXInput.boundingBox();
+    if (!inputBox) {
+      throw new Error("Position X input field was not measurable.");
+    }
+
+    await page.mouse.move(
+      inputBox.x + inputBox.width / 2,
+      inputBox.y + inputBox.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      inputBox.x + inputBox.width / 2 + 12,
+      inputBox.y + inputBox.height / 2,
       { steps: 8 },
     );
     await page.mouse.up();

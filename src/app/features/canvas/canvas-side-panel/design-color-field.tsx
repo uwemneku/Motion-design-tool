@@ -31,16 +31,16 @@ export default function DesignColorField({
 
   return (
     <label className={`block ${labelClass}`}>
-      <span className="text-[#d5d8e1]">{label}</span>
+      <span className="text-[var(--wise-content-secondary)]">{label}</span>
       <Popover.Root modal={false} open={isOpen} onOpenChange={setIsOpen}>
         <Popover.Anchor asChild>
           <div className="space-y-1.5">
-            <FieldShell className="gap-1.5 border border-white/7 px-2">
+            <FieldShell className="gap-1.5 border border-[rgba(141,171,255,0.14)] px-2">
               <Popover.Trigger asChild>
                 <button
                   type="button"
                   aria-label={`Open ${label.toLowerCase()} picker`}
-                  className="size-3.5 shrink-0 rounded-[3px] border border-white/12"
+                  className="size-3.5 shrink-0 rounded-[2px] border border-[rgba(141,171,255,0.16)]"
                   style={{
                     backgroundColor: normalizedColor,
                   }}
@@ -59,9 +59,9 @@ export default function DesignColorField({
                 onFocus={() => {
                   setIsOpen(true);
                 }}
-                className="min-w-0 h-full flex-1 bg-transparent font-[var(--wise-font-mono)] text-[11px] tracking-[0.01em] text-[#f6f7fb] outline-none"
+                className="min-w-0 h-full flex-1 bg-transparent font-[var(--wise-font-display)] text-[11px] font-semibold tracking-[-0.015em] text-[var(--wise-content-primary)] outline-none"
               />
-              <div className="h-3.5 w-px shrink-0 bg-white/8" />
+              <div className="h-3.5 w-px shrink-0 bg-[rgba(141,171,255,0.14)]" />
               <KeyframeActionButton
                 isKeyframed={isKeyframed}
                 label={label}
@@ -77,10 +77,10 @@ export default function DesignColorField({
                 avoidCollisions={false}
                 collisionPadding={16}
                 data-testid="design-color-popover"
-                className="z-50 w-[240px] rounded-[10px] border border-white/10 bg-[#10131b] p-3 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl"
+                className="z-50 w-[240px] rounded-[6px] border border-[rgba(141,171,255,0.15)] bg-[rgba(25,25,28,0.98)] p-3 shadow-[0_28px_44px_rgba(141,171,255,0.06)] backdrop-blur-xl"
               >
                 <div className="space-y-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#d5d8e1]">
+                  <div className="font-[var(--wise-font-display)] text-[11px] font-semibold tracking-[-0.01em] text-[var(--wise-content-primary)]">
                     {label}
                   </div>
                   <HexAlphaColorPicker

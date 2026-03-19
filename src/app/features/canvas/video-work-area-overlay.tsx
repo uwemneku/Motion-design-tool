@@ -1,5 +1,4 @@
 /** Video Work Area Overlay.Tsx module implementation. */
-import { type FabricObject } from "fabric";
 import { useEffect, useRef, useState } from "react";
 import { RadixMenuSelect } from "../../components/radix-menu-select";
 import { VIDEO_ASPECT_PRESETS } from "../../../const";
@@ -8,20 +7,20 @@ import { useCanvasAppContext } from "./hooks/use-canvas-app-context";
 import { setProjectInfo } from "../../store/editor-slice";
 import { useAppDispatch, useAppSelector } from "../../store";
 import {
-  bringGuidesToFront,
   computeVideoAreaLabelPosition,
-  getViewportBounds,
-  guides,
-  isVideoGuideObject,
-  updateGuideObjects,
-  type VideoGuideSet,
+  getVideoAreaScreenRect,
 } from "./util/video-guide";
 
 /** Overlay that marks the export-visible video area and aspect selector. */
 export default function VideoWorkAreaOverlay() {
   const { fabricCanvasRef } = useCanvasAppContext();
-  const guidesRef = useRef<VideoGuideSet | null>(null);
   const rectRef = useRef<VideoWorkAreaRect>({
+    left: 0,
+    top: 0,
+    width: 0,
+    height: 0,
+  });
+  const [screenRect, setScreenRect] = useState({
     left: 0,
     top: 0,
     width: 0,
@@ -43,26 +42,23 @@ export default function VideoWorkAreaOverlay() {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
-    // add guides to canvas if missing.
-    if (!guidesRef.current) {
-      guidesRef.current = guides;
-      canvas.add(guides.dimTop, guides.dimBottom, guides.dimLeft, guides.dimRight, guides.border);
-      bringGuidesToFront(canvas, guides);
-    }
-
-    const updateGuidesFromCanvas = (requestRender = false) => {
-      const activeGuides = guidesRef.current;
-      if (!activeGuides) return;
-
+    /** Syncs the screen-space cutout and label position from the live canvas viewport. */
+    const updateOverlayFromCanvas = () => {
       const rect = getVideoWorkAreaRect(
         canvas.getWidth(),
         canvas.getHeight(),
         activeAspectPreset.ratio,
       );
-      const viewport = getViewportBounds(canvas);
       rectRef.current = rect;
-
-      updateGuideObjects(activeGuides, rect, viewport, isVideoOnlyOverlay);
+      const nextScreenRect = getVideoAreaScreenRect(canvas, rect);
+      setScreenRect((previous) =>
+        Math.abs(previous.left - nextScreenRect.left) > 0.5 ||
+        Math.abs(previous.top - nextScreenRect.top) > 0.5 ||
+        Math.abs(previous.width - nextScreenRect.width) > 0.5 ||
+        Math.abs(previous.height - nextScreenRect.height) > 0.5
+          ? nextScreenRect
+          : previous,
+      );
       const nextLabelPosition = computeVideoAreaLabelPosition(canvas, rect);
       setLabelPosition((previous) =>
         Math.abs(previous.left - nextLabelPosition.left) > 0.5 ||
@@ -70,42 +66,24 @@ export default function VideoWorkAreaOverlay() {
           ? nextLabelPosition
           : previous,
       );
-      bringGuidesToFront(canvas, activeGuides);
-      if (requestRender) {
-        canvas.requestRenderAll();
-      }
-    };
-
-    /**
-     * Move guide rect to the front after/when new object is added
-     */
-    const onObjectAdded = (event: { target?: FabricObject }) => {
-      console.timeEnd("has added items");
-
-      if (isVideoGuideObject(event.target)) return;
-      const activeGuides = guidesRef.current;
-      if (!activeGuides) return;
-      bringGuidesToFront(canvas, activeGuides);
     };
 
     const onBeforeRender = () => {
-      updateGuidesFromCanvas(false);
+      updateOverlayFromCanvas();
     };
     const onWindowResize = () => {
-      updateGuidesFromCanvas(true);
+      updateOverlayFromCanvas();
     };
 
-    updateGuidesFromCanvas(true);
-    canvas.on("object:added", onObjectAdded);
+    updateOverlayFromCanvas();
     canvas.on("before:render", onBeforeRender);
     window.addEventListener("resize", onWindowResize);
 
     return () => {
-      canvas.off("object:added", onObjectAdded);
       canvas.off("before:render", onBeforeRender);
       window.removeEventListener("resize", onWindowResize);
     };
-  }, [activeAspectPreset.ratio, fabricCanvasRef, isVideoOnlyOverlay]);
+  }, [activeAspectPreset.ratio, fabricCanvasRef]);
 
   // Update project info in the store when canvas or aspect ratio changes.
   useEffect(() => {
@@ -138,30 +116,26 @@ export default function VideoWorkAreaOverlay() {
       window.removeEventListener("resize", updateProjectInfoFromCanvas);
     };
   }, [activeAspectPreset.label, activeAspectPreset.ratio, dispatch, fabricCanvasRef]);
-
-  // cleanup guides on unmount
-  useEffect(() => {
-    const canvas = fabricCanvasRef.current;
-    return () => {
-      const guides = guidesRef.current;
-      if (!canvas || !guides) return;
-      canvas.remove(
-        guides.dimTop,
-        guides.dimBottom,
-        guides.dimLeft,
-        guides.dimRight,
-        guides.border,
-      );
-      guidesRef.current = null;
-      canvas.requestRenderAll();
-    };
-  }, [fabricCanvasRef]);
-
   /** Captures the current video work area as a still preview image. */
   const openVideoAreaPreview = () => {};
 
+  const overlayOpacity = isVideoOnlyOverlay
+    ? "rgba(0, 0, 0, 0.92)"
+    : "rgba(0, 0, 0, 0.42)";
+
   return (
     <div className="pointer-events-none absolute inset-0 z-20">
+      <div
+        aria-hidden
+        className="absolute border-2 border-[#2563eb] bg-transparent"
+        style={{
+          boxShadow: `0 0 0 9999px ${overlayOpacity}`,
+          height: screenRect.height,
+          left: screenRect.left,
+          top: screenRect.top,
+          width: screenRect.width,
+        }}
+      />
       <div
         className="pointer-events-auto absolute flex items-center gap-1 transition-opacity opacity-45 hover:opacity-100"
         style={{

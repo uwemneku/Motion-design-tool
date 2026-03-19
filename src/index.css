@@ -3,22 +3,21 @@
 @layer base {
   :root {
     --wise-font-ui:
-      "SF Pro Display",
-      "SF Pro Text",
+      "Inter",
       -apple-system,
       BlinkMacSystemFont,
       "Segoe UI",
       "Helvetica Neue",
-      "Arial",
+      Arial,
       sans-serif;
     --wise-font-display:
-      "SF Pro Display",
-      "SF Pro Text",
+      "Manrope",
+      "Inter",
       -apple-system,
       BlinkMacSystemFont,
       "Segoe UI",
       "Helvetica Neue",
-      "Arial",
+      Arial,
       sans-serif;
     --wise-font-mono:
       "SF Mono",
@@ -35,15 +34,18 @@
       monospace;
     font-family: var(--wise-font-ui);
     color-scheme: dark;
-    --wise-accent: #7ea6ff;
-    --wise-primary: #1d1d1f;
-    --wise-content-primary: #f3f4f6;
-    --wise-content-secondary: #b7bbc3;
-    --wise-border: rgba(255, 255, 255, 0.09);
-    --wise-surface: rgba(34, 34, 36, 0.94);
-    --wise-surface-raised: rgba(48, 48, 51, 0.96);
-    --wise-surface-muted: rgba(255, 255, 255, 0.055);
-    --wise-focus: rgba(126, 166, 255, 0.18);
+    --wise-accent: #8dabff;
+    --wise-secondary: #b686ff;
+    --wise-primary: #8dabff;
+    --wise-content-primary: #f4f3f6;
+    --wise-content-secondary: #a9a5af;
+    --wise-border: rgba(141, 171, 255, 0.14);
+    --wise-surface: rgba(14, 14, 16, 0.985);
+    --wise-surface-panel: rgba(25, 25, 28, 0.985);
+    --wise-surface-raised: rgba(38, 37, 40, 0.985);
+    --wise-surface-muted: rgba(255, 255, 255, 0.045);
+    --wise-focus: rgba(141, 171, 255, 0.2);
+    --wise-shadow-ambient: 0 28px 44px rgba(141, 171, 255, 0.06);
   }
 
   html,
@@ -59,9 +61,9 @@
 
   body {
     background:
-      radial-gradient(circle at top, rgba(255, 255, 255, 0.045), transparent 30%),
-      linear-gradient(180deg, #292929 0%, #1f1f1f 100%);
-    color: #ffffff;
+      radial-gradient(circle at top, rgba(141, 171, 255, 0.06), transparent 28%),
+      linear-gradient(180deg, #161619 0%, #0e0e10 100%);
+    color: var(--wise-content-primary);
     font-family: var(--wise-font-ui);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

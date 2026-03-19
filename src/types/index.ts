@@ -37,4 +37,6 @@ export type DesignFormState = {
   fontSize: string;
   fontStyle: string;
   fontWeight: string;
+  letterSpacing: string;
+  lineHeight: string;
 };

@@ -16,7 +16,7 @@ type FieldShellProps = {
 export function FieldShell({ children, className }: FieldShellProps) {
   return (
     <div
-      className={`relative flex min-w-0 h-6 max-h-6 items-center rounded-[6px] bg-[rgba(255,255,255,0.055)] ${className ?? ""}`}
+      className={`relative flex min-w-0 h-6 max-h-6 items-center rounded-[4px] bg-[var(--wise-surface-raised)] ${className ?? ""}`}
     >
       {children}
     </div>
@@ -35,18 +35,24 @@ export function PrefixedField({ children }: PrefixedFieldProps) {
 type PrefixScrubHandleProps = {
   onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => void;
   prefix: string;
+  side?: "leading" | "trailing";
 };
 
 /** Renders the draggable prefix token used for number scrubbing. */
 export function PrefixScrubHandle({
   onPointerDown,
   prefix,
+  side = "leading",
 }: PrefixScrubHandleProps) {
   return (
     <button
       type="button"
       onPointerDown={onPointerDown}
-      className="h-full shrink-0 cursor-ew-resize select-none border-r border-white/8 pl-1.5 pr-1 text-[10px] font-medium uppercase tracking-[0.04em] text-[#8d95a3]"
+      className={`h-full shrink-0 cursor-ew-resize select-none text-[10px] font-medium uppercase tracking-[0.03em] text-[var(--wise-content-secondary)] ${
+        side === "leading"
+          ? "border-r border-[rgba(141,171,255,0.14)] pl-1.5 pr-1"
+          : "border-l border-[rgba(141,171,255,0.14)] pl-0.5 pr-1 text-[9px]"
+      }`}
       aria-label={`Adjust ${prefix}`}
       title={`Drag to adjust ${prefix}`}
     >
@@ -86,8 +92,8 @@ export function KeyframeActionButton({
       }}
       className={`inline-flex size-2.5 cursor-pointer items-center justify-center rotate-45 border transition ${positionClass} ${
         isKeyframed
-          ? "border-[#7ea6ff] bg-[rgba(126,166,255,0.12)] text-[#a9c2ff]"
-          : "border-white/10 bg-[rgba(255,255,255,0.03)] text-[#8f96a3] hover:border-white/18 hover:bg-white/8 hover:text-[#f3f5f8]"
+          ? "border-[var(--wise-primary)] bg-[rgba(141,171,255,0.14)] text-[var(--wise-primary)]"
+          : "border-[rgba(141,171,255,0.14)] bg-[rgba(255,255,255,0.02)] text-[var(--wise-content-secondary)] hover:border-[rgba(141,171,255,0.22)] hover:bg-white/6 hover:text-[var(--wise-content-primary)]"
       } ${className ?? ""}`}
       aria-label={`Add keyframe for ${label}`}
       title={`Add keyframe for ${label}`}
@@ -160,11 +166,11 @@ export function AccordionSection({
         aria-expanded={isOpen}
         aria-label={`${isOpen ? "Collapse" : "Expand"} ${title}`}
       >
-        <h4 className="font-[var(--wise-font-display)] text-[15px] font-semibold tracking-[-0.01em] text-[#f2f4f8]">
+        <h4 className="font-[var(--wise-font-display)] text-[14px] font-semibold tracking-[-0.025em] text-[var(--wise-content-primary)]">
           {title}
         </h4>
         <ChevronDown
-          className={`h-4 w-4 shrink-0 text-[#9ea5b2] transition-transform ${isOpen ? "" : "-rotate-90"}`}
+          className={`h-4 w-4 shrink-0 text-[var(--wise-content-secondary)] transition-transform ${isOpen ? "" : "-rotate-90"}`}
           strokeWidth={1.8}
           aria-hidden
         />

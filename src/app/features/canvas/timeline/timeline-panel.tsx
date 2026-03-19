@@ -54,7 +54,7 @@ export default function TimelinePanel() {
 
   return (
     <section
-      className="shrink-0 border-t border-(--wise-border) bg-(--wise-surface) focus-visible:outline-none z-30"
+      className="z-30 shrink-0 bg-[var(--wise-surface-panel)] focus-visible:outline-none"
       data-testid="timeline"
     >
       <Resizable
@@ -81,7 +81,7 @@ export default function TimelinePanel() {
         }}
       >
         <div
-          className="border-b border-[var(--wise-border)] bg-[var(--wise-surface-raised)]"
+          className="bg-[var(--wise-surface-panel)]"
           data-testid="timeline-toolbar"
           style={{ height: TIMELINE_TOOLBAR_HEIGHT }}
         >
@@ -97,7 +97,7 @@ export default function TimelinePanel() {
             <div className="relative z-10 flex items-center justify-end gap-1.5">
               <button
                 type="button"
-                className="inline-flex size-6 items-center justify-center rounded border border-[var(--wise-border)] bg-[var(--wise-surface)] text-slate-300 transition hover:bg-[var(--wise-surface-muted)]"
+                className="inline-flex size-6 items-center justify-center rounded-[4px] border border-[rgba(141,171,255,0.14)] bg-[var(--wise-surface-raised)] text-slate-300 transition hover:bg-[var(--wise-surface-muted)]"
                 onClick={() => {
                   setTimelineZoom((prev) =>
                     clamp(
@@ -112,12 +112,12 @@ export default function TimelinePanel() {
               >
                 <span className="text-sm leading-none">-</span>
               </button>
-              <span className="min-w-[3.5rem] text-center text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              <span className="min-w-[3.5rem] text-center font-[var(--wise-font-display)] text-[10px] font-semibold tracking-[-0.01em] text-slate-400">
                 {Math.round(timelineZoom * 100)}%
               </span>
               <button
                 type="button"
-                className="inline-flex size-6 items-center justify-center rounded border border-[var(--wise-border)] bg-[var(--wise-surface)] text-slate-300 transition hover:bg-[var(--wise-surface-muted)]"
+                className="inline-flex size-6 items-center justify-center rounded-[4px] border border-[rgba(141,171,255,0.14)] bg-[var(--wise-surface-raised)] text-slate-300 transition hover:bg-[var(--wise-surface-muted)]"
                 onClick={() => {
                   setTimelineZoom((prev) =>
                     clamp(
@@ -145,9 +145,9 @@ export default function TimelinePanel() {
           verticalScrollbarClassName="flex w-2.5 touch-none select-none border-l border-[var(--wise-border)] bg-[var(--wise-surface-raised)] p-0.5"
           cornerClassName="bg-[var(--wise-surface-raised)]"
         >
-          <div className="h-full w-full">
+          <div className="flex h-full w-full">
             <div
-              className="relative h-full"
+              className="relative flex h-full min-h-full w-full flex-col"
               style={{
                 minWidth: "100%",
                 width: timelineContentWidth,
@@ -207,9 +207,9 @@ export default function TimelinePanel() {
               </div>
 
               {canvasItemIds.length === 0 ? (
-                <div className="px-3 py-4 text-sm text-slate-500">No items yet</div>
+                <div className="flex-1 px-3 py-4 text-sm text-slate-500">No items yet</div>
               ) : (
-                <div className=" relative">
+                <div className="relative flex-1">
                   {canvasItemIds.map((id) => (
                     <TimelineItemRow
                       key={id}

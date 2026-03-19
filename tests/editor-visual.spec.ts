@@ -195,6 +195,30 @@ test.describe("Editor visual review", () => {
     });
   });
 
+  test("captures a tall timeline playhead state", async ({ page }, testInfo) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add rectangle");
+    await addCanvasItem(page, "Add circle");
+    await selectLayer(page, "circle");
+
+    const timeline = page.getByTestId("timeline");
+    const timelineBounds = await timeline.boundingBox();
+    if (!timelineBounds) {
+      throw new Error("Timeline was not measurable.");
+    }
+
+    await page.mouse.move(timelineBounds.x + timelineBounds.width / 2, timelineBounds.y + 1);
+    await page.mouse.down();
+    await page.mouse.move(
+      timelineBounds.x + timelineBounds.width / 2,
+      timelineBounds.y - 120,
+      { steps: 12 },
+    );
+    await page.mouse.up();
+
+    await saveShot(page, testInfo, "tall-timeline-playhead.png");
+  });
+
   test("keeps the timeline toolbar fixed while zoomed content scrolls", async ({
     page,
   }, testInfo) => {
@@ -238,8 +262,19 @@ test.describe("Editor visual review", () => {
     await scrollSidePanel(page, 0);
 
     const inspector = page.getByTestId("canvas-side-panel");
-    const transformSection = inspector.getByText("Transform").locator("..");
+    const transformSection = inspector.locator("section").first();
     await saveLocatorShot(transformSection, testInfo, "inspector-field-closeup.png");
+  });
+
+  test("captures a close-up of typography controls", async ({ page }, testInfo) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add text");
+    await selectLayer(page, "text");
+    await scrollSidePanel(page, 520);
+
+    const inspector = page.getByTestId("canvas-side-panel");
+    const typographySection = inspector.locator("section").nth(3);
+    await saveLocatorShot(typographySection, testInfo, "typography-controls-closeup.png");
   });
 
   test("captures a close-up of selected canvas controls", async ({ page }, testInfo) => {

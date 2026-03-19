@@ -9,6 +9,7 @@ import type { NumericScrubField } from "./design-helpers";
 import { labelClass } from "./util";
 
 type DesignNumberFieldProps = {
+  axisPlacement?: "leading" | "trailing";
   field: NumericScrubField;
   groupLabel: string;
   inputClassName?: string;
@@ -24,17 +25,24 @@ type DesignNumberFieldProps = {
   ) => void;
   prefix: string;
   shapeId: string | null;
+  showPrefix?: boolean;
   showKeyframeAction?: boolean;
+  showGroupLabel?: boolean;
 };
 
 type ScrubSession = {
+  focusTarget: HTMLInputElement | null;
+  hasScrubbed: boolean;
   pointerId: number;
   startValue: number;
   startX: number;
 };
 
+const SCRUB_START_THRESHOLD = 4;
+
 /** Renders one numeric inspector field with local editing and scrub state. */
 export default function DesignNumberField({
+  axisPlacement = "leading",
   field,
   groupLabel,
   inputClassName,
@@ -46,7 +54,9 @@ export default function DesignNumberField({
   onCommitValue,
   prefix,
   shapeId,
+  showPrefix = true,
   showKeyframeAction = true,
+  showGroupLabel = true,
 }: DesignNumberFieldProps) {
   const [draftValue, setDraftValue] = useState(inputValue);
   const [isEditing, setIsEditing] = useState(false);
@@ -65,10 +75,18 @@ export default function DesignNumberField({
       const session = scrubSessionRef.current;
       if (!session || event.pointerId !== session.pointerId) return;
 
+      const deltaX = event.clientX - session.startX;
+      if (!session.hasScrubbed && Math.abs(deltaX) < SCRUB_START_THRESHOLD) return;
+
+      if (!session.hasScrubbed) {
+        session.hasScrubbed = true;
+        document.body.classList.add("cursor-ew-resize", "select-none");
+      }
+
       const nextValue = buildScrubbedFieldValue(
         field,
         session.startValue,
-        event.clientX - session.startX,
+        deltaX,
         event.shiftKey,
         event.altKey,
       );
@@ -85,6 +103,14 @@ export default function DesignNumberField({
       if (!session || event.pointerId !== session.pointerId) return;
 
       const deltaX = event.clientX - session.startX;
+      scrubSessionRef.current = null;
+      document.body.classList.remove("cursor-ew-resize", "select-none");
+
+      if (!session.hasScrubbed) {
+        session.focusTarget?.focus();
+        return;
+      }
+
       const nextValue = buildScrubbedFieldValue(
         field,
         session.startValue,
@@ -93,12 +119,9 @@ export default function DesignNumberField({
         event.altKey,
       );
 
-      scrubSessionRef.current = null;
-      document.body.classList.remove("cursor-ew-resize", "select-none");
       draftValueRef.current = nextValue;
       setDraftValue(nextValue);
       setIsEditing(false);
-      if (Math.abs(deltaX) < 1) return;
       onCommitValue(field, nextValue, true);
     };
 
@@ -128,21 +151,34 @@ export default function DesignNumberField({
     setIsEditing(false);
   };
 
-  /** Starts pointer scrubbing for the compact field prefix. */
-  const onPrefixPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+  /** Starts a candidate scrub session that becomes active after a small drag threshold. */
+  const startPotentialScrub = (
+    event: ReactPointerEvent<HTMLElement>,
+    focusTarget: HTMLInputElement | null,
+  ) => {
     if (event.button !== 0) return;
 
     const startValue = Number(draftValueRef.current);
     if (!Number.isFinite(startValue)) return;
 
     scrubSessionRef.current = {
+      focusTarget,
+      hasScrubbed: false,
       pointerId: event.pointerId,
       startValue,
       startX: event.clientX,
     };
-    setIsEditing(true);
-    document.body.classList.add("cursor-ew-resize", "select-none");
     event.preventDefault();
+  };
+
+  /** Starts pointer scrubbing for the compact field prefix. */
+  const onPrefixPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    startPotentialScrub(event, null);
+  };
+
+  /** Lets the whole input surface begin scrubbing while a simple click still focuses the field. */
+  const onInputPointerDown = (event: ReactPointerEvent<HTMLInputElement>) => {
+    startPotentialScrub(event, event.currentTarget);
   };
 
   /** Commits on Enter to match the compact inspector input behavior. */
@@ -153,18 +189,24 @@ export default function DesignNumberField({
   };
 
   return (
-    <label className={labelClass}>
-      <span className={isSecondaryLabel ? "text-transparent" : "text-[#d5d8e1]"}>
-        {groupLabel}
-      </span>
+    <label className={showGroupLabel ? labelClass : "block"}>
+      {showGroupLabel ? (
+        <span
+          className={isSecondaryLabel ? "text-transparent" : "text-[var(--wise-content-secondary)]"}
+        >
+          {groupLabel}
+        </span>
+      ) : null}
       <PrefixedField>
-        <PrefixScrubHandle prefix={prefix} onPointerDown={onPrefixPointerDown} />
+        {showPrefix && axisPlacement === "leading" ? (
+          <PrefixScrubHandle prefix={prefix} onPointerDown={onPrefixPointerDown} />
+        ) : null}
         {showKeyframeAction ? (
           <KeyframeActionButton
             isKeyframed={isKeyframed}
             label={keyframeLabel}
             onAddKeyframe={onAddKeyframe}
-            className={inputClassName}
+            className={`${axisPlacement === "trailing" ? "right-4" : ""} ${inputClassName ?? ""}`}
           />
         ) : null}
         <input
@@ -172,6 +214,7 @@ export default function DesignNumberField({
           type="text"
           inputMode="decimal"
           value={displayValue}
+          onPointerDown={onInputPointerDown}
           onChange={(event) => {
             onChange(event.target.value);
           }}
@@ -179,10 +222,23 @@ export default function DesignNumberField({
             commitCurrentValue(true);
           }}
           onKeyDown={onKeyDown}
-          className={`h-full w-full bg-transparent pl-2 font-[var(--wise-font-mono)] text-[11px] tracking-[0.01em] text-[#f6f7fb] outline-none ${
-            showKeyframeAction ? "pr-9" : "pr-2.5"
+          className={`h-full w-full cursor-ew-resize bg-transparent font-[var(--wise-font-display)] text-[11px] font-semibold tracking-[-0.015em] text-[var(--wise-content-primary)] outline-none focus:cursor-text ${
+            showPrefix ? (axisPlacement === "leading" ? "pl-2" : "pl-3") : "px-2.5"
+          } ${
+            showKeyframeAction
+              ? axisPlacement === "trailing"
+                ? "pr-9"
+                : "pr-9"
+              : axisPlacement === "trailing"
+                ? showPrefix
+                  ? "pr-5.5"
+                  : "pr-2.5"
+                : "pr-2.5"
           }`}
         />
+        {showPrefix && axisPlacement === "trailing" ? (
+          <PrefixScrubHandle prefix={prefix} onPointerDown={onPrefixPointerDown} side="trailing" />
+        ) : null}
       </PrefixedField>
     </label>
   );

@@ -64,7 +64,7 @@ export function CanvasSidePanelExportControls() {
             disabled={isExporting}
             aria-label={EXPORT_VIDEO_LABEL}
             title={EXPORT_VIDEO_LABEL}
-            className="relative rounded-full border flex justify-center items-center border-[#7189c2] bg-[#4d68d1] size-8 text-[11px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
+            className="relative flex size-8 items-center justify-center rounded-[4px] bg-[linear-gradient(135deg,rgba(182,134,255,0.22),rgba(141,171,255,0.82))] text-[11px] font-semibold text-white shadow-[0_18px_32px_rgba(141,171,255,0.08)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
           >
             <motion.p
               layout
@@ -77,7 +77,7 @@ export function CanvasSidePanelExportControls() {
               <FileOutput className="size-3.5" strokeWidth={1.9} aria-hidden />
               <AnimatePresence initial={false}>
                 {isExporting ? (
-                  <p className="absolute w-full h-full scale-200 top-0 left-0 rounded-full flex items-center justify-center">
+                  <p className="absolute left-0 top-0 flex h-full w-full items-center justify-center rounded-[4px] scale-200">
                     <ExportProgressIndicator key="progress" progress={exportProgress} />
                   </p>
                 ) : null}
@@ -98,15 +98,17 @@ export function CanvasSidePanelExportControls() {
             }}
             onMouseEnter={openMenu}
             onMouseLeave={closeMenuSoon}
-            className="z-50 w-56 rounded-[12px] border border-[#7189c2] bg-[#4d68d1] p-3 text-xs text-white shadow-[0_18px_40px_rgba(0,0,0,0.32)] backdrop-blur-2xl"
+            className="z-50 w-56 rounded-[6px] border border-[rgba(141,171,255,0.14)] bg-[linear-gradient(180deg,rgba(38,37,40,0.98),rgba(25,25,28,0.98))] p-3 text-xs text-white shadow-[0_28px_44px_rgba(141,171,255,0.06)] backdrop-blur-2xl"
           >
             <div className="mb-3 space-y-1.5">
-              <div className="text-[11px] font-medium text-white/85">Format</div>
+              <div className="font-[var(--wise-font-ui)] text-[11px] font-medium text-white/78">
+                Format
+              </div>
               <RadixMenuSelect
                 ariaLabel="Select export format"
-                contentClassName="z-50 min-w-[160px] rounded-[8px] border border-[#7189c2] bg-[#4d68d1] p-1 shadow-[0_16px_36px_rgba(0,0,0,0.35)] backdrop-blur-xl"
+                contentClassName="z-50 min-w-[160px] rounded-[6px] border border-[rgba(141,171,255,0.14)] bg-[rgba(25,25,28,0.98)] p-1 shadow-[0_28px_44px_rgba(141,171,255,0.06)] backdrop-blur-xl"
                 options={EXPORT_FORMAT_MENU_OPTIONS}
-                triggerClassName="inline-flex h-8 w-full items-center justify-between gap-2 rounded-[5px] border border-white/15 bg-[rgba(255,255,255,0.09)] px-2.5 text-[12px] font-semibold text-white outline-none transition hover:bg-[rgba(255,255,255,0.12)]"
+                triggerClassName="inline-flex h-8 w-full items-center justify-between gap-2 rounded-[4px] border border-[rgba(141,171,255,0.14)] bg-[var(--wise-surface-raised)] px-2.5 font-[var(--wise-font-display)] text-[12px] font-semibold text-[var(--wise-content-primary)] outline-none transition hover:bg-[rgba(255,255,255,0.08)]"
                 value={exportFormat}
                 onValueChange={(value) => {
                   setExportFormat(value as ExportVideoFormat);
@@ -115,11 +117,13 @@ export function CanvasSidePanelExportControls() {
             </div>
             <SliderPanelControl
               classNames={{
-                label: "text-[11px] font-medium text-white/85",
-                rangeLabels: "flex items-center justify-between text-[10px] font-medium text-white/60",
-                shell: "mb-1 rounded-[5px] border border-white/15 bg-[rgba(0,0,0,0.24)] px-2 py-2",
+                label: "text-[11px] font-medium text-white/78",
+                rangeLabels:
+                  "flex items-center justify-between text-[10px] font-medium text-white/58",
+                shell:
+                  "mb-1 rounded-[4px] border border-[rgba(141,171,255,0.14)] bg-[var(--wise-surface-raised)] px-2 py-2",
                 value:
-                  "rounded-[5px] border border-white/15 bg-[rgba(255,255,255,0.12)] px-1.5 py-0.5 text-[11px] font-semibold text-white",
+                  "rounded-[4px] border border-[rgba(141,171,255,0.14)] bg-[rgba(255,255,255,0.08)] px-1.5 py-0.5 font-[var(--wise-font-display)] text-[11px] font-semibold text-white",
               }}
               label="Export quality"
               min={0.5}
@@ -131,7 +135,7 @@ export function CanvasSidePanelExportControls() {
               valueText={`${exportQuality.toFixed(1)}x`}
               onChange={setExportQuality}
             />
-            <Popover.Arrow className="fill-[#4d68d1]" />
+            <Popover.Arrow className="fill-[rgba(38,37,40,0.98)]" />
           </Popover.Content>
         </Popover.Portal>
       </div>

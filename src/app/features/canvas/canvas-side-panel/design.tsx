@@ -1,5 +1,5 @@
 /** Design.Tsx canvas side panel UI logic. */
-import type { FabricObject } from "fabric";
+import type { FabricObject, Textbox } from "fabric";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { dispatchableSelector, useAppDispatch, useAppSelector } from "../../../store";
 import { upsertItemRecord } from "../../../store/editor-slice";
@@ -13,11 +13,11 @@ import { appendUniqueMarkerTimes } from "../util/animations-utils";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 import {
   EMPTY_FORM,
-  FONT_FAMILY_PRESETS,
-  FONT_STYLE_OPTIONS,
   FONT_WEIGHT_OPTIONS,
   CANVAS_KEYFRAME_EPSILON,
+  POPULAR_GOOGLE_FONT_FAMILIES,
 } from "../../../../const";
+import { RadixMenuSelect } from "../../../components/radix-menu-select";
 import { MaskSourceControl } from "./mask-source-control";
 import type { DesignFormState } from "../../../../types";
 import DesignAlignmentControls from "./design-alignment-controls";
@@ -44,8 +44,10 @@ import type {
 import {
   ensureGoogleFontsLoaded,
   fieldClass,
+  getPrimaryFontFamilyName,
   labelClass,
   readDesignFormFromObject,
+  scheduleGoogleFontsLoad,
 } from "./util";
 
 type DesignSectionId = "appearance" | "masking" | "transform" | "typography";
@@ -86,6 +88,25 @@ export default function CanvasSidePanelDesign() {
   const supportsFill = typeof selectedObject?.get("fill") === "string";
   const supportsStroke = typeof selectedObject?.get("stroke") === "string" || supportsImageBorder;
   const supportsBorderRadius = typeof selectedObject?.get("rx") === "number";
+  const fontFamilyOptions = useMemo(() => {
+    const selectedFontFamily = getPrimaryFontFamilyName(designForm.fontFamily);
+    const nextOptions = POPULAR_GOOGLE_FONT_FAMILIES.map((fontFamily) => ({
+      label: fontFamily,
+      value: fontFamily,
+    }));
+
+    if (POPULAR_GOOGLE_FONT_FAMILIES.some((fontFamily) => fontFamily === selectedFontFamily)) {
+      return nextOptions;
+    }
+
+    return [
+      {
+        label: selectedFontFamily,
+        value: selectedFontFamily,
+      },
+      ...nextOptions,
+    ];
+  }, [designForm.fontFamily]);
 
   useEffect(() => {
     if (isMultiSelected) {
@@ -123,8 +144,13 @@ export default function CanvasSidePanelDesign() {
   }, [transformTargetObject]);
 
   useEffect(() => {
-    ensureGoogleFontsLoaded();
+    return scheduleGoogleFontsLoad();
   }, []);
+
+  useEffect(() => {
+    if (!supportsText) return;
+    ensureGoogleFontsLoaded([designForm.fontFamily]);
+  }, [designForm.fontFamily, supportsText]);
 
   /** Adds keyframes for the requested properties at the current playhead time. */
   const addKeyframesForFields = useCallback(
@@ -274,17 +300,36 @@ export default function CanvasSidePanelDesign() {
         object.set("stroke", nextForm.stroke.trim());
       }
       if (!isMultiSelected && supportsText) {
-        object.set("text", nextForm.text);
-        object.set("fontFamily", nextForm.fontFamily.trim());
-        const fontSize = toPrecisionNumber(Number(nextForm.fontSize));
-        if (Number.isFinite(fontSize) && fontSize > 0) {
-          object.set("fontSize", fontSize);
+        const textObject = object as Textbox;
+        const currentScaleX = textObject.scaleX ?? 1;
+        const fixedWrapWidth = currentScaleX !== 0 ? textObject.getScaledWidth() / currentScaleX : 0;
+
+        if (Number.isFinite(fixedWrapWidth) && fixedWrapWidth > 0) {
+          textObject.set("width", fixedWrapWidth);
         }
-        object.set("fontStyle", nextForm.fontStyle);
-        object.set("fontWeight", nextForm.fontWeight);
+
+        textObject.set("text", nextForm.text);
+        textObject.set("fontFamily", nextForm.fontFamily.trim());
+        const fontSize = toPrecisionNumber(Number(nextForm.fontSize));
+        const lineHeight = toPrecisionNumber(Number(nextForm.lineHeight));
+        const letterSpacing = toPrecisionNumber(Number(nextForm.letterSpacing));
+        if (Number.isFinite(fontSize) && fontSize > 0) {
+          textObject.set("fontSize", fontSize);
+        }
+        if (Number.isFinite(lineHeight) && lineHeight > 0) {
+          textObject.set("lineHeight", lineHeight);
+        }
+        if (Number.isFinite(letterSpacing)) {
+          textObject.set("charSpacing", letterSpacing);
+        }
+        textObject.set("fontStyle", nextForm.fontStyle);
+        textObject.set("fontWeight", nextForm.fontWeight);
+        textObject.initDimensions();
+        ensureGoogleFontsLoaded([nextForm.fontFamily.trim()]);
         void document.fonts?.load(`16px ${nextForm.fontFamily.trim()}`).then(() => {
-          object.set("dirty", true);
-          object.canvas?.requestRenderAll();
+          textObject.initDimensions();
+          textObject.set("dirty", true);
+          textObject.canvas?.requestRenderAll();
         });
       }
 
@@ -314,6 +359,16 @@ export default function CanvasSidePanelDesign() {
           Number(nextForm.fontSize) > 0
             ? formatNumberInput(toPrecisionNumber(Number(nextForm.fontSize)))
             : prev.fontSize,
+        lineHeight:
+          supportsText &&
+          Number.isFinite(toPrecisionNumber(Number(nextForm.lineHeight))) &&
+          Number(nextForm.lineHeight) > 0
+            ? formatNumberInput(toPrecisionNumber(Number(nextForm.lineHeight)))
+            : prev.lineHeight,
+        letterSpacing:
+          supportsText && Number.isFinite(toPrecisionNumber(Number(nextForm.letterSpacing)))
+            ? formatNumberInput(toPrecisionNumber(Number(nextForm.letterSpacing)))
+            : prev.letterSpacing,
       }));
 
       if (changedFields.length === 0) return;
@@ -446,26 +501,58 @@ export default function CanvasSidePanelDesign() {
           <div className="space-y-2.5">
             <DesignAlignmentControls onAlign={alignSelectionToVideoArea} />
             {TRANSFORM_FIELD_ROWS.map((row) => (
-              <div className="grid grid-cols-2 gap-2.5" key={row[0].changedField}>
-                {row.map((field, index) => (
-                  <DesignNumberField
-                    key={field.changedField}
-                    field={field.changedField as NumericScrubField}
-                    groupLabel={field.groupLabel}
-                    inputClassName={field.inputClassName}
-                    inputValue={designForm[field.changedField]}
-                    isKeyframed={hasKeyframeAtPlayhead(field.keyframeField)}
-                    isSecondaryLabel={index > 0}
-                    keyframeLabel={field.keyframeLabel}
-                    onAddKeyframe={() => {
-                      addPropertyKeyframe(field.keyframeField);
-                    }}
-                    onCommitValue={commitNumericField}
-                    prefix={field.prefix}
-                    shapeId={selectedId}
-                  />
-                ))}
-              </div>
+              row[0].changedField === "left" || row[0].changedField === "width" ? (
+                <div className="space-y-1.5" key={row[0].changedField}>
+                  <div className="font-[var(--wise-font-ui)] text-[11px] font-medium text-[var(--wise-content-secondary)]">
+                    {row[0].groupLabel}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {row.map((field, index) => (
+                      <DesignNumberField
+                        key={field.changedField}
+                        field={field.changedField as NumericScrubField}
+                        groupLabel={field.groupLabel}
+                        inputClassName={field.inputClassName}
+                        inputValue={designForm[field.changedField]}
+                        isKeyframed={hasKeyframeAtPlayhead(field.keyframeField)}
+                        isSecondaryLabel={index > 0}
+                        keyframeLabel={field.keyframeLabel}
+                        onAddKeyframe={() => {
+                          addPropertyKeyframe(field.keyframeField);
+                        }}
+                        onCommitValue={commitNumericField}
+                        prefix={field.prefix}
+                        shapeId={selectedId}
+                        showGroupLabel={false}
+                        showPrefix={false}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2.5" key={row[0].changedField}>
+                  {row.map((field) => (
+                    <DesignNumberField
+                      key={field.changedField}
+                      field={field.changedField as NumericScrubField}
+                      groupLabel={field.groupLabel}
+                      inputClassName={field.inputClassName}
+                      inputValue={designForm[field.changedField]}
+                      isKeyframed={hasKeyframeAtPlayhead(field.keyframeField)}
+                      isSecondaryLabel={false}
+                      keyframeLabel={field.keyframeLabel}
+                      onAddKeyframe={() => {
+                        addPropertyKeyframe(field.keyframeField);
+                      }}
+                      onCommitValue={commitNumericField}
+                      prefix={field.prefix}
+                      shapeId={selectedId}
+                      showGroupLabel
+                      showPrefix={false}
+                    />
+                  ))}
+                </div>
+              )
             ))}
           </div>
         </AccordionSection>
@@ -530,6 +617,7 @@ export default function CanvasSidePanelDesign() {
                   onCommitValue={commitNumericField}
                   prefix="W"
                   shapeId={selectedId}
+                  showPrefix={false}
                 />
               ) : (
                 <div />
@@ -548,6 +636,7 @@ export default function CanvasSidePanelDesign() {
                   onCommitValue={commitNumericField}
                   prefix="R"
                   shapeId={selectedId}
+                  showPrefix={false}
                 />
               ) : (
                 <div />
@@ -583,98 +672,97 @@ export default function CanvasSidePanelDesign() {
           <div className="space-y-2.5">
             <label className={`block ${labelClass}`}>
               <span>Font Family</span>
-              <input
-                type="text"
-                list="text-font-family-presets"
-                value={designForm.fontFamily}
-                placeholder="Type or choose a font"
-                autoComplete="off"
-                onChange={(event) => {
+              <RadixMenuSelect
+                ariaLabel="Select font family"
+                contentClassName="z-50 max-h-[280px] min-w-[220px] overflow-y-auto rounded-[6px] border border-[rgba(141,171,255,0.14)] bg-[rgba(25,25,28,0.98)] p-1 shadow-[0_28px_44px_rgba(141,171,255,0.06)] backdrop-blur-xl"
+                options={fontFamilyOptions}
+                triggerClassName={`${fieldClass} inline-flex items-center justify-between gap-2 font-[var(--wise-font-display)] font-semibold`}
+                value={getPrimaryFontFamilyName(designForm.fontFamily)}
+                onValueChange={(value) => {
+                  ensureGoogleFontsLoaded([value]);
                   setDesignForm((prev) => ({
                     ...prev,
-                    fontFamily: event.target.value,
+                    fontFamily: value,
                   }));
+                  commitDesignForm({
+                    ...designForm,
+                    fontFamily: value,
+                  });
                 }}
-                onBlur={() => commitDesignForm(designForm)}
-                onKeyDown={(event) => {
-                  if (event.key !== "Enter") return;
-                  event.preventDefault();
-                  commitDesignForm(designForm);
-                }}
-                className={fieldClass}
               />
-              <datalist id="text-font-family-presets">
-                {FONT_FAMILY_PRESETS.map((fontFamily) => (
-                  <option key={fontFamily} value={fontFamily} />
-                ))}
-              </datalist>
             </label>
 
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
               <label className={labelClass}>
-                <span>Font Size</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={designForm.fontSize}
-                  onChange={(event) => {
-                    if (!/^-?\d*\.?\d*$/.test(event.target.value)) return;
+                <span>Text Weight</span>
+                <RadixMenuSelect
+                  ariaLabel="Select text weight"
+                  contentClassName="z-50 min-w-[140px] rounded-[6px] border border-[rgba(141,171,255,0.14)] bg-[rgba(25,25,28,0.98)] p-1 shadow-[0_28px_44px_rgba(141,171,255,0.06)] backdrop-blur-xl"
+                  options={FONT_WEIGHT_OPTIONS.map((option) => ({
+                    label: option,
+                    value: option,
+                  }))}
+                  triggerClassName={`${fieldClass} inline-flex items-center justify-between gap-2`}
+                  value={designForm.fontWeight}
+                  onValueChange={(value) => {
                     setDesignForm((prev) => ({
                       ...prev,
-                      fontSize: event.target.value,
+                      fontWeight: value,
                     }));
+                    commitDesignForm({
+                      ...designForm,
+                      fontWeight: value,
+                    });
                   }}
-                  onBlur={() => commitDesignForm(designForm)}
-                  onKeyDown={(event) => {
-                    if (event.key !== "Enter") return;
-                    event.preventDefault();
-                    commitDesignForm(designForm);
-                  }}
-                  className={fieldClass}
                 />
               </label>
 
-              <label className={labelClass}>
-                <span>Style</span>
-                <select
-                  value={designForm.fontStyle}
-                  onChange={(event) => {
-                    setDesignForm((prev) => ({
-                      ...prev,
-                      fontStyle: event.target.value,
-                    }));
-                  }}
-                  onBlur={() => commitDesignForm(designForm)}
-                  className={fieldClass}
-                >
-                  {FONT_STYLE_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <DesignNumberField
+                field="fontSize"
+                groupLabel="Size"
+                inputValue={designForm.fontSize}
+                isKeyframed={false}
+                isSecondaryLabel={false}
+                keyframeLabel="Font Size"
+                onAddKeyframe={() => {}}
+                onCommitValue={commitNumericField}
+                prefix="S"
+                shapeId={selectedId}
+                showPrefix={false}
+                showKeyframeAction={false}
+              />
+            </div>
 
-              <label className={labelClass}>
-                <span>Weight</span>
-                <select
-                  value={designForm.fontWeight}
-                  onChange={(event) => {
-                    setDesignForm((prev) => ({
-                      ...prev,
-                      fontWeight: event.target.value,
-                    }));
-                  }}
-                  onBlur={() => commitDesignForm(designForm)}
-                  className={fieldClass}
-                >
-                  {FONT_WEIGHT_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            <div className="grid grid-cols-2 gap-2">
+              <DesignNumberField
+                field="lineHeight"
+                groupLabel="Line Height"
+                inputValue={designForm.lineHeight}
+                isKeyframed={false}
+                isSecondaryLabel={false}
+                keyframeLabel="Line Height"
+                onAddKeyframe={() => {}}
+                onCommitValue={commitNumericField}
+                prefix="LH"
+                shapeId={selectedId}
+                showPrefix={false}
+                showKeyframeAction={false}
+              />
+
+              <DesignNumberField
+                field="letterSpacing"
+                groupLabel="Letter Spacing"
+                inputValue={designForm.letterSpacing}
+                isKeyframed={false}
+                isSecondaryLabel={false}
+                keyframeLabel="Letter Spacing"
+                onAddKeyframe={() => {}}
+                onCommitValue={commitNumericField}
+                prefix="LS"
+                shapeId={selectedId}
+                showPrefix={false}
+                showKeyframeAction={false}
+              />
             </div>
 
             <label className={`block ${labelClass}`}>

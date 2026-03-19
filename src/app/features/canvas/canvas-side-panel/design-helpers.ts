@@ -11,7 +11,12 @@ import { getObjectAnimationPosition } from "../../shapes/animatable-object/util"
 
 export type ColorFieldKey = keyof ColorAnimatableProperties;
 export type KeyframeField = keyof Omit<DesignFormState, "text">;
-export type NumericFieldKey = keyof NumericAnimatableProperties | "fontSize" | "borderRadius";
+export type NumericFieldKey =
+  | keyof NumericAnimatableProperties
+  | "borderRadius"
+  | "fontSize"
+  | "letterSpacing"
+  | "lineHeight";
 export type NumericKeyframeField = keyof NumericAnimatableProperties;
 export type SupportedKeyframeField = keyof AnimatableProperties;
 
@@ -27,7 +32,7 @@ export type TransformFieldConfig = {
   prefix: string;
 };
 
-export type NumericScrubField = Exclude<NumericFieldKey, "fontSize">;
+export type NumericScrubField = NumericFieldKey;
 
 type NumericScrubConfig = {
   baseStep: number;
@@ -76,14 +81,14 @@ export const TRANSFORM_FIELD_ROWS: readonly [TransformFieldConfig, TransformFiel
   [
     {
       changedField: "width",
-      groupLabel: "Dimensions",
+      groupLabel: "Size",
       keyframeField: "width",
       keyframeLabel: "Width",
       prefix: "W",
     },
     {
       changedField: "height",
-      groupLabel: "Dimensions",
+      groupLabel: "Size",
       keyframeField: "height",
       keyframeLabel: "Height",
       prefix: "H",
@@ -128,8 +133,11 @@ export const VERTICAL_ALIGNMENT_CONTROLS: readonly {
 const NUMERIC_SCRUB_CONFIG: Record<NumericScrubField, NumericScrubConfig> = {
   angle: { baseStep: 1 },
   borderRadius: { baseStep: 1, min: 0 },
+  fontSize: { baseStep: 1, min: 1 },
   height: { baseStep: 1, min: 0 },
+  letterSpacing: { baseStep: 1 },
   left: { baseStep: 1 },
+  lineHeight: { baseStep: 0.01, min: 0.1 },
   opacity: { baseStep: 0.01, min: 0, max: 1 },
   strokeWidth: { baseStep: 1, min: 0 },
   top: { baseStep: 1 },

@@ -118,10 +118,40 @@ export default function TimelinePlayhead({
   );
   const lineTop = handleTop + handleHeight - 2;
 
+  useEffect(() => {
+    const container = containerRef.current;
+    const content = container?.parentElement;
+    const viewport = container?.closest(".timeline-scroll-viewport") as HTMLElement | null;
+    if (!container || !content) return;
+
+    /** Keeps the playhead column matched to the visible timeline body height. */
+    const syncMeasuredHeight = () => {
+      const visibleHeight = viewport?.clientHeight ?? 0;
+      const contentHeight = content.offsetHeight;
+      container.style.height = `${Math.max(visibleHeight, contentHeight)}px`;
+    };
+
+    syncMeasuredHeight();
+
+    const observer = new ResizeObserver(() => {
+      syncMeasuredHeight();
+    });
+
+    observer.observe(content);
+    if (viewport) {
+      observer.observe(viewport);
+    }
+
+    return () => {
+      observer.disconnect();
+      container.style.height = "";
+    };
+  }, []);
+
   return (
     <div
       ref={containerRef}
-      className="pointer-events-none absolute top-0 bottom-0 h-full min-h-[160px] z-40"
+      className="pointer-events-none absolute top-0 z-40"
       style={{
         top: topOffset,
         left: keyframeSectionOffset,

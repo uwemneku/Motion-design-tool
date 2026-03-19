@@ -18,10 +18,10 @@ export default function EditorCanvas() {
         className="flex min-h-0 flex-1 flex-col"
         style={{
           background:
-            "linear-gradient(180deg, rgba(45,45,47,0.98), rgba(30,30,32,0.98))",
+            "linear-gradient(180deg, rgba(25,25,28,0.98), rgba(14,14,16,0.98))",
         }}
       >
-        <div className="relative min-h-0 flex min-w-0 flex-1 items-stretch overflow-hidden border-b border-[var(--wise-border)]/80 xl:h-full">
+        <div className="relative min-h-0 flex min-w-0 flex-1 items-stretch overflow-hidden xl:h-full">
           <div
             className="relative min-w-0 flex-1 overflow-hidden"
             style={{
@@ -29,7 +29,7 @@ export default function EditorCanvas() {
                 "linear-gradient(180deg, rgba(24,24,26,0.92), rgba(18,18,20,0.96)), repeating-linear-gradient(45deg, rgba(255,255,255,0.012), rgba(255,255,255,0.012) 18px, rgba(255,255,255,0.022) 18px, rgba(255,255,255,0.022) 36px)",
             }}
           >
-            <div data-testid="floating-layers-panel">
+            <div className="relative z-20" data-testid="floating-layers-panel">
               <CanvasItemsList />
             </div>
 
@@ -37,7 +37,7 @@ export default function EditorCanvas() {
               <CanvasSidePanel floating />
             </div>
 
-            <div className="relative h-full w-full overflow-hidden">
+            <div className="relative z-0 h-full w-full overflow-hidden">
               <CanvasToolsFab />
               <canvas className="h-full w-full" ref={bindHost}></canvas>
               <VideoWorkAreaOverlay />

@@ -2,8 +2,8 @@
 import type { FabricObject } from "fabric";
 import {
   EMPTY_FORM,
-  GOOGLE_FONT_FAMILY_QUERY,
   HEX_COLOR_PATTERN,
+  POPULAR_GOOGLE_FONT_FAMILIES,
 } from "../../../../const";
 import type { DesignFormState } from "../../../../types";
 import type { AnimatableObject } from "../../shapes/animatable-object/object";
@@ -16,6 +16,12 @@ export function toNumberInput(value: unknown, fallback: number) {
 
 export function readDesignForm(instance?: AnimatableObject): DesignFormState {
   return readDesignFormFromObject(instance?.fabricObject);
+}
+
+/** Extracts the display family name from a CSS font-family string. */
+export function getPrimaryFontFamilyName(fontFamily: string) {
+  const [primaryFamily = EMPTY_FORM.fontFamily] = fontFamily.split(",");
+  return primaryFamily.trim().replace(/^["']|["']$/g, "");
 }
 
 /** Reads editable transform and style values from a Fabric object. */
@@ -47,7 +53,7 @@ export function readDesignFormFromObject(
       typeof object.get("text") === "string" ? String(object.get("text")) : "",
     fontFamily:
       typeof object.get("fontFamily") === "string"
-        ? String(object.get("fontFamily"))
+        ? getPrimaryFontFamilyName(String(object.get("fontFamily")))
         : EMPTY_FORM.fontFamily,
     fontSize: toNumberInput(
       object.get("fontSize"),
@@ -62,6 +68,14 @@ export function readDesignFormFromObject(
       typeof object.get("fontWeight") === "number"
         ? String(object.get("fontWeight"))
         : EMPTY_FORM.fontWeight,
+    letterSpacing: toNumberInput(
+      object.get("charSpacing"),
+      Number(EMPTY_FORM.letterSpacing),
+    ),
+    lineHeight: toNumberInput(
+      object.get("lineHeight"),
+      Number(EMPTY_FORM.lineHeight),
+    ),
   };
 }
 
@@ -85,27 +99,77 @@ export function normalizeHexColor(value: string, fallback = "#ffffff") {
   return trimmed.toLowerCase();
 }
 
-export function ensureGoogleFontsLoaded() {
+const GOOGLE_FONT_LINK_PREFIX = "editor-google-fonts";
+const loadedGoogleFontFamilies = new Set<string>();
+let hasGoogleFontPreconnect = false;
+
+/** Builds a Google Fonts CSS query for the requested family names. */
+function buildGoogleFontFamilyQuery(fontFamilies: readonly string[]) {
+  return fontFamilies
+    .map((fontFamily) => {
+      const encodedFamily = fontFamily.trim().replace(/\s+/g, "+");
+      return `family=${encodedFamily}:wght@400;500;600;700`;
+    })
+    .join("&");
+}
+
+/** Ensures the browser has the requested Google font families available. */
+export function ensureGoogleFontsLoaded(fontFamilies: readonly string[] = POPULAR_GOOGLE_FONT_FAMILIES) {
   if (typeof document === "undefined") return;
-  const existingLink = document.getElementById("editor-google-fonts");
-  if (existingLink) return;
 
-  const preconnectApi = document.createElement("link");
-  preconnectApi.rel = "preconnect";
-  preconnectApi.href = "https://fonts.googleapis.com";
-  document.head.appendChild(preconnectApi);
+  const nextFamilies = fontFamilies
+    .map((fontFamily) => getPrimaryFontFamilyName(fontFamily))
+    .filter((fontFamily) => fontFamily.length > 0)
+    .filter((fontFamily) => !loadedGoogleFontFamilies.has(fontFamily));
 
-  const preconnectStatic = document.createElement("link");
-  preconnectStatic.rel = "preconnect";
-  preconnectStatic.href = "https://fonts.gstatic.com";
-  preconnectStatic.crossOrigin = "anonymous";
-  document.head.appendChild(preconnectStatic);
+  if (nextFamilies.length === 0) return;
+
+  if (!hasGoogleFontPreconnect) {
+    const preconnectApi = document.createElement("link");
+    preconnectApi.rel = "preconnect";
+    preconnectApi.href = "https://fonts.googleapis.com";
+    document.head.appendChild(preconnectApi);
+
+    const preconnectStatic = document.createElement("link");
+    preconnectStatic.rel = "preconnect";
+    preconnectStatic.href = "https://fonts.gstatic.com";
+    preconnectStatic.crossOrigin = "anonymous";
+    document.head.appendChild(preconnectStatic);
+    hasGoogleFontPreconnect = true;
+  }
 
   const fontLink = document.createElement("link");
-  fontLink.id = "editor-google-fonts";
+  fontLink.id = `${GOOGLE_FONT_LINK_PREFIX}-${loadedGoogleFontFamilies.size}`;
   fontLink.rel = "stylesheet";
-  fontLink.href = `https://fonts.googleapis.com/css2?${GOOGLE_FONT_FAMILY_QUERY}&display=swap`;
+  fontLink.href = `https://fonts.googleapis.com/css2?${buildGoogleFontFamilyQuery(nextFamilies)}&display=swap`;
   document.head.appendChild(fontLink);
+
+  nextFamilies.forEach((fontFamily) => {
+    loadedGoogleFontFamilies.add(fontFamily);
+  });
+}
+
+/** Starts the bulk Google Fonts preload after initial UI work has settled. */
+export function scheduleGoogleFontsLoad(
+  fontFamilies: readonly string[] = POPULAR_GOOGLE_FONT_FAMILIES,
+) {
+  if (typeof window === "undefined") return;
+
+  const loadFonts = () => {
+    ensureGoogleFontsLoaded(fontFamilies);
+  };
+
+  if ("requestIdleCallback" in window) {
+    const idleCallback = window.requestIdleCallback(loadFonts);
+    return () => {
+      window.cancelIdleCallback(idleCallback);
+    };
+  }
+
+  const timeoutId = globalThis.setTimeout(loadFonts, 0);
+  return () => {
+    globalThis.clearTimeout(timeoutId);
+  };
 }
 
 import type {
@@ -114,15 +178,15 @@ import type {
 } from "../../../../types";
 
 export const sectionTitleClass =
-  "font-[var(--wise-font-display)] text-[15px] font-semibold tracking-[-0.01em] text-[#f2f4f8]";
+  "font-[var(--wise-font-display)] text-[14px] font-semibold tracking-[-0.025em] text-[var(--wise-content-primary)]";
 export const labelClass =
-  "space-y-1.5 font-[var(--wise-font-ui)] text-[11px] font-medium text-[#aeb6c4]";
+  "space-y-1 font-[var(--wise-font-ui)] text-[11px] font-medium text-[var(--wise-content-secondary)]";
 export const fieldClass =
-  "h-6 max-h-6 w-full rounded-[6px] border border-white/8 " +
-  "bg-[rgba(255,255,255,0.055)] px-2.5 font-[var(--wise-font-ui)] text-[11px] text-[#efefef] " +
-  "outline-none transition focus:border-white/15 focus:bg-[rgba(255,255,255,0.075)]";
+  "h-6 max-h-6 w-full rounded-[4px] border border-[rgba(141,171,255,0.14)] " +
+  "bg-[var(--wise-surface-raised)] px-2.5 font-[var(--wise-font-ui)] text-[11px] text-[var(--wise-content-primary)] " +
+  "outline-none transition focus:border-b-[var(--wise-primary)] focus:bg-[rgba(43,42,46,0.98)]";
 export const cardClass =
-  "space-y-4 border-t border-white/10 pt-5 first:border-t-0 first:pt-0";
+  "space-y-4 pt-4 first:pt-0";
 
 export const animationTemplates: AnimationTemplate[] = [
   {

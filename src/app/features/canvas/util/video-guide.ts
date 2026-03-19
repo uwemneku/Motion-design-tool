@@ -59,14 +59,32 @@ export function computeVideoAreaLabelPosition(
   canvas: Canvas,
   rect: VideoWorkAreaRect,
 ) {
+  const topLeft = getVideoAreaScreenRect(canvas, rect);
+  return {
+    left: topLeft.left,
+    top: topLeft.top - 24,
+  };
+}
+
+/** Converts the video work area from canvas space into viewport/screen coordinates. */
+export function getVideoAreaScreenRect(canvas: Canvas, rect: VideoWorkAreaRect) {
   const transform = canvas.viewportTransform ?? [1, 0, 0, 1, 0, 0];
-  const topLeft = util.transformPoint(
-    new Point(rect.left, rect.top),
+  const topLeft = util.transformPoint(new Point(rect.left, rect.top), transform);
+  const bottomRight = util.transformPoint(
+    new Point(rect.left + rect.width, rect.top + rect.height),
     transform,
   );
+
+  const left = Math.min(topLeft.x, bottomRight.x);
+  const top = Math.min(topLeft.y, bottomRight.y);
+  const width = Math.abs(bottomRight.x - topLeft.x);
+  const height = Math.abs(bottomRight.y - topLeft.y);
+
   return {
-    left: topLeft.x,
-    top: topLeft.y - 24,
+    height,
+    left,
+    top,
+    width,
   };
 }
 

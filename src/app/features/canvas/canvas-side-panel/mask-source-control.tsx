@@ -1,7 +1,7 @@
 /** Mask Source Control.Tsx canvas side panel UI logic. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSelector } from "react-redux";
-import type { RootState } from "../../../store";
+import { RadixMenuSelect } from "../../../components/radix-menu-select";
+import { useAppSelector } from "../../../store";
 import { emitMaskHistoryEvent } from "../util/mask-history-events";
 import {
   readMaskSourceId,
@@ -26,12 +26,8 @@ export function MaskSourceControl({
   const [sourceId, setSourceId] = useState<string>(NONE_MASK_SOURCE_ID);
   const maskRequestVersionRef = useRef(0);
 
-  const canvasItemIds = useSelector(
-    (state: RootState) => state.editor.canvasItemIds,
-  );
-  const itemsRecord = useSelector(
-    (state: RootState) => state.editor.itemsRecord,
-  );
+  const canvasItemIds = useAppSelector((state) => state.editor.canvasItemIds);
+  const itemsRecord = useAppSelector((state) => state.editor.itemsRecord);
 
   const maskCandidates = useMemo(() => {
     // Keep dropdown options in sync with all other canvas items.
@@ -42,6 +38,16 @@ export function MaskSourceControl({
         name: itemsRecord[id]?.name ?? id,
       }));
   }, [canvasItemIds, itemsRecord, selectedId]);
+  const maskOptions = useMemo(
+    () => [
+      { label: "None", value: NONE_MASK_SOURCE_ID },
+      ...maskCandidates.map((maskItem) => ({
+        label: maskItem.name,
+        value: maskItem.id,
+      })),
+    ],
+    [maskCandidates],
+  );
 
   useEffect(() => {
     // Reflect current mask source when selected item changes.
@@ -90,20 +96,16 @@ export function MaskSourceControl({
     <div className="space-y-2 rounded-md border border-[var(--wise-border)] bg-[var(--wise-surface-muted)] p-2">
       <label className={labelClass}>
         <span>Mask Source</span>
-        <select
+        <RadixMenuSelect
+          ariaLabel="Select mask source"
+          contentClassName="z-50 min-w-[180px] rounded-[6px] border border-[rgba(141,171,255,0.14)] bg-[rgba(25,25,28,0.98)] p-1 shadow-[0_28px_44px_rgba(141,171,255,0.06)] backdrop-blur-xl"
+          options={maskOptions}
+          triggerClassName={`${fieldClass} inline-flex items-center justify-between gap-2`}
           value={sourceId}
-          onChange={(event) => {
-            void onSourceChange(event.target.value);
+          onValueChange={(value) => {
+            void onSourceChange(value);
           }}
-          className={fieldClass}
-        >
-          <option value={NONE_MASK_SOURCE_ID}>None</option>
-          {maskCandidates.map((maskItem) => (
-            <option key={maskItem.id} value={maskItem.id}>
-              {maskItem.name}
-            </option>
-          ))}
-        </select>
+        />
       </label>
       <p className="text-[11px] text-[#8f8f8f]">
         Uses another canvas item as this object&apos;s mask.

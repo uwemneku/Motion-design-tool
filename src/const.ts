@@ -119,60 +119,65 @@ export const EMPTY_FORM: DesignFormState = {
   stroke: "",
   strokeWidth: "1",
   text: "",
-  fontFamily:
-    "\"SF Pro Display\", \"SF Pro Text\", -apple-system, BlinkMacSystemFont, " +
-    "\"Segoe UI\", \"Helvetica Neue\", Arial, sans-serif",
+  fontFamily: "Inter",
   fontSize: "44",
   fontStyle: "normal",
   fontWeight: "700",
+  letterSpacing: "0",
+  lineHeight: "1.16",
 };
-export const FONT_FAMILY_PRESETS = [
+export const POPULAR_GOOGLE_FONT_FAMILIES = [
   "Inter",
+  "Roboto",
+  "Open Sans",
+  "Lato",
+  "Montserrat",
+  "Poppins",
+  "Raleway",
+  "Oswald",
+  "Merriweather",
+  "Playfair Display",
+  "Nunito Sans",
+  "PT Sans",
+  "Source Sans 3",
+  "Roboto Slab",
+  "Noto Sans",
+  "Ubuntu",
+  "Work Sans",
   "DM Sans",
   "Manrope",
   "Space Grotesk",
-  "Sora",
   "Outfit",
   "Plus Jakarta Sans",
-  "Poppins",
-  "Montserrat",
-  "Bricolage Grotesque",
-  "Merriweather",
-  "Playfair Display",
-  "Archivo Black",
+  "Libre Franklin",
+  "Rubik",
+  "Mulish",
+  "Quicksand",
+  "Cabin",
+  "Karla",
+  "Barlow",
+  "Barlow Condensed",
+  "Figtree",
+  "Sora",
   "IBM Plex Sans",
-  "Arial",
-  "Helvetica",
-  "Verdana",
-  "Trebuchet MS",
-  "Tahoma",
-  "Georgia",
-  "Times New Roman",
-  "Courier New",
   "IBM Plex Mono",
   "JetBrains Mono",
   "Fira Code",
   "Source Code Pro",
-];
-export const GOOGLE_FONT_FAMILY_QUERY =
-  "Inter:wght@100;200;300;400;500;600;700;800;900&" +
-  "family=DM+Sans:wght@100;200;300;400;500;600;700;800;900&" +
-  "family=Manrope:wght@200;300;400;500;600;700;800&" +
-  "family=Space+Grotesk:wght@300;400;500;600;700&" +
-  "family=Sora:wght@100;200;300;400;500;600;700;800&" +
-  "family=Outfit:wght@100;200;300;400;500;600;700;800;900&" +
-  "family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&" +
-  "family=Poppins:wght@100;200;300;400;500;600;700;800;900&" +
-  "family=Montserrat:wght@100;200;300;400;500;600;700;800;900&" +
-  "family=Bricolage+Grotesque:wght@200;300;400;500;600;700;800&" +
-  "family=Merriweather:wght@300;400;700;900&" +
-  "family=Playfair+Display:wght@400;500;600;700;800;900&" +
-  "family=Archivo+Black&" +
-  "family=IBM+Plex+Sans:wght@100;200;300;400;500;600;700&" +
-  "family=IBM+Plex+Mono:wght@100;200;300;400;500;600;700&" +
-  "family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&" +
-  "family=Fira+Code:wght@300;400;500;600;700&" +
-  "family=Source+Code+Pro:wght@200;300;400;500;600;700;800;900";
+  "Lora",
+  "Arvo",
+  "Bitter",
+  "Alegreya",
+  "Archivo",
+  "Archivo Narrow",
+  "Bebas Neue",
+  "Anton",
+  "Prompt",
+  "Hind",
+  "Inconsolata",
+  "Nunito",
+  "Heebo",
+] as const;
 export const FONT_STYLE_OPTIONS = ["normal", "italic", "oblique"] as const;
 export const FONT_WEIGHT_OPTIONS = [
   "100",
