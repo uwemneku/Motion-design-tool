@@ -2,7 +2,7 @@
 import * as Popover from "@radix-ui/react-popover";
 import { AnimatePresence, motion } from "framer-motion";
 import { FileOutput } from "lucide-react";
-import { useRef, useState, type MouseEvent } from "react";
+import { useState, type MouseEvent } from "react";
 import { RadixMenuSelect } from "../../../components/radix-menu-select";
 import { useAppSelector } from "../../../store";
 import { SliderPanelControl } from "../../../components/slider-panel-control";
@@ -22,7 +22,6 @@ export function CanvasSidePanelExportControls() {
   const [exportQuality, setExportQuality] = useState(1);
   const [exportFormat, setExportFormat] = useState<ExportVideoFormat>("mp4");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const closeTimerRef = useRef<number | null>(null);
   const activeAspectRatio =
     useAppSelector((state) => state.editor.projectInfo.videoAspectRatio) ?? 1;
   const { fabricCanvasRef } = useCanvasAppContext();
@@ -33,27 +32,12 @@ export function CanvasSidePanelExportControls() {
 
   /** Opens the hoverable export settings panel immediately. */
   const openMenu = () => {
-    if (closeTimerRef.current) {
-      window.clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
     setIsMenuOpen(true);
-  };
-
-  /** Closes the hoverable export settings panel after a brief grace period. */
-  const closeMenuSoon = () => {
-    if (closeTimerRef.current) {
-      window.clearTimeout(closeTimerRef.current);
-    }
-    closeTimerRef.current = window.setTimeout(() => {
-      setIsMenuOpen(false);
-      closeTimerRef.current = null;
-    }, 120);
   };
 
   return (
     <Popover.Root open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-      <div onMouseEnter={openMenu} onMouseLeave={closeMenuSoon}>
+      <div onMouseEnter={openMenu}>
         <Popover.Anchor asChild>
           <button
             type="button"
@@ -97,7 +81,6 @@ export function CanvasSidePanelExportControls() {
               event.preventDefault();
             }}
             onMouseEnter={openMenu}
-            onMouseLeave={closeMenuSoon}
             className="z-50 w-56 rounded-[6px] border border-[rgba(141,171,255,0.14)] bg-[linear-gradient(180deg,rgba(38,37,40,0.98),rgba(25,25,28,0.98))] p-3 text-xs text-white shadow-[0_28px_44px_rgba(141,171,255,0.06)] backdrop-blur-2xl"
           >
             <div className="mb-3 space-y-1.5">
@@ -107,7 +90,11 @@ export function CanvasSidePanelExportControls() {
               <RadixMenuSelect
                 ariaLabel="Select export format"
                 contentClassName="z-50 min-w-[160px] rounded-[6px] border border-[rgba(141,171,255,0.14)] bg-[rgba(25,25,28,0.98)] p-1 shadow-[0_28px_44px_rgba(141,171,255,0.06)] backdrop-blur-xl"
+                onOpenChange={() => {
+                  openMenu();
+                }}
                 options={EXPORT_FORMAT_MENU_OPTIONS}
+                portalled={false}
                 triggerClassName="inline-flex h-8 w-full items-center justify-between gap-2 rounded-[4px] border border-[rgba(141,171,255,0.14)] bg-[var(--wise-surface-raised)] px-2.5 font-[var(--wise-font-display)] text-[12px] font-semibold text-[var(--wise-content-primary)] outline-none transition hover:bg-[rgba(255,255,255,0.08)]"
                 value={exportFormat}
                 onValueChange={(value) => {
