@@ -8,9 +8,13 @@ import type {} from // FabricObjectProps,
 declare module "fabric" {
   interface FabricObject {
     customId?: string;
+    isMaskSource?: boolean;
   }
 
   interface ObjectEvents {
+    "my:mask-source:seek": {
+      target: FabricObject;
+    };
     "my:custom:seek": {
       target: FabricObject;
     };
@@ -18,6 +22,7 @@ declare module "fabric" {
 
   interface SerializedObjectProps {
     customId?: string;
+    isMaskSource?: boolean;
   }
 }
 

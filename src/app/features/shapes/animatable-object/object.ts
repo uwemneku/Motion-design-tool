@@ -318,6 +318,11 @@ export class AnimatableObject {
     }
 
     this.fabricObject.setCoords();
+    if (this.fabricObject.isMaskSource) {
+      this.fabricObject.fire("my:mask-source:seek", {
+        target: this.fabricObject,
+      });
+    }
   }
 
   getTimelineMarkers(): TimelineMarker[] {

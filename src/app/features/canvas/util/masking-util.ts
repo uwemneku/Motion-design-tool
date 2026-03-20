@@ -68,6 +68,8 @@ async function applyMaskFromCanvasObject(
   maskProxy.set("visible", false);
   maskProxy.set("evented", false);
   setMaskProxy(target, maskProxy, source.fabricObject);
+  source.fabricObject.isMaskSource = true;
+  source.fabricObject.set("isMaskSource", true);
 
   target.fabricObject.set("clipPath", maskProxy);
   target.fabricObject.set("dirty", true);
@@ -82,11 +84,13 @@ async function applyMaskFromCanvasObject(
   MASK_SYNC_EVENTS.forEach((eventName) => {
     source.fabricObject.on(eventName, syncMask);
   });
+  source.fabricObject.on("my:mask-source:seek", syncMask);
 
   setMaskSyncCleanup(target, () => {
     MASK_SYNC_EVENTS.forEach((eventName) => {
       source.fabricObject.off(eventName, syncMask);
     });
+    source.fabricObject.off("my:mask-source:seek", syncMask);
   });
 }
 
@@ -140,6 +144,8 @@ function restoreMaskSourceObject(
 ) {
   // Only restore source visibility flags; never re-add clip proxies to canvas.
   if (!sourceObject) return;
+  sourceObject.isMaskSource = false;
+  sourceObject.set("isMaskSource", false);
   sourceObject.set("visible", true);
   sourceObject.set("evented", true);
   sourceObject.setCoords();
