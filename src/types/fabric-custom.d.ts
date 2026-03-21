@@ -6,10 +6,15 @@ import type {} from // FabricObjectProps,
 "fabric";
 
 declare module "fabric" {
+  type PathPointMode = "independent" | "mirrored" | "sharp";
+
   interface FabricObject {
+    activePathAnchorCommandIndex?: number | null;
     customId?: string;
+    isClosedPath?: boolean;
     isMaskSource?: boolean;
     isPathEditing?: boolean;
+    pathPointModes?: Record<string, PathPointMode>;
   }
 
   interface ObjectEvents {
@@ -22,9 +27,12 @@ declare module "fabric" {
   }
 
   interface SerializedObjectProps {
+    activePathAnchorCommandIndex?: number | null;
     customId?: string;
+    isClosedPath?: boolean;
     isMaskSource?: boolean;
     isPathEditing?: boolean;
+    pathPointModes?: Record<string, PathPointMode>;
   }
 }
 

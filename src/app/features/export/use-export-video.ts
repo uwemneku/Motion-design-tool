@@ -321,6 +321,11 @@ async function cloneFabricObjectWithCustomId<
     clonedObject.customId = customId;
     clonedObject.set("customId", customId);
   }
+  if (clonedObject instanceof Path) {
+    clonedObject.set({
+      objectCaching: false,
+    });
+  }
   return clonedObject;
 }
 
@@ -331,6 +336,12 @@ function createExportAnimatableObject(
   colorKeyframes: AnimatableObject["colorKeyframes"],
   pathKeyframes: AnimatableObject["pathKeyframes"],
 ) {
+  if (object instanceof Path) {
+    object.set({
+      objectCaching: false,
+    });
+  }
+
   if (object instanceof FabricImage && object.getElement() instanceof HTMLVideoElement) {
     return new VideoObject(object, {}, keyframes, colorKeyframes, pathKeyframes);
   }
@@ -454,8 +465,12 @@ async function remapExportClipPaths(
         });
         if (exportClipPath instanceof Path && exportMaskSource instanceof Path) {
           exportClipPath.set({
+            isClosedPath: exportMaskSource.isClosedPath,
+            objectCaching: false,
             path: exportMaskSource.path.map((command) => [...command]),
+            dirty: true,
           });
+          exportClipPath.setDimensions();
         }
         exportClipPath.setCoords();
       }
@@ -526,8 +541,12 @@ function syncExportMaskProxyForObject(targetObject: FabricObject) {
   });
   if (maskProxy instanceof Path && maskSource instanceof Path) {
     maskProxy.set({
+      isClosedPath: maskSource.isClosedPath,
+      objectCaching: false,
       path: maskSource.path.map((command) => [...command]),
+      dirty: true,
     });
+    maskProxy.setDimensions();
   }
   configureExportMaskProxy(maskProxy);
   if (targetObject.clipPath !== maskProxy) {
@@ -539,6 +558,7 @@ function syncExportMaskProxyForObject(targetObject: FabricObject) {
 function configureExportMaskProxy(maskProxy: FabricObject) {
   maskProxy.set({
     fill: "#000000",
+    objectCaching: false,
     stroke: null,
     strokeWidth: 0,
     opacity: 1,

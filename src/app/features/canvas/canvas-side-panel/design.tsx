@@ -1,5 +1,5 @@
 /** Design.Tsx canvas side panel UI logic. */
-import type { FabricObject, Textbox } from "fabric";
+import { Path, type FabricObject, type Textbox } from "fabric";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { dispatchableSelector, useAppDispatch, useAppSelector } from "../../../store";
 import { upsertItemRecord } from "../../../store/editor-slice";
@@ -19,6 +19,11 @@ import {
 } from "../../../../const";
 import { RadixMenuSelect } from "../../../components/radix-menu-select";
 import { MaskSourceControl } from "./mask-source-control";
+import {
+  applyPathPointMode,
+  getPathPointMode,
+  type PathPointMode,
+} from "../util/fabric-controls";
 import type { DesignFormState } from "../../../../types";
 import DesignAlignmentControls from "./design-alignment-controls";
 import DesignColorField from "./design-color-field";
@@ -59,6 +64,12 @@ const INITIAL_OPEN_SECTIONS: Record<DesignSectionId, boolean> = {
   typography: true,
 };
 
+const PATH_POINT_MODE_OPTIONS: Array<{ label: string; value: PathPointMode }> = [
+  { label: "Sharp", value: "sharp" },
+  { label: "Independent", value: "independent" },
+  { label: "Mirrored", value: "mirrored" },
+];
+
 /** Design form for editing transform, style, text, and mask settings. */
 export default function CanvasSidePanelDesign() {
   const dispatch = useAppDispatch();
@@ -84,6 +95,14 @@ export default function CanvasSidePanelDesign() {
   const selectedInstance = selectedContext.instance;
   const selectedObject = selectedInstance?.fabricObject;
   const supportsImageBorder = selectedObject?.type === "image";
+  const activePathAnchorCommandIndex =
+    selectedObject instanceof Path && Number.isInteger(selectedObject.activePathAnchorCommandIndex)
+      ? Number(selectedObject.activePathAnchorCommandIndex)
+      : null;
+  const activePathPointMode =
+    selectedObject instanceof Path && activePathAnchorCommandIndex !== null
+      ? getPathPointMode(selectedObject, activePathAnchorCommandIndex)
+      : null;
   const supportsText = typeof selectedObject?.get("text") === "string";
   const supportsFill = typeof selectedObject?.get("fill") === "string";
   const supportsStroke = typeof selectedObject?.get("stroke") === "string" || supportsImageBorder;
@@ -258,6 +277,9 @@ export default function CanvasSidePanelDesign() {
       if (!transformTargetObject) return;
 
       const object = transformTargetObject;
+      const shouldApplyAllFields = changedFields.length === 0;
+      const shouldApplyField = (field: KeyframeField) =>
+        shouldApplyAllFields || changedFields.includes(field);
       const left = toPrecisionNumber(Number(nextForm.left));
       const top = toPrecisionNumber(Number(nextForm.top));
       const width = clampMin(toPrecisionNumber(Number(nextForm.width)), 0);
@@ -267,36 +289,51 @@ export default function CanvasSidePanelDesign() {
       const angle = toPrecisionNumber(Number(nextForm.angle));
       const strokeWidth = clampMin(toPrecisionNumber(Number(nextForm.strokeWidth)), 0);
 
-      if (Number.isFinite(left)) setObjectAnimationPosition(object, "left", left);
-      if (Number.isFinite(top)) setObjectAnimationPosition(object, "top", top);
-      if (Number.isFinite(width) && width > 0) {
+      if (shouldApplyField("left") && Number.isFinite(left)) {
+        setObjectAnimationPosition(object, "left", left);
+      }
+      if (shouldApplyField("top") && Number.isFinite(top)) {
+        setObjectAnimationPosition(object, "top", top);
+      }
+      if (shouldApplyField("width") && Number.isFinite(width) && width > 0) {
         const currentWidth = object.getScaledWidth();
         const currentScaleX = object.scaleX ?? 1;
         if (currentWidth > 0) {
           object.set("scaleX", currentScaleX * (width / currentWidth));
         }
       }
-      if (Number.isFinite(height) && height > 0) {
+      if (shouldApplyField("height") && Number.isFinite(height) && height > 0) {
         const currentHeight = object.getScaledHeight();
         const currentScaleY = object.scaleY ?? 1;
         if (currentHeight > 0) {
           object.set("scaleY", currentScaleY * (height / currentHeight));
         }
       }
-      if (Number.isFinite(borderRadius) && supportsBorderRadius && !isMultiSelected) {
+      if (
+        shouldApplyField("borderRadius") &&
+        Number.isFinite(borderRadius) &&
+        supportsBorderRadius &&
+        !isMultiSelected
+      ) {
         object.set({
           rx: borderRadius,
           ry: borderRadius,
         });
       }
-      if (Number.isFinite(opacity) && !isMultiSelected) object.set("opacity", opacity);
-      if (Number.isFinite(angle)) object.set("angle", angle);
-      if (Number.isFinite(strokeWidth) && !isMultiSelected) {
+      if (shouldApplyField("opacity") && Number.isFinite(opacity) && !isMultiSelected) {
+        object.set("opacity", opacity);
+      }
+      if (shouldApplyField("angle") && Number.isFinite(angle)) {
+        object.set("angle", angle);
+      }
+      if (shouldApplyField("strokeWidth") && Number.isFinite(strokeWidth) && !isMultiSelected) {
         object.set("strokeWidth", strokeWidth);
       }
 
-      if (!isMultiSelected && supportsFill) object.set("fill", nextForm.fill.trim());
-      if (!isMultiSelected && supportsStroke) {
+      if (shouldApplyField("fill") && !isMultiSelected && supportsFill) {
+        object.set("fill", nextForm.fill.trim());
+      }
+      if (shouldApplyField("stroke") && !isMultiSelected && supportsStroke) {
         object.set("stroke", nextForm.stroke.trim());
       }
       if (!isMultiSelected && supportsText) {
@@ -560,23 +597,71 @@ export default function CanvasSidePanelDesign() {
       {!transformTargetObject ? (
         <p className="text-xs text-[#8f8f8f]">Select an item to edit properties.</p>
       ) : (
-        <AccordionSection
-          title="Transform"
-          isOpen={openSections.transform}
-          onToggle={() => {
-            toggleSection("transform");
-          }}
-        >
-          <div className="space-y-2.5">
-            <DesignAlignmentControls onAlign={alignSelectionToVideoArea} />
-            {TRANSFORM_FIELD_ROWS.map((row) =>
-              row[0].changedField === "left" || row[0].changedField === "width" ? (
-                <div className="space-y-1.5" key={row[0].changedField}>
-                  <div className="font-[var(--wise-font-ui)] text-[11px] font-medium text-[var(--wise-content-secondary)]">
-                    {row[0].groupLabel}
+        <>
+          {selectedObject instanceof Path &&
+          selectedObject.isPathEditing &&
+          activePathAnchorCommandIndex !== null &&
+          activePathPointMode ? (
+            <section className="space-y-1.5">
+              <div className="font-[var(--wise-font-ui)] text-[11px] font-medium text-[var(--wise-content-secondary)]">
+                Point Type
+              </div>
+              <RadixMenuSelect
+                ariaLabel="Select path point type"
+                options={PATH_POINT_MODE_OPTIONS}
+                triggerClassName="inline-flex h-8 w-full items-center justify-between rounded-[6px] border border-white/10 bg-[var(--wise-surface-raised)] px-2.5 py-1.5 font-[var(--wise-font-ui)] text-[11px] text-white"
+                value={activePathPointMode}
+                onValueChange={(value) => {
+                  if (!(selectedObject instanceof Path) || activePathAnchorCommandIndex === null) {
+                    return;
+                  }
+                  applyPathPointMode(selectedObject, activePathAnchorCommandIndex, value as PathPointMode);
+                }}
+              />
+            </section>
+          ) : null}
+
+          <AccordionSection
+            title="Transform"
+            isOpen={openSections.transform}
+            onToggle={() => {
+              toggleSection("transform");
+            }}
+          >
+            <div className="space-y-2.5">
+              <DesignAlignmentControls onAlign={alignSelectionToVideoArea} />
+              {TRANSFORM_FIELD_ROWS.map((row) =>
+                row[0].changedField === "left" || row[0].changedField === "width" ? (
+                  <div className="space-y-1.5" key={row[0].changedField}>
+                    <div className="font-[var(--wise-font-ui)] text-[11px] font-medium text-[var(--wise-content-secondary)]">
+                      {row[0].groupLabel}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {row.map((field, index) => (
+                        <DesignNumberField
+                          key={field.changedField}
+                          field={field.changedField as NumericScrubField}
+                          groupLabel={field.groupLabel}
+                          inputClassName={field.inputClassName}
+                          inputValue={designForm[field.changedField]}
+                          isKeyframed={hasKeyframeAtPlayhead(field.keyframeField)}
+                          isSecondaryLabel={index > 0}
+                          keyframeLabel={field.keyframeLabel}
+                          onAddKeyframe={() => {
+                            addPropertyKeyframe(field.keyframeField);
+                          }}
+                          onCommitValue={commitNumericField}
+                          prefix={field.prefix}
+                          shapeId={selectedId}
+                          showGroupLabel={false}
+                          showPrefix={false}
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {row.map((field, index) => (
+                ) : (
+                  <div className="grid grid-cols-2 gap-2.5" key={row[0].changedField}>
+                    {row.map((field) => (
                       <DesignNumberField
                         key={field.changedField}
                         field={field.changedField as NumericScrubField}
@@ -584,7 +669,7 @@ export default function CanvasSidePanelDesign() {
                         inputClassName={field.inputClassName}
                         inputValue={designForm[field.changedField]}
                         isKeyframed={hasKeyframeAtPlayhead(field.keyframeField)}
-                        isSecondaryLabel={index > 0}
+                        isSecondaryLabel={false}
                         keyframeLabel={field.keyframeLabel}
                         onAddKeyframe={() => {
                           addPropertyKeyframe(field.keyframeField);
@@ -592,39 +677,16 @@ export default function CanvasSidePanelDesign() {
                         onCommitValue={commitNumericField}
                         prefix={field.prefix}
                         shapeId={selectedId}
-                        showGroupLabel={false}
+                        showGroupLabel
                         showPrefix={false}
                       />
                     ))}
                   </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2.5" key={row[0].changedField}>
-                  {row.map((field) => (
-                    <DesignNumberField
-                      key={field.changedField}
-                      field={field.changedField as NumericScrubField}
-                      groupLabel={field.groupLabel}
-                      inputClassName={field.inputClassName}
-                      inputValue={designForm[field.changedField]}
-                      isKeyframed={hasKeyframeAtPlayhead(field.keyframeField)}
-                      isSecondaryLabel={false}
-                      keyframeLabel={field.keyframeLabel}
-                      onAddKeyframe={() => {
-                        addPropertyKeyframe(field.keyframeField);
-                      }}
-                      onCommitValue={commitNumericField}
-                      prefix={field.prefix}
-                      shapeId={selectedId}
-                      showGroupLabel
-                      showPrefix={false}
-                    />
-                  ))}
-                </div>
-              ),
-            )}
-          </div>
-        </AccordionSection>
+                ),
+              )}
+            </div>
+          </AccordionSection>
+        </>
       )}
 
       {!isMultiSelected && selectedContext.instance && (supportsFill || supportsStroke) ? (

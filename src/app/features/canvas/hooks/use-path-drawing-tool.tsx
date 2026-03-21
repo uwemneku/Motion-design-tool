@@ -86,7 +86,7 @@ export function PathDrawingTool() {
         dispatch(setActiveCanvasTool("select"));
         return;
       }
-      addPathFromData(pathData);
+      addPathFromData(pathData, {}, closePath);
       dispatch(setActiveCanvasTool("select"));
     };
 

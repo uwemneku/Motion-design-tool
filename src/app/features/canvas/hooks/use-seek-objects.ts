@@ -67,11 +67,16 @@ function syncMaskProxyForObject(object: FabricObject) {
   });
   if (maskProxy instanceof Path && maskSource instanceof Path) {
     maskProxy.set({
+      isClosedPath: maskSource.isClosedPath,
+      objectCaching: false,
       path: maskSource.path.map((command) => [...command]),
+      dirty: true,
     });
+    maskProxy.setDimensions();
   }
   maskProxy.set({
     fill: "#000000",
+    objectCaching: false,
     stroke: null,
     strokeWidth: 0,
     opacity: 1,

@@ -6,6 +6,10 @@ import type { AnimatableObject } from "../../shapes/animatable-object/object";
 type MaskSyncContainer = {
   __maskSyncCleanup?: () => void;
   __maskProxyObject?: AnimatableObject["fabricObject"];
+  __maskSourcePreviousEvented?: boolean;
+  __maskSourcePreviousOpacity?: number;
+  __maskSourcePreviousSelectable?: boolean;
+  __maskSourcePreviousVisible?: boolean;
   __maskSourceObject?: AnimatableObject["fabricObject"];
 };
 
@@ -66,11 +70,20 @@ async function applyMaskFromCanvasObject(target: AnimatableObject, source: Anima
   maskProxy.set("visible", false);
   maskProxy.set("evented", false);
   setMaskProxy(target, maskProxy, source.fabricObject);
+  const maskSourceState = source.fabricObject as MaskSyncContainer;
+  if (typeof maskSourceState.__maskSourcePreviousOpacity !== "number") {
+    maskSourceState.__maskSourcePreviousOpacity = source.fabricObject.opacity ?? 1;
+    maskSourceState.__maskSourcePreviousVisible = source.fabricObject.visible ?? true;
+    maskSourceState.__maskSourcePreviousEvented = source.fabricObject.evented ?? true;
+    maskSourceState.__maskSourcePreviousSelectable = source.fabricObject.selectable ?? true;
+  }
   source.fabricObject.isMaskSource = true;
   source.fabricObject.set({
+    evented: true,
     isMaskSource: true,
-    visible: false,
-    evented: false,
+    opacity: 0,
+    selectable: true,
+    visible: true,
   });
 
   target.fabricObject.set("clipPath", maskProxy);
@@ -144,10 +157,19 @@ function readMaskSourceObject(instance: AnimatableObject) {
 function restoreMaskSourceObject(sourceObject?: AnimatableObject["fabricObject"]) {
   // Only restore source visibility flags; never re-add clip proxies to canvas.
   if (!sourceObject) return;
+  const maskSourceState = sourceObject as MaskSyncContainer;
   sourceObject.isMaskSource = false;
-  sourceObject.set("isMaskSource", false);
-  sourceObject.set("visible", true);
-  sourceObject.set("evented", true);
+  sourceObject.set({
+    evented: maskSourceState.__maskSourcePreviousEvented ?? true,
+    isMaskSource: false,
+    opacity: maskSourceState.__maskSourcePreviousOpacity ?? 1,
+    selectable: maskSourceState.__maskSourcePreviousSelectable ?? true,
+    visible: maskSourceState.__maskSourcePreviousVisible ?? true,
+  });
+  delete maskSourceState.__maskSourcePreviousEvented;
+  delete maskSourceState.__maskSourcePreviousOpacity;
+  delete maskSourceState.__maskSourcePreviousSelectable;
+  delete maskSourceState.__maskSourcePreviousVisible;
   sourceObject.setCoords();
 }
 
@@ -171,8 +193,12 @@ function syncMaskProxyFromSource(
   });
   if (proxyObject instanceof Path && sourceObject instanceof Path) {
     proxyObject.set({
+      isClosedPath: sourceObject.isClosedPath,
+      objectCaching: false,
       path: sourceObject.path.map((command) => [...command]),
+      dirty: true,
     });
+    proxyObject.setDimensions();
   }
   proxyObject.setCoords();
 }
@@ -181,6 +207,7 @@ function configureMaskProxy(proxyObject: AnimatableObject["fabricObject"]) {
   // Clip paths should use only their silhouette, never their visual stroke styling.
   proxyObject.set({
     fill: "#000000",
+    objectCaching: false,
     stroke: null,
     strokeWidth: 0,
     opacity: 1,

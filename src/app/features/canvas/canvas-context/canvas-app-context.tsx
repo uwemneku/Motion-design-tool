@@ -104,7 +104,10 @@ export function CanvasAppProvider({ children }: PropsWithChildren) {
           const shouldEdit = object === targetPath;
           if (object.isPathEditing === shouldEdit) return;
           object.isPathEditing = shouldEdit;
-          object.set("isPathEditing", shouldEdit);
+          object.set({
+            activePathAnchorCommandIndex: null,
+            isPathEditing: shouldEdit,
+          });
           refreshObjectControls(object);
           object.canvas?.requestRenderAll();
         });
@@ -153,9 +156,11 @@ export function CanvasAppProvider({ children }: PropsWithChildren) {
           const instance = getInstanceById(customId);
           if (!instance) return;
 
+          const isPathEditing =
+            instance.fabricObject instanceof Path && instance.fabricObject.isPathEditing;
           const snapshot = instance.getSnapshot();
           const action = transformActionById.get(customId);
-          const changedProperties = getPropertiesForTransformAction(action);
+          const changedProperties = isPathEditing ? [] : getPropertiesForTransformAction(action);
           let wroteAnyKeyframe = false;
 
           changedProperties.forEach((property) => {

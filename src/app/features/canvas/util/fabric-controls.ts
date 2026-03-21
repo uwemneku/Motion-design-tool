@@ -9,7 +9,11 @@ const EDGE_CONTROL_TOUCH_LENGTH = 26;
 const EDGE_CONTROL_TOUCH_THICKNESS = 18;
 const MIN_EDGE_SPAN = 12;
 const SELECTION_PADDING = 6;
+const ACTIVE_PATH_POINT_COLOR = "#f97316";
 const PATH_CONTROL_DEEP_BLUE = "#1d4ed8";
+
+export type PathPointMode = "independent" | "mirrored" | "sharp";
+const DEFAULT_PATH_POINT_MODE: PathPointMode = "mirrored";
 
 /** Measures the rendered gap between the corner controls for one axis. */
 function getEdgeSpan(object: FabricObject, startKey: "tl" | "tr", endKey: "tr" | "bl") {
@@ -181,36 +185,75 @@ function syncPathControls(object: FabricObject) {
   });
 }
 
-/** Wraps cubic path-handle controls so opposite handles remain true reflections. */
+/** Wraps path controls so mirrored handles and closed-path endpoints stay in sync. */
 function createMirroredPathControls(controls: Record<string, Control>) {
   return Object.fromEntries(
     Object.entries(controls).map(([key, control]) => {
-      if (!key.includes("_C_CP_")) {
-        return [key, control];
-      }
-
       const baseActionHandler = control.actionHandler;
-      if (!baseActionHandler) {
-        return [key, control];
-      }
-
       return [
         key,
         new Control({
           ...control,
+          getVisibility(fabricObject, controlKey) {
+            if (!(fabricObject instanceof Path) || !controlKey.includes("_C_CP_")) {
+              return control.getVisibility?.(fabricObject, controlKey) ?? true;
+            }
+
+            const anchorCommandIndex = getAnchorCommandIndexForControl(fabricObject, controlKey);
+            if (anchorCommandIndex === null) return false;
+
+            return (
+              fabricObject.activePathAnchorCommandIndex === anchorCommandIndex &&
+              getPathPointMode(fabricObject, anchorCommandIndex) !== "sharp"
+            );
+          },
+          mouseDownHandler(eventData, transform, x, y) {
+            if (transform.target instanceof Path) {
+              setActivePathAnchorForControl(transform.target, key);
+            }
+            return control.mouseDownHandler?.call(this, eventData, transform, x, y) ?? false;
+          },
           render(ctx, left, top, styleOverride, fabricObject) {
             if (fabricObject instanceof Path) {
+              if (isActivePathAnchorControl(fabricObject, key) && !key.includes("_CP_")) {
+                renderActivePathAnchor(ctx, left, top, this, fabricObject);
+                return;
+              }
               renderMirroredHandleGuide(ctx, fabricObject, key);
             }
             control.render?.call(this, ctx, left, top, styleOverride, fabricObject);
           },
           actionHandler(eventData, transform, x, y) {
+            if (!baseActionHandler) {
+              return false;
+            }
+            const beforeAnchorPoint =
+              transform.target instanceof Path
+                ? readAnchorPointForControl(transform.target, key)
+                : null;
+            const anchorDescriptor =
+              transform.target instanceof Path
+                ? getAnchorDescriptorForControl(transform.target, key)
+                : null;
             const didChange = baseActionHandler.call(this, eventData, transform, x, y);
             if (!didChange || !(transform.target instanceof Path)) {
               return didChange;
             }
 
-            syncMirroredBezierHandle(transform.target, key);
+            setActivePathAnchorForControl(transform.target, key);
+            const activeAnchorCommandIndex = getAnchorCommandIndexForControl(transform.target, key);
+            const pointMode =
+              activeAnchorCommandIndex === null
+                ? DEFAULT_PATH_POINT_MODE
+                : getPathPointMode(transform.target, activeAnchorCommandIndex);
+
+            if (key.includes("_C_CP_") && pointMode === "mirrored") {
+              syncMirroredBezierHandle(transform.target, key);
+            } else {
+              moveAttachedHandlesWithAnchor(transform.target, key, beforeAnchorPoint);
+            }
+            syncClosedPathEndpoint(transform.target, key);
+            refreshPathBounds(transform.target, anchorDescriptor);
             return didChange;
           },
         }),
@@ -225,6 +268,7 @@ function renderMirroredHandleGuide(ctx: CanvasRenderingContext2D, path: Path, co
 
   const pair = getMirroredHandlePair(path, controlKey);
   if (!pair) return;
+  if (getPathPointMode(path, pair.active.anchorCommandIndex) !== "mirrored") return;
 
   const activeHandle = getPathPointScreenPosition(
     path,
@@ -294,19 +338,22 @@ function getMirroredHandlePair(path: Path, controlKey: string) {
     if (previousCommandIndex === null || path.path[previousCommandIndex]?.[0] !== "C") {
       return null;
     }
+    const anchorCommandIndex = resolveAnchorCommandIndex(path, previousCommandIndex, commandIndex, 1);
 
     return {
       active: {
         commandIndex,
         pointIndex: 1,
-        anchorCommandIndex: previousCommandIndex,
-        anchorPointIndex: getEndpointPointIndex(path.path[previousCommandIndex]),
+        anchorCommandIndex,
+        anchorPointIndex:
+          anchorCommandIndex === 0 ? 1 : getEndpointPointIndex(path.path[previousCommandIndex]),
       },
       opposite: {
         commandIndex: previousCommandIndex,
         pointIndex: 3,
-        anchorCommandIndex: previousCommandIndex,
-        anchorPointIndex: getEndpointPointIndex(path.path[previousCommandIndex]),
+        anchorCommandIndex,
+        anchorPointIndex:
+          anchorCommandIndex === 0 ? 1 : getEndpointPointIndex(path.path[previousCommandIndex]),
       },
     };
   }
@@ -315,19 +362,20 @@ function getMirroredHandlePair(path: Path, controlKey: string) {
   if (nextCommandIndex === null || path.path[nextCommandIndex]?.[0] !== "C") {
     return null;
   }
+  const anchorCommandIndex = resolveAnchorCommandIndex(path, commandIndex, nextCommandIndex, 2);
 
   return {
     active: {
       commandIndex,
       pointIndex: 3,
-      anchorCommandIndex: commandIndex,
-      anchorPointIndex: getEndpointPointIndex(path.path[commandIndex]),
+      anchorCommandIndex,
+      anchorPointIndex: anchorCommandIndex === 0 ? 1 : getEndpointPointIndex(path.path[commandIndex]),
     },
     opposite: {
       commandIndex: nextCommandIndex,
       pointIndex: 1,
-      anchorCommandIndex: commandIndex,
-      anchorPointIndex: getEndpointPointIndex(path.path[commandIndex]),
+      anchorCommandIndex,
+      anchorPointIndex: anchorCommandIndex === 0 ? 1 : getEndpointPointIndex(path.path[commandIndex]),
     },
   };
 }
@@ -416,6 +464,10 @@ function getClosingCommandIndex(path: Path) {
     return null;
   }
 
+  if (path.isClosedPath) {
+    return path.path.length - 1;
+  }
+
   const lastPointIndex = getEndpointPointIndex(lastCommand);
   const isClosingToStart =
     Math.abs(Number(lastCommand[lastPointIndex]) - Number(firstCommand[1])) <= 0.001 &&
@@ -426,6 +478,371 @@ function getClosingCommandIndex(path: Path) {
 
 function getFirstSegmentCommandIndex(path: Path) {
   return path.path.length > 1 ? 1 : 0;
+}
+
+function getPathPointModes(path: Path) {
+  if (!path.pathPointModes) {
+    path.pathPointModes = {};
+    path.set("pathPointModes", {});
+  }
+  return path.pathPointModes;
+}
+
+function isActivePathAnchorControl(path: Path, controlKey: string) {
+  const anchorCommandIndex = getAnchorCommandIndexForControl(path, controlKey);
+  return (
+    anchorCommandIndex !== null &&
+    Number.isInteger(path.activePathAnchorCommandIndex) &&
+    Number(path.activePathAnchorCommandIndex) === anchorCommandIndex
+  );
+}
+
+function renderActivePathAnchor(
+  ctx: CanvasRenderingContext2D,
+  left: number,
+  top: number,
+  control: Partial<Control>,
+  fabricObject: FabricObject,
+) {
+  const size = control.sizeX ?? fabricObject.cornerSize ?? 8;
+  const strokeWidth = 2;
+  const half = size / 2;
+
+  ctx.save();
+  ctx.fillStyle = ACTIVE_PATH_POINT_COLOR;
+  ctx.strokeStyle = ACTIVE_PATH_POINT_COLOR;
+  ctx.lineWidth = strokeWidth;
+  ctx.beginPath();
+  ctx.rect(left - half, top - half, size, size);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+export function getPathPointMode(path: Path, anchorCommandIndex: number): PathPointMode {
+  return getPathPointModes(path)[String(anchorCommandIndex)] ?? DEFAULT_PATH_POINT_MODE;
+}
+
+function setPathPointMode(path: Path, anchorCommandIndex: number, mode: PathPointMode) {
+  const nextModes = {
+    ...getPathPointModes(path),
+    [String(anchorCommandIndex)]: mode,
+  };
+  path.pathPointModes = nextModes;
+  path.set("pathPointModes", nextModes);
+}
+
+function setActivePathAnchorForControl(path: Path, controlKey: string) {
+  const anchorCommandIndex = getAnchorCommandIndexForControl(path, controlKey);
+  if (anchorCommandIndex === null) return;
+  path.activePathAnchorCommandIndex = anchorCommandIndex;
+  path.set("activePathAnchorCommandIndex", anchorCommandIndex);
+  refreshObjectControls(path);
+  path.canvas?.requestRenderAll();
+}
+
+function getAnchorCommandIndexForControl(path: Path, controlKey: string) {
+  if (controlKey === "c_0_M") {
+    return 0;
+  }
+
+  const pointMatch = /^c_(\d+)_C$/.exec(controlKey);
+  if (pointMatch) {
+    const commandIndex = Number(pointMatch[1]);
+    return Number.isInteger(commandIndex) ? commandIndex : null;
+  }
+
+  const handleMatch = /^c_(\d+)_C_CP_(1|2)$/.exec(controlKey);
+  if (!handleMatch) return null;
+
+  const commandIndex = Number(handleMatch[1]);
+  const handleNumber = Number(handleMatch[2]) as 1 | 2;
+  if (!Number.isInteger(commandIndex)) return null;
+  if (handleNumber === 2) return commandIndex;
+
+  const previousCommandIndex = getPreviousDrawableCommandIndex(path, commandIndex);
+  if (previousCommandIndex === null) return null;
+  return resolveAnchorCommandIndex(path, previousCommandIndex, commandIndex, handleNumber);
+}
+
+function resolveAnchorCommandIndex(
+  path: Path,
+  previousCommandIndex: number,
+  commandIndex: number,
+  handleNumber: 1 | 2,
+) {
+  const closingCommandIndex = getClosingCommandIndex(path);
+  const firstSegmentCommandIndex = getFirstSegmentCommandIndex(path);
+
+  if (handleNumber === 1) {
+    if (closingCommandIndex !== null && commandIndex === firstSegmentCommandIndex) {
+      return 0;
+    }
+    return previousCommandIndex;
+  }
+
+  if (closingCommandIndex !== null && commandIndex === closingCommandIndex) {
+    return 0;
+  }
+
+  return commandIndex;
+}
+
+/** Reads the anchor point affected by a path control before or after a drag. */
+function readAnchorPointForControl(path: Path, controlKey: string) {
+  const descriptor = getAnchorDescriptorForControl(path, controlKey);
+  if (!descriptor) return null;
+  return readPathPoint(path, descriptor.commandIndex, descriptor.pointIndex);
+}
+
+function getAnchorDescriptorForControl(path: Path, controlKey: string) {
+  const moveMatch = /^c_(\d+)_(M|C)$/.exec(controlKey);
+  if (!moveMatch) return null;
+
+  const commandIndex = Number(moveMatch[1]);
+  const commandType = moveMatch[2];
+  if (!Number.isInteger(commandIndex)) return null;
+
+  if (commandType === "M") {
+    return {
+      commandIndex,
+      pointIndex: 1,
+    };
+  }
+
+  const command = path.path[commandIndex];
+  if (!command || command[0] !== "C") return null;
+
+  return {
+    commandIndex,
+    pointIndex: getEndpointPointIndex(command),
+  };
+}
+
+/** Moves the incoming and outgoing handles with their anchor so tangents stay aligned. */
+function moveAttachedHandlesWithAnchor(
+  path: Path,
+  controlKey: string,
+  beforeAnchorPoint: Point | null,
+) {
+  if (!beforeAnchorPoint) return;
+
+  const anchorDescriptor = getAnchorDescriptorForControl(path, controlKey);
+  if (!anchorDescriptor) return;
+
+  const afterAnchorPoint = readPathPoint(path, anchorDescriptor.commandIndex, anchorDescriptor.pointIndex);
+  const delta = afterAnchorPoint.subtract(beforeAnchorPoint);
+  if (Math.abs(delta.x) <= 0.0001 && Math.abs(delta.y) <= 0.0001) return;
+
+  const incomingHandle = getIncomingHandleForAnchor(path, anchorDescriptor.commandIndex);
+  if (incomingHandle) {
+    const point = readPathPoint(path, incomingHandle.commandIndex, incomingHandle.pointIndex).add(delta);
+    const command = path.path[incomingHandle.commandIndex];
+    command[incomingHandle.pointIndex] = point.x;
+    command[incomingHandle.pointIndex + 1] = point.y;
+  }
+
+  const outgoingHandle = getOutgoingHandleForAnchor(path, anchorDescriptor.commandIndex);
+  if (outgoingHandle) {
+    const point = readPathPoint(path, outgoingHandle.commandIndex, outgoingHandle.pointIndex).add(delta);
+    const command = path.path[outgoingHandle.commandIndex];
+    command[outgoingHandle.pointIndex] = point.x;
+    command[outgoingHandle.pointIndex + 1] = point.y;
+  }
+}
+
+function getIncomingHandleForAnchor(path: Path, anchorCommandIndex: number) {
+  if (anchorCommandIndex === 0) {
+    const closingCommandIndex = getClosingCommandIndex(path);
+    if (closingCommandIndex === null) return null;
+    const closingCommand = path.path[closingCommandIndex];
+    if (!closingCommand || closingCommand[0] !== "C") return null;
+    return {
+      commandIndex: closingCommandIndex,
+      pointIndex: 3,
+    };
+  }
+
+  const command = path.path[anchorCommandIndex];
+  if (!command || command[0] !== "C") return null;
+  return {
+    commandIndex: anchorCommandIndex,
+    pointIndex: 3,
+  };
+}
+
+function getOutgoingHandleForAnchor(path: Path, anchorCommandIndex: number) {
+  const nextCommandIndex =
+    anchorCommandIndex === 0 ? getFirstSegmentCommandIndex(path) : getNextDrawableCommandIndex(path, anchorCommandIndex);
+  if (nextCommandIndex === null) return null;
+
+  const nextCommand = path.path[nextCommandIndex];
+  if (!nextCommand || nextCommand[0] !== "C") return null;
+  return {
+    commandIndex: nextCommandIndex,
+    pointIndex: 1,
+  };
+}
+
+export function applyPathPointMode(path: Path, anchorCommandIndex: number, mode: PathPointMode) {
+  setPathPointMode(path, anchorCommandIndex, mode);
+  path.activePathAnchorCommandIndex = anchorCommandIndex;
+  path.set("activePathAnchorCommandIndex", anchorCommandIndex);
+
+  const anchorDescriptor =
+    anchorCommandIndex === 0
+      ? { commandIndex: 0, pointIndex: 1 }
+      : {
+          commandIndex: anchorCommandIndex,
+          pointIndex: getEndpointPointIndex(path.path[anchorCommandIndex]),
+        };
+  const anchorPoint = readPathPoint(path, anchorDescriptor.commandIndex, anchorDescriptor.pointIndex);
+
+  if (mode === "sharp") {
+    const incomingHandle = getIncomingHandleForAnchor(path, anchorCommandIndex);
+    if (incomingHandle) {
+      const command = path.path[incomingHandle.commandIndex];
+      command[incomingHandle.pointIndex] = anchorPoint.x;
+      command[incomingHandle.pointIndex + 1] = anchorPoint.y;
+    }
+    const outgoingHandle = getOutgoingHandleForAnchor(path, anchorCommandIndex);
+    if (outgoingHandle) {
+      const command = path.path[outgoingHandle.commandIndex];
+      command[outgoingHandle.pointIndex] = anchorPoint.x;
+      command[outgoingHandle.pointIndex + 1] = anchorPoint.y;
+    }
+    syncClosedPathEndpoint(path, "c_0_M");
+    refreshPathBounds(path, anchorDescriptor);
+  } else {
+    ensureVisibleHandlesForAnchor(path, anchorCommandIndex, anchorPoint, mode);
+  }
+
+  refreshObjectControls(path);
+  path.fire("my:custom:seek", {
+    target: path,
+  });
+  path.canvas?.requestRenderAll();
+}
+
+export function getPathAnchorScreenPosition(path: Path, anchorCommandIndex: number) {
+  if (anchorCommandIndex === 0) {
+    return getPathPointScreenPosition(path, 0, 1);
+  }
+
+  const command = path.path[anchorCommandIndex];
+  if (!command) return null;
+  return getPathPointScreenPosition(path, anchorCommandIndex, getEndpointPointIndex(command));
+}
+
+function ensureVisibleHandlesForAnchor(
+  path: Path,
+  anchorCommandIndex: number,
+  anchorPoint: Point,
+  mode: PathPointMode,
+) {
+  const incomingHandle = getIncomingHandleForAnchor(path, anchorCommandIndex);
+  const outgoingHandle = getOutgoingHandleForAnchor(path, anchorCommandIndex);
+  if (!incomingHandle || !outgoingHandle) return;
+
+  const incomingPoint = readPathPoint(path, incomingHandle.commandIndex, incomingHandle.pointIndex);
+  const outgoingPoint = readPathPoint(path, outgoingHandle.commandIndex, outgoingHandle.pointIndex);
+  const incomingOffset = incomingPoint.subtract(anchorPoint);
+  const outgoingOffset = outgoingPoint.subtract(anchorPoint);
+  const incomingDistance = Math.hypot(incomingOffset.x, incomingOffset.y);
+  const outgoingDistance = Math.hypot(outgoingOffset.x, outgoingOffset.y);
+  const defaultDistance = 56;
+
+  const setHandlePoint = (
+    handle: { commandIndex: number; pointIndex: number },
+    point: Point,
+  ) => {
+    const command = path.path[handle.commandIndex];
+    command[handle.pointIndex] = point.x;
+    command[handle.pointIndex + 1] = point.y;
+  };
+
+  if (incomingDistance <= 0.001 && outgoingDistance <= 0.001) {
+    setHandlePoint(outgoingHandle, new Point(anchorPoint.x + defaultDistance, anchorPoint.y));
+    setHandlePoint(incomingHandle, new Point(anchorPoint.x - defaultDistance, anchorPoint.y));
+  } else if (incomingDistance <= 0.001) {
+    const sourceVector =
+      outgoingDistance <= 0.001
+        ? new Point(defaultDistance, 0)
+        : new Point(
+            (-outgoingOffset.x / outgoingDistance) * defaultDistance,
+            (-outgoingOffset.y / outgoingDistance) * defaultDistance,
+          );
+    setHandlePoint(incomingHandle, anchorPoint.add(sourceVector));
+  } else if (outgoingDistance <= 0.001) {
+    const sourceVector =
+      incomingDistance <= 0.001
+        ? new Point(defaultDistance, 0)
+        : new Point(
+            (-incomingOffset.x / incomingDistance) * defaultDistance,
+            (-incomingOffset.y / incomingDistance) * defaultDistance,
+          );
+    setHandlePoint(outgoingHandle, anchorPoint.add(sourceVector));
+  }
+
+  if (mode === "mirrored") {
+    const nextOutgoingPoint = readPathPoint(path, outgoingHandle.commandIndex, outgoingHandle.pointIndex);
+    const mirroredIncomingPoint = new Point(
+      anchorPoint.x - (nextOutgoingPoint.x - anchorPoint.x),
+      anchorPoint.y - (nextOutgoingPoint.y - anchorPoint.y),
+    );
+    setHandlePoint(incomingHandle, mirroredIncomingPoint);
+  }
+
+  syncClosedPathEndpoint(path, "c_0_M");
+  refreshPathBounds(path, anchorCommandIndex === 0 ? { commandIndex: 0, pointIndex: 1 } : {
+    commandIndex: anchorCommandIndex,
+    pointIndex: getEndpointPointIndex(path.path[anchorCommandIndex]),
+  });
+}
+
+/** Keeps the synthetic closing endpoint attached to the moved start anchor of a closed path. */
+function syncClosedPathEndpoint(path: Path, controlKey: string) {
+  if (controlKey !== "c_0_M") return;
+
+  const closingCommandIndex = getClosingCommandIndex(path);
+  const firstCommand = path.path[0];
+  const closingCommand = closingCommandIndex === null ? null : path.path[closingCommandIndex];
+  if (!firstCommand || firstCommand[0] !== "M" || !closingCommand) return;
+
+  const endpointPointIndex = getEndpointPointIndex(closingCommand);
+  closingCommand[endpointPointIndex] = Number(firstCommand[1]);
+  closingCommand[endpointPointIndex + 1] = Number(firstCommand[2]);
+}
+
+/** Recomputes path bounds after point editing so the selection outline stays aligned. */
+function refreshPathBounds(
+  path: Path,
+  anchorDescriptor: { commandIndex: number; pointIndex: number } | null,
+) {
+  const anchorPointInParentPlane = anchorDescriptor
+    ? readPathPoint(path, anchorDescriptor.commandIndex, anchorDescriptor.pointIndex)
+        .subtract(path.pathOffset)
+        .transform(path.calcOwnMatrix())
+    : null;
+
+  path.setDimensions();
+  if (anchorDescriptor && anchorPointInParentPlane) {
+    const nextAnchorPointInParentPlane = readPathPoint(
+      path,
+      anchorDescriptor.commandIndex,
+      anchorDescriptor.pointIndex,
+    )
+      .subtract(path.pathOffset)
+      .transform(path.calcOwnMatrix());
+    const diff = nextAnchorPointInParentPlane.subtract(anchorPointInParentPlane);
+    path.left -= diff.x;
+    path.top -= diff.y;
+  }
+  path.set({
+    dirty: true,
+  });
+  path.setCoords();
+  path.canvas?.requestRenderAll();
 }
 
 function setPathPointWithAnchorPreserved(
@@ -465,20 +882,26 @@ function setPathPointWithAnchorPreserved(
 
 /** Applies the app's simplified selection styling to one Fabric object. */
 function styleObjectControls(object: FabricObject) {
+  const isPathEditMode = object instanceof Path && object.isPathEditing;
+
   object.set({
     borderColor: FIGMA_BLUE,
     borderScaleFactor: 1,
+    borderOpacityWhenMoving: isPathEditMode ? 0 : 1,
     cornerColor: "#ffffff",
     cornerStrokeColor: FIGMA_BLUE,
     cornerStyle: "rect",
     cornerSize: 9,
+    hasBorders: !isPathEditMode,
+    lockMovementX: isPathEditMode,
+    lockMovementY: isPathEditMode,
     transparentCorners: false,
     padding: SELECTION_PADDING,
   });
   syncEdgeControlSizes(object);
   syncPathControls(object);
 
-  if (object instanceof Path && object.isPathEditing) {
+  if (isPathEditMode) {
     object.setControlsVisibility({
       bl: false,
       br: false,

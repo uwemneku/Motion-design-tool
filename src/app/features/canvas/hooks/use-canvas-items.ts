@@ -722,11 +722,16 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
   };
 
   /** Adds a new path directly from SVG path data produced by the pen tool. */
-  const addPathFromData = (pathData: string, options: AddItemOptions = {}) => {
+  const addPathFromData = (
+    pathData: string,
+    options: AddItemOptions = {},
+    isClosedPath = false,
+  ) => {
     if (!pathData.trim()) return null;
 
     const path = new PathObject(pathData, {
       fill: "",
+      isClosedPath,
       originX: "center",
       originY: "center",
       stroke: options.color ?? "#ffffff",
