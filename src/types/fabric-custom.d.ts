@@ -9,6 +9,7 @@ declare module "fabric" {
   interface FabricObject {
     customId?: string;
     isMaskSource?: boolean;
+    isPathEditing?: boolean;
   }
 
   interface ObjectEvents {
@@ -23,6 +24,7 @@ declare module "fabric" {
   interface SerializedObjectProps {
     customId?: string;
     isMaskSource?: boolean;
+    isPathEditing?: boolean;
   }
 }
 

@@ -1,4 +1,5 @@
 /** Masking Util.Ts module implementation. */
+import { Path } from "fabric";
 import { MASK_SYNC_EVENTS, NONE_MASK_SOURCE_ID } from "../../../../const";
 import type { AnimatableObject } from "../../shapes/animatable-object/object";
 
@@ -16,8 +17,7 @@ export function readMaskSourceId(instance?: AnimatableObject): string {
   if (!clipPath) return NONE_MASK_SOURCE_ID;
 
   const sourceId =
-    "customId" in clipPath &&
-    typeof (clipPath as { customId?: unknown }).customId === "string"
+    "customId" in clipPath && typeof (clipPath as { customId?: unknown }).customId === "string"
       ? (clipPath as { customId: string }).customId
       : undefined;
   if (sourceId && sourceId.length > 0) return sourceId;
@@ -48,10 +48,7 @@ function clearMaskFromObject(instance: AnimatableObject) {
   instance.fabricObject.canvas?.requestRenderAll();
 }
 
-async function applyMaskFromCanvasObject(
-  target: AnimatableObject,
-  source: AnimatableObject,
-) {
+async function applyMaskFromCanvasObject(target: AnimatableObject, source: AnimatableObject) {
   // Create a dedicated clipPath proxy and sync it with source transform updates.
   clearMaskSync(target);
   clearMaskProxy(target);
@@ -63,13 +60,18 @@ async function applyMaskFromCanvasObject(
     maskProxy.set("customId", sourceCustomId);
   }
 
+  configureMaskProxy(maskProxy);
   syncMaskProxyFromSource(maskProxy, source.fabricObject);
   maskProxy.set("absolutePositioned", true);
   maskProxy.set("visible", false);
   maskProxy.set("evented", false);
   setMaskProxy(target, maskProxy, source.fabricObject);
   source.fabricObject.isMaskSource = true;
-  source.fabricObject.set("isMaskSource", true);
+  source.fabricObject.set({
+    isMaskSource: true,
+    visible: false,
+    evented: false,
+  });
 
   target.fabricObject.set("clipPath", maskProxy);
   target.fabricObject.set("dirty", true);
@@ -139,9 +141,7 @@ function readMaskSourceObject(instance: AnimatableObject) {
   return objectWithCleanup.__maskSourceObject;
 }
 
-function restoreMaskSourceObject(
-  sourceObject?: AnimatableObject["fabricObject"],
-) {
+function restoreMaskSourceObject(sourceObject?: AnimatableObject["fabricObject"]) {
   // Only restore source visibility flags; never re-add clip proxies to canvas.
   if (!sourceObject) return;
   sourceObject.isMaskSource = false;
@@ -169,5 +169,21 @@ function syncMaskProxyFromSource(
     originX: sourceObject.originX,
     originY: sourceObject.originY,
   });
+  if (proxyObject instanceof Path && sourceObject instanceof Path) {
+    proxyObject.set({
+      path: sourceObject.path.map((command) => [...command]),
+    });
+  }
   proxyObject.setCoords();
+}
+
+function configureMaskProxy(proxyObject: AnimatableObject["fabricObject"]) {
+  // Clip paths should use only their silhouette, never their visual stroke styling.
+  proxyObject.set({
+    fill: "#000000",
+    stroke: null,
+    strokeWidth: 0,
+    opacity: 1,
+    shadow: null,
+  });
 }

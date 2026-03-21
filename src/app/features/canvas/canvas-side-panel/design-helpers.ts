@@ -18,7 +18,7 @@ export type NumericFieldKey =
   | "letterSpacing"
   | "lineHeight";
 export type NumericKeyframeField = keyof NumericAnimatableProperties;
-export type SupportedKeyframeField = keyof AnimatableProperties;
+export type SupportedKeyframeField = Exclude<keyof AnimatableProperties, "pathData">;
 
 export type HorizontalAlignment = "left" | "center" | "right";
 export type VerticalAlignment = "bottom" | "middle" | "top";

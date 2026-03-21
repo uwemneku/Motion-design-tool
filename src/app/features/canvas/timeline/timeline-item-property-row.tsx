@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import {
-  CANVAS_KEYFRAME_EPSILON,
-  KEYFRAME_SECTION_HORIZONTAL_PADDING,
-} from "../../../../const";
+import { CANVAS_KEYFRAME_EPSILON, KEYFRAME_SECTION_HORIZONTAL_PADDING } from "../../../../const";
 import { useAppDispatch, useAppSelector } from "../../../store";
 import {
   setPlayheadTime,
@@ -11,10 +8,7 @@ import {
   upsertItemRecord,
 } from "../../../store/editor-slice";
 import type { AnimatableObject } from "../../shapes/animatable-object/object";
-import type {
-  ColorKeyframe,
-  Keyframe,
-} from "../../shapes/animatable-object/types";
+import type { ColorKeyframe, Keyframe, PathKeyframe } from "../../shapes/animatable-object/types";
 import { rgbaBytesToCss } from "../../shapes/animatable-object/util";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 
@@ -40,7 +34,7 @@ type TimelineItemPropertyRowProps = {
   itemId: string;
   label: string;
   property: string;
-  valueType: "color" | "number";
+  valueType: "color" | "number" | "path";
   timelineDuration: number;
 };
 
@@ -60,12 +54,8 @@ export function TimelineItemPropertyRow({
   const { getObjectById } = useCanvasAppContext();
   const dragStateRef = useRef<DragState | null>(null);
   const suppressClickRef = useRef(false);
-  const itemRecord = useAppSelector(
-    (state) => state.editor.itemsRecord[itemId] ?? null,
-  );
-  const selectedKeyframe = useAppSelector(
-    (state) => state.editor.selectedKeyframe,
-  );
+  const itemRecord = useAppSelector((state) => state.editor.itemsRecord[itemId] ?? null);
+  const selectedKeyframes = useAppSelector((state) => state.editor.selectedKeyframes);
   const entries = getDetailEntries({
     getObjectById,
     itemId,
@@ -113,23 +103,14 @@ export function TimelineItemPropertyRow({
       const trackStyles = window.getComputedStyle(dragState.trackElement);
       const paddingLeft = Number.parseFloat(trackStyles.paddingLeft) || 0;
       const paddingRight = Number.parseFloat(trackStyles.paddingRight) || 0;
-      const trackWidth = Math.max(
-        0,
-        trackBounds.width - paddingLeft - paddingRight,
-      );
+      const trackWidth = Math.max(0, trackBounds.width - paddingLeft - paddingRight);
       if (trackWidth <= 0) return;
 
       event.preventDefault();
       autoScrollTimelineViewport(dragState.viewportElement, event.clientX);
 
-      const nextX = clamp(
-        event.clientX - trackBounds.left - paddingLeft,
-        0,
-        trackWidth,
-      );
-      const nextTime = Number(
-        ((nextX / trackWidth) * timelineDuration).toFixed(3),
-      );
+      const nextX = clamp(event.clientX - trackBounds.left - paddingLeft, 0, trackWidth);
+      const nextTime = Number(((nextX / trackWidth) * timelineDuration).toFixed(3));
       if (Math.abs(nextTime - dragState.time) <= CANVAS_KEYFRAME_EPSILON) {
         return;
       }
@@ -146,12 +127,10 @@ export function TimelineItemPropertyRow({
           id: itemId,
           value: {
             ...itemRecord,
-            keyframe: instance
-              .getTimelineMarkers()
-              .map((marker) => ({
-                id: marker.id,
-                timestamp: marker.time,
-              })),
+            keyframe: instance.getTimelineMarkers().map((marker) => ({
+              id: marker.id,
+              timestamp: marker.time,
+            })),
           },
         }),
       );
@@ -184,14 +163,7 @@ export function TimelineItemPropertyRow({
       window.removeEventListener("mousemove", handlePointerMove);
       window.removeEventListener("mouseup", handlePointerUp);
     };
-  }, [
-    dispatch,
-    getObjectById,
-    itemId,
-    itemRecord,
-    seekToTime,
-    timelineDuration,
-  ]);
+  }, [dispatch, getObjectById, itemId, itemRecord, seekToTime, timelineDuration]);
 
   const minimumKeyframesToHideRows = [""].includes(property) ? 0 : 2;
 
@@ -210,7 +182,10 @@ export function TimelineItemPropertyRow({
         }}
       >
         <div
-          className="relative h-6 rounded border border-[var(--wise-border)]"
+          className="timeline-keyframe-track relative h-6 rounded border border-[var(--wise-border)]"
+          data-timeline-item-id={itemId}
+          data-timeline-keyframe-track="true"
+          data-timeline-property={property}
           style={{
             background:
               "repeating-linear-gradient(45deg, #2c2c2c, #2c2c2c 16px, #1f1f1f 16px, #1f1f1f 32px)",
@@ -218,9 +193,11 @@ export function TimelineItemPropertyRow({
         >
           {entries.map((entry, index) => {
             const left = clamp((entry.time / timelineDuration) * 100, 0, 100);
-            const isSelectedEntry =
-              selectedKeyframe?.itemId === itemId &&
-              selectedKeyframe.keyframeId === entry.keyframeId;
+            const isSelectedEntry = selectedKeyframes.some(
+              (selectedKeyframe) =>
+                selectedKeyframe.itemId === itemId &&
+                selectedKeyframe.keyframeId === entry.keyframeId,
+            );
             const isLockedAtStart = entry.time <= CANVAS_KEYFRAME_EPSILON;
 
             return (
@@ -233,6 +210,11 @@ export function TimelineItemPropertyRow({
                     : "size-2 border-[#e5e7eb] bg-[var(--wise-accent)]"
                 } ${isLockedAtStart ? "cursor-default opacity-75" : "cursor-ew-resize"}`}
                 style={{ left: `${left}%` }}
+                data-keyframe-id={entry.keyframeId}
+                data-keyframe-item-id={itemId}
+                data-keyframe-property={entry.property}
+                data-keyframe-time={entry.time}
+                data-timeline-keyframe="true"
                 title={`${label} @ ${entry.time.toFixed(2)}s • ${entry.text}`}
                 onMouseDown={(event) => {
                   event.preventDefault();
@@ -245,11 +227,8 @@ export function TimelineItemPropertyRow({
                     keyframeId: entry.keyframeId,
                     property: entry.property,
                     time: entry.time,
-                    trackElement: event.currentTarget
-                      .parentElement as HTMLDivElement,
-                    viewportElement: event.currentTarget.closest(
-                      ".timeline-scroll-viewport",
-                    ),
+                    trackElement: event.currentTarget.parentElement as HTMLDivElement,
+                    viewportElement: event.currentTarget.closest(".timeline-scroll-viewport"),
                     didMove: false,
                     startClientX: event.clientX,
                     startClientY: event.clientY,
@@ -291,42 +270,45 @@ function getDetailEntries({
   getObjectById: (id: string) => AnimatableObject | undefined;
   itemId: string;
   property: string;
-  valueType: "color" | "number";
+  valueType: "color" | "number" | "path";
 }): DetailEntry[] {
   const instance = getObjectById(itemId);
   if (!instance) return [];
 
   if (valueType === "color") {
-    const frames = (instance.colorKeyframes[
-      property as keyof typeof instance.colorKeyframes
-    ] ?? []) as ColorKeyframe[];
-    return frames
-      .map((frame) => ({
-        keyframeId: frame.id,
-        property,
-        time: frame.time,
-        text: rgbaBytesToCss(frame.value),
-      }));
-  }
-
-  const frames = (instance.keyframes[
-    property as keyof typeof instance.keyframes
-  ] ?? []) as Keyframe[];
-  return frames
-    .map((frame) => ({
+    const frames = (instance.colorKeyframes[property as keyof typeof instance.colorKeyframes] ??
+      []) as ColorKeyframe[];
+    return frames.map((frame) => ({
       keyframeId: frame.id,
       property,
       time: frame.time,
-      text: formatValue(frame.value),
+      text: rgbaBytesToCss(frame.value),
     }));
+  }
+
+  if (valueType === "path") {
+    const frames = (instance.pathKeyframes[property as keyof typeof instance.pathKeyframes] ??
+      []) as PathKeyframe[];
+    return frames.map((frame) => ({
+      keyframeId: frame.id,
+      property,
+      time: frame.time,
+      text: `${frame.value.length} cmds`,
+    }));
+  }
+
+  const frames = (instance.keyframes[property as keyof typeof instance.keyframes] ??
+    []) as Keyframe[];
+  return frames.map((frame) => ({
+    keyframeId: frame.id,
+    property,
+    time: frame.time,
+    text: formatValue(frame.value),
+  }));
 }
 
 /** Moves only the targeted keyframe id and keeps each property timeline sorted. */
-function moveKeyframeById(
-  instance: AnimatableObject,
-  keyframeId: string,
-  nextTime: number,
-) {
+function moveKeyframeById(instance: AnimatableObject, keyframeId: string, nextTime: number) {
   for (const frames of Object.values(instance.keyframes)) {
     if (!frames) continue;
     const matchingFrame = frames.find((frame) => frame.id === keyframeId);
@@ -344,13 +326,19 @@ function moveKeyframeById(
     frames.sort((left, right) => left.time - right.time);
     return;
   }
+
+  for (const frames of Object.values(instance.pathKeyframes)) {
+    if (!frames) continue;
+    const matchingFrame = frames.find((frame) => frame.id === keyframeId);
+    if (!matchingFrame) continue;
+    matchingFrame.time = nextTime;
+    frames.sort((left, right) => left.time - right.time);
+    return;
+  }
 }
 
 /** Scrolls the timeline viewport when the pointer nears either horizontal edge. */
-function autoScrollTimelineViewport(
-  viewportElement: HTMLElement | null,
-  clientX: number,
-) {
+function autoScrollTimelineViewport(viewportElement: HTMLElement | null, clientX: number) {
   if (!viewportElement) return;
   if (viewportElement.scrollWidth <= viewportElement.clientWidth) return;
 
@@ -359,16 +347,12 @@ function autoScrollTimelineViewport(
   const distanceToRight = bounds.right - clientX;
 
   if (distanceToLeft < EDGE_AUTO_SCROLL_ZONE_PX) {
-    viewportElement.scrollLeft = Math.max(
-      0,
-      viewportElement.scrollLeft - EDGE_AUTO_SCROLL_STEP_PX,
-    );
+    viewportElement.scrollLeft = Math.max(0, viewportElement.scrollLeft - EDGE_AUTO_SCROLL_STEP_PX);
     return;
   }
 
   if (distanceToRight < EDGE_AUTO_SCROLL_ZONE_PX) {
-    const maxScrollLeft =
-      viewportElement.scrollWidth - viewportElement.clientWidth;
+    const maxScrollLeft = viewportElement.scrollWidth - viewportElement.clientWidth;
     viewportElement.scrollLeft = Math.min(
       maxScrollLeft,
       viewportElement.scrollLeft + EDGE_AUTO_SCROLL_STEP_PX,

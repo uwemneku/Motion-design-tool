@@ -4,6 +4,7 @@ import type { MouseEvent, ReactNode } from "react";
 import { TOOL_BUTTON_CLASS } from "../../../const";
 
 type ToolButtonProps = {
+  active?: boolean;
   children: ReactNode;
   label: string;
   onClick: () => void;
@@ -12,6 +13,7 @@ type ToolButtonProps = {
 
 /** Shared icon button with tooltip for canvas tool actions. */
 export function ToolButton({
+  active = false,
   children,
   label,
   onClick,
@@ -25,7 +27,12 @@ export function ToolButton({
           onClick={onClick}
           onMouseDown={onMouseDown}
           aria-label={label}
-          className={TOOL_BUTTON_CLASS}
+          aria-pressed={active}
+          className={`${TOOL_BUTTON_CLASS} ${
+            active
+              ? "border-[var(--wise-accent)] bg-[var(--wise-accent)]/14 text-[var(--wise-accent)]"
+              : ""
+          }`}
         >
           {children}
         </button>

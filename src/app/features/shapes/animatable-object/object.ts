@@ -1,5 +1,5 @@
 /** Object.Ts shape model and behavior. */
-import type { FabricObject } from "fabric";
+import { Path, type FabricObject } from "fabric";
 import type {
   AnimatableSnapshot,
   ColorAnimatableProperties,
@@ -11,6 +11,10 @@ import type {
   KeyframeEasing,
   Keyframe,
   NumericAnimatableProperties,
+  PathAnimatableProperties,
+  PathCommand,
+  PathKeyframe,
+  PathKeyframesByProperty,
   TimelineMarker,
 } from "./types";
 import {
@@ -42,23 +46,24 @@ export class AnimatableObject {
     "angle",
     "strokeWidth",
   ];
-  static colorAnimatableProperties: (keyof ColorAnimatableProperties)[] = [
-    "fill",
-    "stroke",
-  ];
+  static colorAnimatableProperties: (keyof ColorAnimatableProperties)[] = ["fill", "stroke"];
+  static pathAnimatableProperties: (keyof PathAnimatableProperties)[] = ["pathData"];
 
   fabricObject: FabricObject;
   keyframes: KeyframesByProperty;
   colorKeyframes: ColorKeyframesByProperty;
+  pathKeyframes: PathKeyframesByProperty;
 
   constructor(
     fabricObject: FabricObject,
     keyframes: KeyframesByProperty = {},
     colorKeyframes: ColorKeyframesByProperty = {},
+    pathKeyframes: PathKeyframesByProperty = {},
   ) {
     this.fabricObject = fabricObject;
     this.keyframes = normalizeNumericKeyframes(keyframes);
     this.colorKeyframes = normalizeColorKeyframes(colorKeyframes);
+    this.pathKeyframes = normalizePathKeyframes(pathKeyframes);
 
     const centerPoint = this.fabricObject.getCenterPoint();
     this.fabricObject.set({
@@ -70,7 +75,8 @@ export class AnimatableObject {
 
     if (
       Object.keys(this.keyframes).length === 0 &&
-      Object.keys(this.colorKeyframes).length === 0
+      Object.keys(this.colorKeyframes).length === 0 &&
+      Object.keys(this.pathKeyframes).length === 0
     ) {
       this.freezeProperties(0);
     } else {
@@ -96,6 +102,7 @@ export class AnimatableObject {
     const snapshot = this.getSnapshot();
     this.addSnapshotKeyframe(time, snapshot);
     this.addColorSnapshotKeyframe(time, this.getColorSnapshot());
+    this.addPathSnapshotKeyframe(time, this.getPathSnapshot());
   }
 
   /** Clones the animatable object with fresh keyframe ids and an optional position offset. */
@@ -113,6 +120,7 @@ export class AnimatableObject {
       clonedFabricObject,
       cloneAnimatableNumericKeyframes(this.keyframes, positionOffset),
       cloneAnimatableColorKeyframes(this.colorKeyframes),
+      cloneAnimatablePathKeyframes(this.pathKeyframes),
     );
   }
 
@@ -123,10 +131,8 @@ export class AnimatableObject {
     const absolutePosition = this.fabricObject.getXY();
     const relativePosition = this.fabricObject.getRelativeXY();
     const offsetMultiplier = direction === "toParent" ? -1 : 1;
-    const leftOffset =
-      (absolutePosition.x - relativePosition.x) * offsetMultiplier;
-    const topOffset =
-      (absolutePosition.y - relativePosition.y) * offsetMultiplier;
+    const leftOffset = (absolutePosition.x - relativePosition.x) * offsetMultiplier;
+    const topOffset = (absolutePosition.y - relativePosition.y) * offsetMultiplier;
 
     if (Math.abs(leftOffset) > 0.0001 && this.keyframes.left) {
       this.keyframes.left = this.keyframes.left.map((keyframe) => ({
@@ -157,12 +163,8 @@ export class AnimatableObject {
   addKeyframe<K extends keyof NumericAnimatableProperties>(
     keyframe: Omit<Keyframe<K>, "id" | "easing"> & { easing?: KeyframeEasing },
   ) {
-    const propertyKeyframes = (this.keyframes[keyframe.property] ??
-      []) as Keyframe[];
-    const [insertIndex, shouldReplace] = findInsertionIndex(
-      propertyKeyframes,
-      keyframe.time,
-    );
+    const propertyKeyframes = (this.keyframes[keyframe.property] ?? []) as Keyframe[];
+    const [insertIndex, shouldReplace] = findInsertionIndex(propertyKeyframes, keyframe.time);
     const nextKeyframe: Keyframe = {
       ...keyframe,
       easing: keyframe.easing ?? "linear",
@@ -198,23 +200,78 @@ export class AnimatableObject {
     }
   }
 
+  /** Reads a clone-safe snapshot of the current path geometry for path-backed objects. */
+  getPathSnapshot(): PathAnimatableProperties["pathData"] | null {
+    if (!(this.fabricObject instanceof Path)) return null;
+    return clonePathData(this.fabricObject.path as PathCommand[]);
+  }
+
+  addPathSnapshotKeyframe(time: number, snapshot: PathAnimatableProperties["pathData"] | null) {
+    if (!snapshot) return;
+    this.addPathKeyframe({
+      property: "pathData",
+      value: snapshot,
+      time,
+      easing: "linear",
+    });
+  }
+
+  /** Writes the current path snapshot only when it differs from the keyed value at that time. */
+  upsertPathSnapshotKeyframe(
+    time: number,
+    snapshot: PathAnimatableProperties["pathData"] | null,
+    epsilon = 0.0001,
+  ) {
+    if (!snapshot) return false;
+
+    const existingKeyframe = this.getPathKeyframeAtTime(time, epsilon);
+    if (existingKeyframe && arePathSnapshotsEqual(existingKeyframe.value, snapshot)) {
+      return false;
+    }
+
+    this.addPathKeyframe({
+      property: "pathData",
+      value: snapshot,
+      time,
+      easing: existingKeyframe?.easing ?? "linear",
+    });
+    return true;
+  }
+
+  addPathKeyframe<K extends keyof PathAnimatableProperties>(
+    keyframe: Omit<PathKeyframe<K>, "id" | "easing" | "value"> & {
+      value: PathAnimatableProperties[K];
+      easing?: KeyframeEasing;
+    },
+  ) {
+    const propertyKeyframes = (this.pathKeyframes[keyframe.property] ?? []) as PathKeyframe[];
+    const [insertIndex, shouldReplace] = findInsertionIndex(propertyKeyframes, keyframe.time);
+    const nextKeyframe: PathKeyframe = {
+      ...keyframe,
+      easing: keyframe.easing ?? "linear",
+      id: createId("pkf"),
+      value: clonePathData(keyframe.value as PathCommand[]),
+    };
+
+    propertyKeyframes.splice(insertIndex, shouldReplace ? 1 : 0, nextKeyframe);
+    this.pathKeyframes[keyframe.property] = propertyKeyframes;
+
+    return nextKeyframe.id;
+  }
+
   addColorKeyframe<K extends keyof ColorAnimatableProperties>(
     keyframe: Omit<ColorKeyframe<K>, "id" | "easing" | "value"> & {
       value: ColorAnimatableProperties[K] | ColorVector;
       easing?: KeyframeEasing;
     },
   ) {
-    const propertyKeyframes = (this.colorKeyframes[keyframe.property] ??
-      []) as ColorKeyframe[];
+    const propertyKeyframes = (this.colorKeyframes[keyframe.property] ?? []) as ColorKeyframe[];
     const colorValue =
       typeof keyframe.value === "string"
         ? colorToRgbaBytes(keyframe.value)
         : cloneColorBytes(keyframe.value);
     if (!colorValue) return null;
-    const [insertIndex, shouldReplace] = findInsertionIndex(
-      propertyKeyframes,
-      keyframe.time,
-    );
+    const [insertIndex, shouldReplace] = findInsertionIndex(propertyKeyframes, keyframe.time);
     const nextKeyframe: ColorKeyframe = {
       ...keyframe,
       easing: keyframe.easing ?? "linear",
@@ -254,6 +311,19 @@ export class AnimatableObject {
         delete this.colorKeyframes[property];
       }
     }
+
+    for (const property of AnimatableObject.pathAnimatableProperties) {
+      const propertyKeyframes = this.pathKeyframes[property];
+      if (!propertyKeyframes) continue;
+
+      this.pathKeyframes[property] = propertyKeyframes.filter(
+        (keyframe) => Math.abs(keyframe.time - time) > epsilon,
+      ) as PathKeyframesByProperty[typeof property];
+
+      if (this.pathKeyframes[property]?.length === 0) {
+        delete this.pathKeyframes[property];
+      }
+    }
   }
 
   seek(time: number) {
@@ -264,19 +334,12 @@ export class AnimatableObject {
       const { previous, next } = findBoundingKeyframes(propertyKeyframes, time);
       if (!previous || !next) continue;
 
-      if (
-        previous.id === next.id ||
-        Math.abs(next.time - previous.time) < 0.0001
-      ) {
+      if (previous.id === next.id || Math.abs(next.time - previous.time) < 0.0001) {
         this.updateProperty(property, previous.value);
         continue;
       }
 
-      const progress = clamp(
-        (time - previous.time) / (next.time - previous.time),
-        0,
-        1,
-      );
+      const progress = clamp((time - previous.time) / (next.time - previous.time), 0, 1);
       const easedProgress = applyEasing(progress, next.easing);
       const value = lerp(
         previous.value as number,
@@ -294,26 +357,34 @@ export class AnimatableObject {
       const { previous, next } = findBoundingKeyframes(propertyKeyframes, time);
       if (!previous || !next) continue;
 
-      if (
-        previous.id === next.id ||
-        Math.abs(next.time - previous.time) < 0.0001
-      ) {
+      if (previous.id === next.id || Math.abs(next.time - previous.time) < 0.0001) {
         this.updateColorProperty(property, rgbaBytesToCss(previous.value));
         continue;
       }
 
-      const progress = clamp(
-        (time - previous.time) / (next.time - previous.time),
-        0,
-        1,
-      );
+      const progress = clamp((time - previous.time) / (next.time - previous.time), 0, 1);
       this.updateColorProperty(
         property,
-        interpolateColorBytes(
-          previous.value,
-          next.value,
-          applyEasing(progress, next.easing),
-        ),
+        interpolateColorBytes(previous.value, next.value, applyEasing(progress, next.easing)),
+      );
+    }
+
+    for (const property of AnimatableObject.pathAnimatableProperties) {
+      const propertyKeyframes = this.pathKeyframes[property];
+      if (!propertyKeyframes || propertyKeyframes.length === 0) continue;
+
+      const { previous, next } = findBoundingKeyframes(propertyKeyframes, time);
+      if (!previous || !next) continue;
+
+      if (previous.id === next.id || Math.abs(next.time - previous.time) < 0.0001) {
+        this.updatePathProperty(property, previous.value);
+        continue;
+      }
+
+      const progress = clamp((time - previous.time) / (next.time - previous.time), 0, 1);
+      this.updatePathProperty(
+        property,
+        interpolatePathData(previous.value, next.value, applyEasing(progress, next.easing)),
       );
     }
 
@@ -356,6 +427,20 @@ export class AnimatableObject {
       }
     }
 
+    for (const property of AnimatableObject.pathAnimatableProperties) {
+      const propertyKeyframes = this.pathKeyframes[property];
+      if (!propertyKeyframes) continue;
+
+      for (const keyframe of propertyKeyframes) {
+        const key = keyframe.time.toFixed(4);
+        if (map.has(key)) continue;
+        map.set(key, {
+          id: keyframe.id,
+          time: keyframe.time,
+        });
+      }
+    }
+
     return Array.from(map.values()).sort(byTimeAsc);
   }
 
@@ -367,6 +452,11 @@ export class AnimatableObject {
     }
     for (const property of AnimatableObject.colorAnimatableProperties) {
       const propertyKeyframes = this.colorKeyframes[property];
+      if (!propertyKeyframes) continue;
+      if (hasKeyframeNearTime(propertyKeyframes, time, epsilon)) return true;
+    }
+    for (const property of AnimatableObject.pathAnimatableProperties) {
+      const propertyKeyframes = this.pathKeyframes[property];
       if (!propertyKeyframes) continue;
       if (hasKeyframeNearTime(propertyKeyframes, time, epsilon)) return true;
     }
@@ -385,10 +475,7 @@ export class AnimatableObject {
       const currentWidth = this.fabricObject.getScaledWidth();
       const currentScaleX = this.fabricObject.scaleX ?? 1;
       if (currentWidth > 0) {
-        this.fabricObject.set(
-          "scaleX",
-          currentScaleX * ((value as number) / currentWidth),
-        );
+        this.fabricObject.set("scaleX", currentScaleX * ((value as number) / currentWidth));
       }
       return;
     }
@@ -396,10 +483,7 @@ export class AnimatableObject {
       const currentHeight = this.fabricObject.getScaledHeight();
       const currentScaleY = this.fabricObject.scaleY ?? 1;
       if (currentHeight > 0) {
-        this.fabricObject.set(
-          "scaleY",
-          currentScaleY * ((value as number) / currentHeight),
-        );
+        this.fabricObject.set("scaleY", currentScaleY * ((value as number) / currentHeight));
       }
       return;
     }
@@ -418,6 +502,25 @@ export class AnimatableObject {
     value: ColorAnimatableProperties[K],
   ) {
     this.fabricObject.set(property, value);
+  }
+
+  private updatePathProperty<K extends keyof PathAnimatableProperties>(
+    property: K,
+    value: PathAnimatableProperties[K],
+  ) {
+    if (property !== "pathData" || !(this.fabricObject instanceof Path)) return;
+
+    this.fabricObject.set({
+      path: clonePathData(value as PathCommand[]),
+      dirty: true,
+    });
+  }
+
+  private getPathKeyframeAtTime(time: number, epsilon: number) {
+    const pathKeyframes = this.pathKeyframes.pathData;
+    if (!pathKeyframes) return null;
+
+    return pathKeyframes.find((keyframe) => Math.abs(keyframe.time - time) <= epsilon) ?? null;
   }
 }
 
@@ -453,11 +556,32 @@ export function cloneAnimatableColorKeyframes(colorKeyframes: ColorKeyframesByPr
   Object.entries(colorKeyframes).forEach(([property, propertyKeyframes]) => {
     if (!propertyKeyframes || propertyKeyframes.length === 0) return;
 
-    nextKeyframes[property as keyof ColorKeyframesByProperty] = propertyKeyframes.map((keyframe) => ({
-      ...keyframe,
-      id: createId("ckf"),
-      value: cloneColorBytes(keyframe.value),
-    }));
+    nextKeyframes[property as keyof ColorKeyframesByProperty] = propertyKeyframes.map(
+      (keyframe) => ({
+        ...keyframe,
+        id: createId("ckf"),
+        value: cloneColorBytes(keyframe.value),
+      }),
+    );
+  });
+
+  return nextKeyframes;
+}
+
+/** Clones path keyframes with fresh ids so duplicated paths can animate independently. */
+export function cloneAnimatablePathKeyframes(pathKeyframes: PathKeyframesByProperty) {
+  const nextKeyframes: PathKeyframesByProperty = {};
+
+  Object.entries(pathKeyframes).forEach(([property, propertyKeyframes]) => {
+    if (!propertyKeyframes || propertyKeyframes.length === 0) return;
+
+    nextKeyframes[property as keyof PathKeyframesByProperty] = propertyKeyframes.map(
+      (keyframe) => ({
+        ...keyframe,
+        id: createId("pkf"),
+        value: clonePathData(keyframe.value),
+      }),
+    );
   });
 
   return nextKeyframes;
@@ -467,15 +591,11 @@ export function cloneAnimatableColorKeyframes(colorKeyframes: ColorKeyframesByPr
 function normalizeNumericKeyframes(keyframes: KeyframesByProperty) {
   const nextKeyframes: KeyframesByProperty = {};
 
-  for (const property of Object.keys(keyframes) as Array<
-    keyof KeyframesByProperty
-  >) {
+  for (const property of Object.keys(keyframes) as Array<keyof KeyframesByProperty>) {
     const frames = keyframes[property];
     if (!frames) continue;
 
-    const normalizedFrames = frames
-      .filter((frame) => Number.isFinite(frame.time))
-      .sort(byTimeAsc);
+    const normalizedFrames = frames.filter((frame) => Number.isFinite(frame.time)).sort(byTimeAsc);
 
     if (normalizedFrames.length > 0) {
       nextKeyframes[property] = normalizedFrames;
@@ -489,21 +609,21 @@ function normalizeNumericKeyframes(keyframes: KeyframesByProperty) {
 function normalizeColorKeyframes(keyframes: ColorKeyframesByProperty) {
   const nextKeyframes: ColorKeyframesByProperty = {};
 
-  for (const property of Object.keys(keyframes) as Array<
-    keyof ColorKeyframesByProperty
-  >) {
+  for (const property of Object.keys(keyframes) as Array<keyof ColorKeyframesByProperty>) {
     const frames = keyframes[property];
     if (!frames) continue;
 
-    const normalizedFrames = frames.flatMap((frame) => {
-      if (!Number.isFinite(frame.time)) return [];
-      const value =
-        typeof frame.value === "string"
-          ? colorToRgbaBytes(frame.value)
-          : cloneColorBytes(frame.value);
-      if (!value) return [];
-      return [{ ...frame, value }];
-    }).sort(byTimeAsc);
+    const normalizedFrames = frames
+      .flatMap((frame) => {
+        if (!Number.isFinite(frame.time)) return [];
+        const value =
+          typeof frame.value === "string"
+            ? colorToRgbaBytes(frame.value)
+            : cloneColorBytes(frame.value);
+        if (!value) return [];
+        return [{ ...frame, value }];
+      })
+      .sort(byTimeAsc);
 
     if (normalizedFrames.length > 0) {
       nextKeyframes[property] = normalizedFrames;
@@ -511,4 +631,84 @@ function normalizeColorKeyframes(keyframes: ColorKeyframesByProperty) {
   }
 
   return nextKeyframes;
+}
+
+/** Normalizes persisted path keyframes and detaches their command arrays from Fabric state. */
+function normalizePathKeyframes(keyframes: PathKeyframesByProperty) {
+  const nextKeyframes: PathKeyframesByProperty = {};
+
+  for (const property of Object.keys(keyframes) as Array<keyof PathKeyframesByProperty>) {
+    const frames = keyframes[property];
+    if (!frames) continue;
+
+    const normalizedFrames = frames
+      .filter((frame) => Number.isFinite(frame.time))
+      .map((frame) => ({
+        ...frame,
+        value: clonePathData(frame.value),
+      }))
+      .sort(byTimeAsc);
+
+    if (normalizedFrames.length > 0) {
+      nextKeyframes[property] = normalizedFrames;
+    }
+  }
+
+  return nextKeyframes;
+}
+
+/** Deep-clones Fabric path commands so keyframes do not share mutable arrays. */
+function clonePathData(pathData: PathCommand[]) {
+  return pathData.map((command) => [...command] as PathCommand);
+}
+
+/** Compares two path snapshots numerically so redundant geometry keyframes are skipped. */
+function arePathSnapshotsEqual(
+  previous: PathAnimatableProperties["pathData"],
+  next: PathAnimatableProperties["pathData"],
+  epsilon = 0.0001,
+) {
+  if (!arePathCommandsCompatible(previous, next)) return false;
+
+  return previous.every((command, commandIndex) =>
+    command.every((value, valueIndex) => {
+      const nextValue = next[commandIndex]?.[valueIndex];
+      if (typeof value === "string" || typeof nextValue === "string") {
+        return value === nextValue;
+      }
+      return Math.abs(value - nextValue) <= epsilon;
+    }),
+  );
+}
+
+/** Interpolates two path snapshots as long as both command lists stay structurally compatible. */
+function interpolatePathData(previous: PathCommand[], next: PathCommand[], progress: number) {
+  if (!arePathCommandsCompatible(previous, next)) {
+    return clonePathData(progress < 1 ? previous : next);
+  }
+
+  return previous.map((command, commandIndex) => {
+    const nextCommand = next[commandIndex];
+    const interpolatedCommand: Array<string | number> = [command[0]];
+
+    for (let valueIndex = 1; valueIndex < command.length; valueIndex += 1) {
+      interpolatedCommand.push(
+        lerp(Number(command[valueIndex]), Number(nextCommand[valueIndex]), progress),
+      );
+    }
+
+    return interpolatedCommand as PathCommand;
+  });
+}
+
+/** Confirms that two path snapshots can be interpolated point-for-point. */
+function arePathCommandsCompatible(previous: PathCommand[], next: PathCommand[]) {
+  if (previous.length !== next.length) return false;
+
+  return previous.every((command, commandIndex) => {
+    const nextCommand = next[commandIndex];
+    if (!nextCommand) return false;
+    if (command[0] !== nextCommand[0]) return false;
+    return command.length === nextCommand.length;
+  });
 }

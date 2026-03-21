@@ -4,6 +4,7 @@ import { useState, type MouseEvent } from "react";
 import { KEYFRAME_SECTION_HORIZONTAL_PADDING } from "../../../../const";
 import { useAppDispatch, useAppSelector } from "../../../store";
 import { setPlayheadTime, setSelectedId, setSelectedKeyframe } from "../../../store/editor-slice";
+import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
 import { TimelineItemPropertyRow } from "./timeline-item-property-row";
 import type { AnimatableProperties } from "../../shapes/animatable-object/types";
 
@@ -20,8 +21,8 @@ type AnimationSpan = {
 
 const DETAIL_ROW_DEFINITIONS: {
   label: string;
-  property: keyof AnimatableProperties;
-  valueType: "number" | "color";
+  property: keyof AnimatableProperties | "pathData";
+  valueType: "number" | "color" | "path";
 }[] = [
   { label: "Position X", property: "left", valueType: "number" },
   { label: "Position Y", property: "top", valueType: "number" },
@@ -33,6 +34,7 @@ const DETAIL_ROW_DEFINITIONS: {
   { label: "Border Width", property: "strokeWidth", valueType: "number" },
   { label: "Fill", property: "fill", valueType: "color" },
   { label: "Stroke", property: "stroke", valueType: "color" },
+  { label: "Path", property: "pathData", valueType: "path" },
 ] as const;
 
 /** Timeline row for one canvas item, including property keyframe details. */
@@ -42,15 +44,16 @@ export default function TimelineItemRow({
   timelineDuration,
 }: TimelineItemRowProps) {
   const dispatch = useAppDispatch();
+  const { getObjectById } = useCanvasAppContext();
   const [isGroupExpanded, setIsGroupExpanded] = useState(false);
   const [isKeyframeExpanded, setIsKeyframeExpanded] = useState(false);
 
   const isSelected = useAppSelector((state) => state.editor.selectedId.includes(id));
   const name = useAppSelector((state) => state.editor.itemsRecord[id]?.name ?? id);
-  const childIds = useAppSelector(
-    (state) => state.editor.itemsRecord[id]?.childIds ?? [],
-  );
+  const childIds = useAppSelector((state) => state.editor.itemsRecord[id]?.childIds ?? []);
   const itemKeyFrames = useAppSelector((state) => state.editor.itemsRecord[id]?.keyframe ?? null);
+  const instance = getObjectById(id);
+  const supportsPathTimeline = Boolean(instance?.pathKeyframes.pathData);
   // TODO: This should be derived from the item's keyframe data, not the markers.
   const animationSpan = getAnimationSpan(itemKeyFrames ?? []);
   const hasKeyframes = (itemKeyFrames?.length ?? 0) > 1;
@@ -155,7 +158,10 @@ export default function TimelineItemRow({
 
       {isKeyframeExpanded ? (
         <div className="border-t border-[var(--wise-border)] bg-[var(--wise-surface)]/60">
-          {DETAIL_ROW_DEFINITIONS.map((row) => (
+          {DETAIL_ROW_DEFINITIONS.filter((row) => {
+            if (row.property !== "pathData") return true;
+            return supportsPathTimeline;
+          }).map((row) => (
             <TimelineItemPropertyRow
               key={row.property}
               itemId={id}

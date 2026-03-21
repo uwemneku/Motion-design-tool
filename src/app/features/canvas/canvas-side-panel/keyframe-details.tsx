@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../../store";
 import { RadixMenuSelect } from "../../../components/radix-menu-select";
-import { setSelectedKeyframe } from "../../../store/editor-slice";
+import { setSelectedKeyframes } from "../../../store/editor-slice";
 import { EASING_OPTIONS } from "../../../../const";
 import type { KeyframeEasing } from "../../shapes/animatable-object/types";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
@@ -13,12 +13,13 @@ export function KeyframeDetailsPanel() {
   const { getObjectById: getInstanceById } = useCanvasAppContext();
   const [, forceRefresh] = useState(0);
   const selectedIds = useAppSelector((state) => state.editor.selectedId);
-  const selectedKeyframe = useAppSelector((state) => state.editor.selectedKeyframe);
+  const selectedKeyframes = useAppSelector((state) => state.editor.selectedKeyframes);
   const selectedId = selectedIds[0] ?? null;
+  const singleSelectedKeyframe = selectedKeyframes.length === 1 ? selectedKeyframes[0] : null;
 
   const selectedKeyframeId =
-    selectedId && selectedKeyframe?.itemId === selectedId
-      ? selectedKeyframe.keyframeId
+    selectedId && singleSelectedKeyframe?.itemId === selectedId
+      ? singleSelectedKeyframe.keyframeId
       : null;
 
   const selectedEasing = (() => {
@@ -40,7 +41,7 @@ export function KeyframeDetailsPanel() {
               type="button"
               className="text-[10px] font-medium text-[#a7afbb] transition hover:text-[#f3f5f8]"
               onClick={() => {
-                dispatch(setSelectedKeyframe(null));
+                dispatch(setSelectedKeyframes([]));
               }}
             >
               Clear
@@ -62,18 +63,16 @@ export function KeyframeDetailsPanel() {
               if (!selectedId || !selectedKeyframeId) return;
               const instance = getInstanceById(selectedId);
               if (!instance) return;
-              applyEasingById(
-                instance,
-                selectedKeyframeId,
-                value as KeyframeEasing,
-              );
+              applyEasingById(instance, selectedKeyframeId, value as KeyframeEasing);
               instance.fabricObject.canvas?.requestRenderAll();
               forceRefresh((prev) => prev + 1);
             }}
           />
         ) : (
           <p className="text-[11px] text-[#8f97a4]">
-            Select a keyframe to edit its transition type.
+            {selectedKeyframes.length > 1
+              ? "Select a single keyframe to edit its transition type."
+              : "Select a keyframe to edit its transition type."}
           </p>
         )}
       </div>
@@ -84,12 +83,9 @@ export function KeyframeDetailsPanel() {
 /** Updates a keyframe easing value across numeric and color keyframe collections. */
 function applyEasingById(
   instance: {
-    keyframes: Partial<
-      Record<string, Array<{ id: string; easing: KeyframeEasing }>>
-    >;
-    colorKeyframes: Partial<
-      Record<string, Array<{ id: string; easing: KeyframeEasing }>>
-    >;
+    keyframes: Partial<Record<string, Array<{ id: string; easing: KeyframeEasing }>>>;
+    colorKeyframes: Partial<Record<string, Array<{ id: string; easing: KeyframeEasing }>>>;
+    pathKeyframes: Partial<Record<string, Array<{ id: string; easing: KeyframeEasing }>>>;
   },
   keyframeId: string,
   easing: KeyframeEasing,
@@ -111,17 +107,23 @@ function applyEasingById(
       }
     });
   });
+
+  Object.values(instance.pathKeyframes).forEach((frames) => {
+    if (!frames) return;
+    frames.forEach((frame) => {
+      if (frame.id === keyframeId) {
+        frame.easing = easing;
+      }
+    });
+  });
 }
 
 /** Finds the easing value for a selected keyframe id. */
 function getEasingById(
   instance: {
-    keyframes: Partial<
-      Record<string, Array<{ id: string; easing: KeyframeEasing }>>
-    >;
-    colorKeyframes: Partial<
-      Record<string, Array<{ id: string; easing: KeyframeEasing }>>
-    >;
+    keyframes: Partial<Record<string, Array<{ id: string; easing: KeyframeEasing }>>>;
+    colorKeyframes: Partial<Record<string, Array<{ id: string; easing: KeyframeEasing }>>>;
+    pathKeyframes: Partial<Record<string, Array<{ id: string; easing: KeyframeEasing }>>>;
   },
   keyframeId: string,
 ) {
@@ -131,6 +133,11 @@ function getEasingById(
   }
 
   for (const frames of Object.values(instance.colorKeyframes)) {
+    const match = frames?.find((frame) => frame.id === keyframeId);
+    if (match) return match.easing;
+  }
+
+  for (const frames of Object.values(instance.pathKeyframes)) {
     const match = frames?.find((frame) => frame.id === keyframeId);
     if (match) return match.easing;
   }

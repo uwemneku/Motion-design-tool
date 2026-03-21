@@ -2,6 +2,7 @@
 import {
   FabricImage,
   FabricObject,
+  Path,
   StaticCanvas,
   type Canvas,
   type ObjectEvents,
@@ -11,7 +12,7 @@ import {
 import { useCallback, useState, type MutableRefObject } from "react";
 import { EXPORT_DURATION_SECONDS, EXPORT_FPS, EXPORT_PIXEL_DENSITY } from "../../../const";
 import { getVideoWorkAreaRect } from "./video-work-area";
-import { AnimatableObject } from "../shapes/animatable-object/object";
+import { AnimatableObject, cloneAnimatablePathKeyframes } from "../shapes/animatable-object/object";
 import { VideoObject } from "../shapes/objects";
 import { useCanvasAppContext } from "../canvas/hooks/use-canvas-app-context";
 import { exportCanvasAsVideo, type ExportVideoFormat } from "./export-media";
@@ -118,15 +119,16 @@ function useExportVideo(fabricCanvas: MutableRefObject<Canvas | null>, activeAsp
                   ...keyframe,
                 })),
               };
+              const exportPathKeyframes = cloneAnimatablePathKeyframes(
+                sourceInstance.pathKeyframes,
+              );
               const exportInstance = createExportAnimatableObject(
                 clonedObject,
                 exportKeyframes,
                 exportColorKeyframes,
+                exportPathKeyframes,
               );
-              exportInstances.set(
-                customId,
-                exportInstance,
-              );
+              exportInstances.set(customId, exportInstance);
               if (exportInstance instanceof VideoObject) {
                 exportVideoInstances.push(exportInstance);
               }
@@ -293,10 +295,11 @@ async function cloneFabricObjectWithCustomId<
   if (sourceObject instanceof FabricImage) {
     const sourceElement = sourceObject.getElement();
     if (sourceElement instanceof HTMLVideoElement) {
-      clonedObject = (await cloneVideoFabricObject(
-        sourceObject,
-        sourceElement,
-      )) as FabricObject<Props, SProps, EventSpec>;
+      clonedObject = (await cloneVideoFabricObject(sourceObject, sourceElement)) as FabricObject<
+        Props,
+        SProps,
+        EventSpec
+      >;
     } else {
       try {
         clonedObject = await sourceObject.clone();
@@ -326,12 +329,13 @@ function createExportAnimatableObject(
   object: FabricObject,
   keyframes: KeyframesByProperty,
   colorKeyframes: AnimatableObject["colorKeyframes"],
+  pathKeyframes: AnimatableObject["pathKeyframes"],
 ) {
   if (object instanceof FabricImage && object.getElement() instanceof HTMLVideoElement) {
-    return new VideoObject(object, {}, keyframes, colorKeyframes);
+    return new VideoObject(object, {}, keyframes, colorKeyframes, pathKeyframes);
   }
 
-  return new AnimatableObject(object, keyframes, colorKeyframes);
+  return new AnimatableObject(object, keyframes, colorKeyframes, pathKeyframes);
 }
 
 /** Builds a separate export-only video element so export seeking does not disturb the editor preview. */
@@ -432,6 +436,7 @@ async function remapExportClipPaths(
         // Use a dedicated clip-path clone so the visible source object is not reused as mask.
         exportClipPath = await cloneFabricObjectWithCustomId(exportMaskSource);
         exportMaskSourceForSync = exportMaskSource;
+        configureExportMaskProxy(exportClipPath);
         exportClipPath.set({
           left: exportMaskSource.left,
           top: exportMaskSource.top,
@@ -447,6 +452,11 @@ async function remapExportClipPaths(
           visible: false,
           evented: false,
         });
+        if (exportClipPath instanceof Path && exportMaskSource instanceof Path) {
+          exportClipPath.set({
+            path: exportMaskSource.path.map((command) => [...command]),
+          });
+        }
         exportClipPath.setCoords();
       }
     }
@@ -454,6 +464,7 @@ async function remapExportClipPaths(
       exportClipPath = await cloneFabricObjectWithCustomId(
         sourceClipPath as unknown as FabricObject,
       );
+      configureExportMaskProxy(exportClipPath);
       const sourceLeft = sourceClipPath.left ?? 0;
       const sourceTop = sourceClipPath.top ?? 0;
       const sourceScaleX = sourceClipPath.scaleX ?? 1;
@@ -513,17 +524,30 @@ function syncExportMaskProxyForObject(targetObject: FabricObject) {
     originX: maskSource.originX,
     originY: maskSource.originY,
   });
+  if (maskProxy instanceof Path && maskSource instanceof Path) {
+    maskProxy.set({
+      path: maskSource.path.map((command) => [...command]),
+    });
+  }
+  configureExportMaskProxy(maskProxy);
   if (targetObject.clipPath !== maskProxy) {
     targetObject.set("clipPath", maskProxy);
   }
   maskProxy.setCoords();
 }
 
+function configureExportMaskProxy(maskProxy: FabricObject) {
+  maskProxy.set({
+    fill: "#000000",
+    stroke: null,
+    strokeWidth: 0,
+    opacity: 1,
+    shadow: null,
+  });
+}
+
 /** Mixes audio from imported video layers into one offline buffer aligned to the global timeline. */
-async function buildMixedVideoAudioTrack(
-  sourceObjects: FabricObject[],
-  durationInSeconds: number,
-) {
+async function buildMixedVideoAudioTrack(sourceObjects: FabricObject[], durationInSeconds: number) {
   const sourceUrls = sourceObjects.flatMap((object) => {
     if (!(object instanceof FabricImage)) return [];
     const element = object.getElement();

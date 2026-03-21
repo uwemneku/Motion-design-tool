@@ -1,5 +1,12 @@
 /** Use Canvas Items.Ts hook logic. */
-import { ActiveSelection, Group, loadSVGFromString, Point, type Canvas, type FabricObject } from "fabric";
+import {
+  ActiveSelection,
+  Group,
+  loadSVGFromString,
+  Point,
+  type Canvas,
+  type FabricObject,
+} from "fabric";
 import type { MutableRefObject } from "react";
 import { toast } from "sonner";
 import { loadVideoElement } from "../util/video-import";
@@ -18,6 +25,7 @@ import {
   CircleObject,
   ImageObject,
   LineObject,
+  PathObject,
   PolygonObject,
   RectangleObject,
   TextObject,
@@ -94,6 +102,7 @@ const CANVAS_ITEM_NUMERIC_KEYFRAME_FIELDS = [
 ] as const;
 
 const CANVAS_ITEM_COLOR_KEYFRAME_FIELDS = ["fill", "stroke"] as const;
+const DEFAULT_PATH_DATA = "M 0 56 C 18 8 52 8 70 56 S 122 104 140 56";
 
 function isSvgFile(file: File) {
   // Detect SVG uploads by MIME type or extension so we can parse vector data.
@@ -666,6 +675,71 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     addObjectToCanvas(line, "line", options);
   };
 
+  const addPath = (options: AddItemOptions = {}) => {
+    const canvas = fabricCanvas.current;
+    if (!canvas) return;
+    const { left, top } = getVideoCenter(canvas);
+    const path = new PathObject(DEFAULT_PATH_DATA, {
+      left,
+      top,
+      originX: "center",
+      originY: "center",
+      fill: "",
+      stroke: options.color ?? "#ffffff",
+      strokeLineCap: "round",
+      strokeLineJoin: "round",
+      strokeWidth: 3,
+      strokeUniform: true,
+      ...options,
+    });
+
+    addObjectToCanvas(path, "path", options);
+  };
+
+  /** Adds a new open path by connecting user-placed canvas points in sequence. */
+  const addPathFromPoints = (points: Point[], options: AddItemOptions = {}) => {
+    if (points.length < 2) return null;
+
+    const pathData = points
+      .map(
+        (point, index) =>
+          `${index === 0 ? "M" : "L"} ${Number(point.x.toFixed(2))} ${Number(point.y.toFixed(2))}`,
+      )
+      .join(" ");
+    const path = new PathObject(pathData, {
+      fill: "",
+      originX: "center",
+      originY: "center",
+      stroke: options.color ?? "#ffffff",
+      strokeLineCap: "round",
+      strokeLineJoin: "round",
+      strokeWidth: 3,
+      strokeUniform: true,
+      ...options,
+    });
+
+    return addObjectToCanvas(path, "path", options);
+  };
+
+  /** Adds a new path directly from SVG path data produced by the pen tool. */
+  const addPathFromData = (pathData: string, options: AddItemOptions = {}) => {
+    if (!pathData.trim()) return null;
+
+    const path = new PathObject(pathData, {
+      fill: "",
+      originX: "center",
+      originY: "center",
+      stroke: options.color ?? "#ffffff",
+      strokeLineCap: "round",
+      strokeLineJoin: "round",
+      strokeWidth: 3,
+      strokeUniform: true,
+      ...options,
+    });
+
+    return addObjectToCanvas(path, "path", options);
+  };
+
   const addRectangle = (options: AddItemOptions = {}) => {
     const canvas = fabricCanvas.current;
     if (!canvas) return;
@@ -1022,6 +1096,9 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
   return {
     addCircle,
     addLine,
+    addPath,
+    addPathFromData,
+    addPathFromPoints,
     addPolygon,
     addRectangle,
     addImageFromFile,

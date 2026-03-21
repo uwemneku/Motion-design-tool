@@ -4,13 +4,14 @@ import { useEffect, useRef, useState, type MouseEvent } from "react";
 import {
   AddCircleButton,
   AddLineButton,
+  AddPathButton,
   AddRectangleButton,
   AddTextButton,
 } from "../../components/canvas-tools/add-basic-buttons";
-import {
-  AddAssetButton,
-} from "../../components/canvas-tools/add-file-buttons";
+import { AddAssetButton } from "../../components/canvas-tools/add-file-buttons";
 import { AddPolygonButton } from "../../components/canvas-tools/add-polygon-button";
+import { useAppDispatch, useAppSelector } from "../../store";
+import { setActiveCanvasTool } from "../../store/editor-slice";
 import { useCanvasItems } from "./hooks/use-canvas-items";
 import { FAB_EDGE_PADDING } from "../../../const";
 import { useCanvasAppContext } from "./hooks/use-canvas-app-context";
@@ -22,7 +23,9 @@ type Position = {
 
 /** Draggable floating tool dock for adding canvas items. */
 export default function CanvasToolsFab() {
+  const dispatch = useAppDispatch();
   const { fabricCanvasRef } = useCanvasAppContext();
+  const activeCanvasTool = useAppSelector((state) => state.editor.activeCanvasTool);
   const {
     addCircle,
     addImageFromFile,
@@ -174,10 +177,14 @@ export default function CanvasToolsFab() {
           />
           <AddCircleButton onAddCircle={addCircle} onMouseDown={onMouseDown} />
           <AddLineButton onAddLine={addLine} onMouseDown={onMouseDown} />
-          <AddRectangleButton
-            onAddRectangle={addRectangle}
+          <AddPathButton
+            isPathToolActive={activeCanvasTool === "path"}
+            onAddPath={() => {
+              dispatch(setActiveCanvasTool(activeCanvasTool === "path" ? "select" : "path"));
+            }}
             onMouseDown={onMouseDown}
           />
+          <AddRectangleButton onAddRectangle={addRectangle} onMouseDown={onMouseDown} />
           <AddAssetButton
             onAddImageFile={addImageFromFile}
             onAddSvgFile={addSvgFromFile}
@@ -203,14 +210,8 @@ function clampWithinCanvas(
   fabWidth: number,
   fabHeight: number,
 ): Position {
-  const maxX = Math.max(
-    FAB_EDGE_PADDING,
-    parentWidth - fabWidth - FAB_EDGE_PADDING,
-  );
-  const maxY = Math.max(
-    FAB_EDGE_PADDING,
-    parentHeight - fabHeight - FAB_EDGE_PADDING,
-  );
+  const maxX = Math.max(FAB_EDGE_PADDING, parentWidth - fabWidth - FAB_EDGE_PADDING);
+  const maxY = Math.max(FAB_EDGE_PADDING, parentHeight - fabHeight - FAB_EDGE_PADDING);
   return {
     x: clamp(x, FAB_EDGE_PADDING, maxX),
     y: clamp(y, FAB_EDGE_PADDING, maxY),

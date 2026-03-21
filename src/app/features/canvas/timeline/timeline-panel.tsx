@@ -1,5 +1,5 @@
 /** Timeline Panel.Tsx timeline UI and behavior. */
-import { type MouseEvent, useCallback, useState } from "react";
+import { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Resizable } from "re-resizable";
 import { AppScrollArea } from "../../../components/app-scroll-area";
 import {
@@ -15,7 +15,12 @@ import CanvasZoomControl from "../canvas-zoom-control";
 import TimelineItemRow from "./timeline-item-row";
 import TimelinePlayhead from "./timeline-playhead";
 import { useAppDispatch, useAppSelector } from "../../../store";
-import { setPlayheadTime } from "../../../store/editor-slice";
+import {
+  setPlayheadTime,
+  setSelectedId,
+  setSelectedKeyframes,
+  type SelectedTimelineKeyframe,
+} from "../../../store/editor-slice";
 import TimeStampControl from "./timestamp-control";
 
 const TIMELINE_ZOOM_MIN = 1;
@@ -24,6 +29,21 @@ const TIMELINE_ZOOM_STEP = 0.25;
 const TIMELINE_TOOLBAR_HEIGHT = 48;
 const TIMELINE_RULER_HEIGHT = 36;
 const TIMELINE_ZOOM_SCALE_FACTOR = 3;
+const MARQUEE_START_THRESHOLD_PX = 4;
+
+type MarqueeDraft = {
+  currentClientX: number;
+  currentClientY: number;
+  startClientX: number;
+  startClientY: number;
+};
+
+type MarqueeSelectionBox = {
+  height: number;
+  left: number;
+  top: number;
+  width: number;
+};
 
 /** Timeline container with playback loop, labels, and item rows. */
 export default function TimelinePanel() {
@@ -32,9 +52,16 @@ export default function TimelinePanel() {
 
   const [timelineHeight, setTimelineHeight] = useState(TIMELINE_DEFAULT_HEIGHT);
   const [timelineZoom, setTimelineZoom] = useState(1);
+  const [marqueeSelection, setMarqueeSelection] = useState<MarqueeSelectionBox | null>(null);
+  const timelineContentRef = useRef<HTMLDivElement | null>(null);
+  const marqueeDraftRef = useRef<MarqueeDraft | null>(null);
   const timelineZoomScale = 1 + (timelineZoom - TIMELINE_ZOOM_MIN) * TIMELINE_ZOOM_SCALE_FACTOR;
   const timelineLabelStep = getTimelineLabelStep(timelineZoom);
   const timelineContentWidth = `calc(${LABEL_COLUMN_WIDTH}px + (100% - ${LABEL_COLUMN_WIDTH}px) * ${timelineZoomScale})`;
+  const selectedKeyframes = useMemo(
+    () => collectSelectedTimelineKeyframes(timelineContentRef.current, marqueeSelection),
+    [marqueeSelection],
+  );
 
   const seekFromPointer = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
@@ -51,6 +78,57 @@ export default function TimelinePanel() {
     },
     [dispatch],
   );
+
+  useEffect(() => {
+    /** Updates the marquee selection box while the pointer is dragging across keyframes. */
+    const handlePointerMove = (event: globalThis.MouseEvent) => {
+      const draft = marqueeDraftRef.current;
+      const content = timelineContentRef.current;
+      if (!draft || !content) return;
+
+      draft.currentClientX = event.clientX;
+      draft.currentClientY = event.clientY;
+
+      const pointerDistance = Math.hypot(
+        event.clientX - draft.startClientX,
+        event.clientY - draft.startClientY,
+      );
+      if (pointerDistance < MARQUEE_START_THRESHOLD_PX) return;
+
+      event.preventDefault();
+      setMarqueeSelection(createMarqueeSelectionBox(content, draft));
+    };
+
+    /** Finalizes the marquee selection and syncs selected timeline keyframes into Redux. */
+    const handlePointerUp = () => {
+      const draft = marqueeDraftRef.current;
+      marqueeDraftRef.current = null;
+
+      if (!draft) {
+        setMarqueeSelection(null);
+        return;
+      }
+
+      if (selectedKeyframes.length > 0) {
+        dispatch(setSelectedKeyframes(selectedKeyframes));
+        dispatch(
+          setSelectedId(Array.from(new Set(selectedKeyframes.map((keyframe) => keyframe.itemId)))),
+        );
+      } else if (marqueeSelection) {
+        dispatch(setSelectedKeyframes([]));
+      }
+
+      setMarqueeSelection(null);
+    };
+
+    window.addEventListener("mousemove", handlePointerMove);
+    window.addEventListener("mouseup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handlePointerMove);
+      window.removeEventListener("mouseup", handlePointerUp);
+    };
+  }, [dispatch, marqueeSelection, selectedKeyframes]);
 
   return (
     <section
@@ -148,9 +226,23 @@ export default function TimelinePanel() {
           <div className="flex h-full w-full">
             <div
               className="relative flex h-full min-h-full w-full flex-col"
+              ref={timelineContentRef}
               style={{
                 minWidth: "100%",
                 width: timelineContentWidth,
+              }}
+              onMouseDown={(event) => {
+                const target = event.target as HTMLElement | null;
+                if (!target) return;
+                if (target.closest("[data-timeline-keyframe='true']")) return;
+                if (!target.closest("[data-timeline-keyframe-track='true']")) return;
+
+                marqueeDraftRef.current = {
+                  startClientX: event.clientX,
+                  startClientY: event.clientY,
+                  currentClientX: event.clientX,
+                  currentClientY: event.clientY,
+                };
               }}
             >
               <TimelinePlayhead
@@ -220,6 +312,18 @@ export default function TimelinePanel() {
                   ))}
                 </div>
               )}
+
+              {marqueeSelection ? (
+                <div
+                  className="pointer-events-none absolute z-40 rounded-sm border border-[var(--wise-accent)] bg-[var(--wise-accent)]/16"
+                  style={{
+                    left: marqueeSelection.left,
+                    top: marqueeSelection.top,
+                    width: marqueeSelection.width,
+                    height: marqueeSelection.height,
+                  }}
+                />
+              ) : null}
             </div>
           </div>
         </AppScrollArea>
@@ -251,4 +355,60 @@ function formatTimelineLabel(seconds: number, labelStep: number) {
     return `${minutes}:${fractionalSeconds.padStart(5, "0")}`;
   }
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+}
+
+/** Creates a rectangle relative to the scrollable timeline content. */
+function createMarqueeSelectionBox(
+  content: HTMLDivElement,
+  draft: MarqueeDraft,
+): MarqueeSelectionBox {
+  const bounds = content.getBoundingClientRect();
+  const left = Math.min(draft.startClientX, draft.currentClientX) - bounds.left;
+  const top = Math.min(draft.startClientY, draft.currentClientY) - bounds.top;
+  const width = Math.abs(draft.currentClientX - draft.startClientX);
+  const height = Math.abs(draft.currentClientY - draft.startClientY);
+
+  return { left, top, width, height };
+}
+
+/** Collects all timeline keyframes that intersect the active marquee selection box. */
+function collectSelectedTimelineKeyframes(
+  content: HTMLDivElement | null,
+  marqueeSelection: MarqueeSelectionBox | null,
+) {
+  if (!content || !marqueeSelection) return [];
+
+  const contentBounds = content.getBoundingClientRect();
+  const selectionBounds = {
+    left: contentBounds.left + marqueeSelection.left,
+    right: contentBounds.left + marqueeSelection.left + marqueeSelection.width,
+    top: contentBounds.top + marqueeSelection.top,
+    bottom: contentBounds.top + marqueeSelection.top + marqueeSelection.height,
+  };
+
+  return Array.from(content.querySelectorAll<HTMLElement>("[data-timeline-keyframe='true']"))
+    .filter((node) => {
+      const bounds = node.getBoundingClientRect();
+      return !(
+        bounds.right < selectionBounds.left ||
+        bounds.left > selectionBounds.right ||
+        bounds.bottom < selectionBounds.top ||
+        bounds.top > selectionBounds.bottom
+      );
+    })
+    .map((node) => {
+      const itemId = node.dataset.keyframeItemId;
+      const keyframeId = node.dataset.keyframeId;
+      const property = node.dataset.keyframeProperty;
+      const time = Number(node.dataset.keyframeTime);
+      if (!itemId || !keyframeId || !property || !Number.isFinite(time)) return null;
+
+      return {
+        itemId,
+        keyframeId,
+        property,
+        timestamp: time,
+      } satisfies SelectedTimelineKeyframe;
+    })
+    .filter((keyframe): keyframe is SelectedTimelineKeyframe => keyframe !== null);
 }

@@ -1,4 +1,4 @@
-import { FabricObject } from "fabric";
+import { FabricObject, Path } from "fabric";
 import { useEffect } from "react";
 
 import { VideoObject } from "../../shapes/objects";
@@ -22,8 +22,7 @@ function useSeekObjects() {
           instance.seek(playHeadTime);
         }
         syncMaskProxyForObject(instance.fabricObject);
-        const isActive =
-          instance.fabricObject.customId === canvas.getActiveObject()?.customId;
+        const isActive = instance.fabricObject.customId === canvas.getActiveObject()?.customId;
         if (isActive) {
           instance.fabricObject.fire("my:custom:seek", {
             target: instance.fabricObject,
@@ -65,6 +64,18 @@ function syncMaskProxyForObject(object: FabricObject) {
     flipY: maskSource.flipY,
     originX: maskSource.originX,
     originY: maskSource.originY,
+  });
+  if (maskProxy instanceof Path && maskSource instanceof Path) {
+    maskProxy.set({
+      path: maskSource.path.map((command) => [...command]),
+    });
+  }
+  maskProxy.set({
+    fill: "#000000",
+    stroke: null,
+    strokeWidth: 0,
+    opacity: 1,
+    shadow: null,
   });
   if (object.clipPath !== maskProxy) {
     object.set("clipPath", maskProxy);

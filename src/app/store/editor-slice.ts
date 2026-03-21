@@ -26,18 +26,24 @@ export type EditorProjectInfo = {
   canvasZoom?: number;
 };
 
+export type SelectedTimelineKeyframe = {
+  itemId: string;
+  keyframeId: string;
+  property: string;
+  timestamp: number;
+};
+
+export type CanvasTool = "path" | "select";
+
 export type EditorState = {
   playHeadTime: number;
   isPaused: boolean;
   canvasItemIds: string[];
   itemsRecord: Record<string, EditorItemRecord>;
   selectedId: string[];
-  selectedKeyframe: {
-    itemId: string;
-    keyframeId: string;
-    property: string;
-    timestamp: number;
-  } | null;
+  selectedKeyframe: SelectedTimelineKeyframe | null;
+  selectedKeyframes: SelectedTimelineKeyframe[];
+  activeCanvasTool: CanvasTool;
   projectInfo: EditorProjectInfo;
 };
 
@@ -48,6 +54,8 @@ const initialState: EditorState = {
   itemsRecord: {},
   selectedId: [],
   selectedKeyframe: null,
+  selectedKeyframes: [],
+  activeCanvasTool: "select",
   projectInfo: {
     canvasWidth: 0,
     canvasHeight: 0,
@@ -87,9 +95,7 @@ const editorSlice = createSlice({
       };
     },
     removeCanvasItemId(state, action: PayloadAction<string>) {
-      state.canvasItemIds = state.canvasItemIds.filter(
-        (id) => id !== action.payload,
-      );
+      state.canvasItemIds = state.canvasItemIds.filter((id) => id !== action.payload);
       delete state.itemsRecord[action.payload];
       if (state.selectedId.includes(action.payload)) {
         state.selectedId = state.selectedId.filter((id) => id !== action.payload);
@@ -97,23 +103,22 @@ const editorSlice = createSlice({
       if (state.selectedKeyframe?.itemId === action.payload) {
         state.selectedKeyframe = null;
       }
+      state.selectedKeyframes = state.selectedKeyframes.filter(
+        (keyframe) => keyframe.itemId !== action.payload,
+      );
     },
     clearCanvasItemIds(state) {
       state.canvasItemIds = [];
       state.itemsRecord = {};
       state.selectedId = [];
       state.selectedKeyframe = null;
+      state.selectedKeyframes = [];
+      state.activeCanvasTool = "select";
     },
-    setItemsRecord(
-      state,
-      action: PayloadAction<Record<string, EditorItemRecord>>,
-    ) {
+    setItemsRecord(state, action: PayloadAction<Record<string, EditorItemRecord>>) {
       state.itemsRecord = action.payload;
     },
-    upsertItemRecord(
-      state,
-      action: PayloadAction<{ id: string; value: EditorItemRecord }>,
-    ) {
+    upsertItemRecord(state, action: PayloadAction<{ id: string; value: EditorItemRecord }>) {
       state.itemsRecord[action.payload.id] = {
         isLocked: false,
         ...action.payload.value,
@@ -122,10 +127,7 @@ const editorSlice = createSlice({
         state.canvasItemIds.unshift(action.payload.id);
       }
     },
-    toggleItemLocked(
-      state,
-      action: PayloadAction<{ id: string; isLocked: boolean }>,
-    ) {
+    toggleItemLocked(state, action: PayloadAction<{ id: string; isLocked: boolean }>) {
       const record = state.itemsRecord[action.payload.id];
       if (!record) return;
 
@@ -136,6 +138,11 @@ const editorSlice = createSlice({
       if (state.selectedKeyframe?.itemId === action.payload.id && action.payload.isLocked) {
         state.selectedKeyframe = null;
       }
+      if (action.payload.isLocked) {
+        state.selectedKeyframes = state.selectedKeyframes.filter(
+          (keyframe) => keyframe.itemId !== action.payload.id,
+        );
+      }
     },
     updateItemName(state, action: PayloadAction<{ id: string; name: string }>) {
       const record = state.itemsRecord[action.payload.id];
@@ -145,35 +152,37 @@ const editorSlice = createSlice({
     },
     removeItemRecord(state, action: PayloadAction<string>) {
       delete state.itemsRecord[action.payload];
-      state.canvasItemIds = state.canvasItemIds.filter(
-        (id) => id !== action.payload,
-      );
+      state.canvasItemIds = state.canvasItemIds.filter((id) => id !== action.payload);
       if (state.selectedId.includes(action.payload)) {
         state.selectedId = state.selectedId.filter((id) => id !== action.payload);
       }
       if (state.selectedKeyframe?.itemId === action.payload) {
         state.selectedKeyframe = null;
       }
+      state.selectedKeyframes = state.selectedKeyframes.filter(
+        (keyframe) => keyframe.itemId !== action.payload,
+      );
     },
     setSelectedId(state, action: PayloadAction<string[]>) {
       state.selectedId = action.payload;
-      if (
-        state.selectedKeyframe &&
-        !action.payload.includes(state.selectedKeyframe.itemId)
-      ) {
+      state.selectedKeyframes = state.selectedKeyframes.filter((keyframe) =>
+        action.payload.includes(keyframe.itemId),
+      );
+      state.selectedKeyframe = state.selectedKeyframes[0] ?? null;
+      if (state.selectedKeyframe && !action.payload.includes(state.selectedKeyframe.itemId)) {
         state.selectedKeyframe = null;
       }
     },
-    setSelectedKeyframe(
-      state,
-      action: PayloadAction<{
-        itemId: string;
-        keyframeId: string;
-        property: string;
-        timestamp: number;
-      } | null>,
-    ) {
+    setSelectedKeyframe(state, action: PayloadAction<SelectedTimelineKeyframe | null>) {
       state.selectedKeyframe = action.payload;
+      state.selectedKeyframes = action.payload ? [action.payload] : [];
+    },
+    setSelectedKeyframes(state, action: PayloadAction<SelectedTimelineKeyframe[]>) {
+      state.selectedKeyframes = action.payload;
+      state.selectedKeyframe = action.payload[0] ?? null;
+    },
+    setActiveCanvasTool(state, action: PayloadAction<CanvasTool>) {
+      state.activeCanvasTool = action.payload;
     },
     setProjectInfo(state, action: PayloadAction<Partial<EditorProjectInfo>>) {
       state.projectInfo = { ...state.projectInfo, ...action.payload };
@@ -193,6 +202,8 @@ export const {
   removeItemRecord,
   setSelectedId,
   setSelectedKeyframe,
+  setSelectedKeyframes,
+  setActiveCanvasTool,
   setProjectInfo,
   toggleItemLocked,
   updateItemName,

@@ -4,11 +4,13 @@ import { loadVideoElement } from "../../canvas/util/video-import";
 import type {
   ColorKeyframesByProperty,
   KeyframesByProperty,
+  PathKeyframesByProperty,
 } from "../animatable-object/types";
 import {
   AnimatableObject,
   cloneAnimatableColorKeyframes,
   cloneAnimatableNumericKeyframes,
+  cloneAnimatablePathKeyframes,
 } from "../animatable-object/object";
 
 export class VideoObject extends AnimatableObject {
@@ -19,10 +21,11 @@ export class VideoObject extends AnimatableObject {
     options: ConstructorParameters<typeof FabricImage>[1] = {},
     keyframes: KeyframesByProperty = {},
     colorKeyframes: ColorKeyframesByProperty = {},
+    pathKeyframes: PathKeyframesByProperty = {},
   ) {
     // Wrap videos with FabricImage so they behave like other animatable canvas items.
     const fabricObject = source instanceof FabricImage ? source : new FabricImage(source, options);
-    super(fabricObject, keyframes, colorKeyframes);
+    super(fabricObject, keyframes, colorKeyframes, pathKeyframes);
     this.fabricObject = fabricObject;
   }
 
@@ -47,6 +50,7 @@ export class VideoObject extends AnimatableObject {
         {},
         cloneAnimatableNumericKeyframes(this.keyframes, positionOffset),
         cloneAnimatableColorKeyframes(this.colorKeyframes),
+        cloneAnimatablePathKeyframes(this.pathKeyframes),
       );
     }
 
@@ -65,6 +69,7 @@ export class VideoObject extends AnimatableObject {
       {},
       cloneAnimatableNumericKeyframes(this.keyframes, positionOffset),
       cloneAnimatableColorKeyframes(this.colorKeyframes),
+      cloneAnimatablePathKeyframes(this.pathKeyframes),
     );
   }
 

@@ -59,8 +59,8 @@ export const LABEL_COLUMN_WIDTH = 210;
 export const AGENT_TARGET_STEPS = 10;
 export const MAX_AGENT_STEPS = 15;
 export const MAX_BORDER_SCALE_FACTOR = 4;
-export const MAX_CANVAS_ZOOM = 4;
-export const MIN_CANVAS_ZOOM = 0.025;
+export const MAX_CANVAS_ZOOM = 10;
+export const MIN_CANVAS_ZOOM = 0.0025;
 export const MIN_BORDER_SCALE_FACTOR = 0.05;
 export const NUMERIC_ANIMATABLE_PROPERTIES: (keyof NumericAnimatableProperties)[] = [
   "left",
@@ -190,10 +190,4 @@ export const FONT_WEIGHT_OPTIONS = [
   "800",
   "900",
 ] as const;
-export const MASK_SYNC_EVENTS = [
-  "moving",
-  "scaling",
-  "rotating",
-  "skewing",
-  "modified",
-] as const;
+export const MASK_SYNC_EVENTS = ["moving", "scaling", "rotating", "skewing", "modified"] as const;

@@ -302,7 +302,8 @@ export default function CanvasSidePanelDesign() {
       if (!isMultiSelected && supportsText) {
         const textObject = object as Textbox;
         const currentScaleX = textObject.scaleX ?? 1;
-        const fixedWrapWidth = currentScaleX !== 0 ? textObject.getScaledWidth() / currentScaleX : 0;
+        const fixedWrapWidth =
+          currentScaleX !== 0 ? textObject.getScaledWidth() / currentScaleX : 0;
 
         if (Number.isFinite(fixedWrapWidth) && fixedWrapWidth > 0) {
           textObject.set("width", fixedWrapWidth);
@@ -477,12 +478,80 @@ export default function CanvasSidePanelDesign() {
       nextTop += videoArea.top + videoArea.height - (bounds.top + bounds.height);
     }
 
+    const deltaLeft = nextLeft - currentLeft;
+    const deltaTop = nextTop - currentTop;
+    if (
+      Math.abs(deltaLeft) <= CANVAS_KEYFRAME_EPSILON &&
+      Math.abs(deltaTop) <= CANVAS_KEYFRAME_EPSILON
+    ) {
+      return;
+    }
+
     transformTargetObject.set({
       left: nextLeft,
       top: nextTop,
     });
     transformTargetObject.setCoords();
     transformTargetObject.canvas?.requestRenderAll();
+
+    const currentPlayheadTime = dispatch(
+      dispatchableSelector((state) => state.editor.playHeadTime),
+    );
+    const itemRecords = dispatch(dispatchableSelector((state) => state.editor.itemsRecord));
+
+    /** Syncs marker rows after an alignment operation adds timeline keyframes. */
+    const updateItemMarkers = (id: string, item: EditorItemRecord | null | undefined) => {
+      if (!item) return;
+
+      const nextMarkers = appendUniqueMarkerTimes(
+        item.keyframe,
+        [currentPlayheadTime],
+        CANVAS_KEYFRAME_EPSILON,
+      );
+
+      dispatch(
+        upsertItemRecord({
+          id,
+          value: {
+            ...item,
+            keyframe: nextMarkers,
+          },
+        }),
+      );
+    };
+
+    const idsToUpdate = isMultiSelected
+      ? selectedIds
+      : selectedContext.id
+        ? [selectedContext.id]
+        : [];
+
+    idsToUpdate.forEach((id) => {
+      const instance = getInstanceById(id);
+      const item = itemRecords[id];
+      if (!instance) return;
+
+      const snapshot = instance.getSnapshot();
+      if (Math.abs(deltaLeft) > CANVAS_KEYFRAME_EPSILON) {
+        instance.addKeyframe({
+          property: "left",
+          value: snapshot.left,
+          time: currentPlayheadTime,
+          easing: "linear",
+        });
+      }
+      if (Math.abs(deltaTop) > CANVAS_KEYFRAME_EPSILON) {
+        instance.addKeyframe({
+          property: "top",
+          value: snapshot.top,
+          time: currentPlayheadTime,
+          easing: "linear",
+        });
+      }
+
+      updateItemMarkers(id, item);
+    });
+
     setDesignForm(readDesignFormFromObject(transformTargetObject));
   };
 
@@ -500,7 +569,7 @@ export default function CanvasSidePanelDesign() {
         >
           <div className="space-y-2.5">
             <DesignAlignmentControls onAlign={alignSelectionToVideoArea} />
-            {TRANSFORM_FIELD_ROWS.map((row) => (
+            {TRANSFORM_FIELD_ROWS.map((row) =>
               row[0].changedField === "left" || row[0].changedField === "width" ? (
                 <div className="space-y-1.5" key={row[0].changedField}>
                   <div className="font-[var(--wise-font-ui)] text-[11px] font-medium text-[var(--wise-content-secondary)]">
@@ -552,8 +621,8 @@ export default function CanvasSidePanelDesign() {
                     />
                   ))}
                 </div>
-              )
-            ))}
+              ),
+            )}
           </div>
         </AccordionSection>
       )}

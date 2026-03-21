@@ -15,8 +15,15 @@ export type ColorAnimatableProperties = {
   stroke: string;
 };
 
+export type PathCommand = [string, ...number[]];
+
+export type PathAnimatableProperties = {
+  pathData: PathCommand[];
+};
+
 export type AnimatableProperties = NumericAnimatableProperties &
-  ColorAnimatableProperties;
+  ColorAnimatableProperties &
+  PathAnimatableProperties;
 
 export type ColorVector = Uint8Array;
 
@@ -38,8 +45,7 @@ export type ColorSnapshot = Partial<{
 }>;
 
 export interface Keyframe<
-  K extends keyof NumericAnimatableProperties =
-    keyof NumericAnimatableProperties,
+  K extends keyof NumericAnimatableProperties = keyof NumericAnimatableProperties,
 > {
   id: string;
   property: K;
@@ -58,14 +64,25 @@ export interface ColorKeyframe<
   easing: KeyframeEasing;
 }
 
+export interface PathKeyframe<
+  K extends keyof PathAnimatableProperties = keyof PathAnimatableProperties,
+> {
+  id: string;
+  property: K;
+  value: PathAnimatableProperties[K];
+  time: number;
+  easing: KeyframeEasing;
+}
+
 export type TimelineMarker = {
   id: string;
   time: number;
 };
 
-export type KeyframesByProperty = Partial<
-  Record<keyof NumericAnimatableProperties, Keyframe[]>
->;
+export type KeyframesByProperty = Partial<Record<keyof NumericAnimatableProperties, Keyframe[]>>;
 export type ColorKeyframesByProperty = Partial<
   Record<keyof ColorAnimatableProperties, ColorKeyframe[]>
+>;
+export type PathKeyframesByProperty = Partial<
+  Record<keyof PathAnimatableProperties, PathKeyframe[]>
 >;

@@ -1,6 +1,7 @@
 /** Editor Canvas.Tsx module implementation. */
 import CanvasSidePanel from "./canvas-side-panel";
 import CanvasToolsFab from "./canvas-tools-fab";
+import { PathDrawingTool } from "./hooks/use-path-drawing-tool";
 import CanvasItemsList from "./items-list/canvas-items-list";
 import TimelinePanel from "./timeline/timeline-panel";
 import VideoWorkAreaOverlay from "./video-work-area-overlay";
@@ -17,8 +18,7 @@ export default function EditorCanvas() {
         data-canvas_container
         className="flex min-h-0 flex-1 flex-col"
         style={{
-          background:
-            "linear-gradient(180deg, rgba(25,25,28,0.98), rgba(14,14,16,0.98))",
+          background: "linear-gradient(180deg, rgba(25,25,28,0.98), rgba(14,14,16,0.98))",
         }}
       >
         <div className="relative min-h-0 flex min-w-0 flex-1 items-stretch overflow-hidden xl:h-full">
@@ -47,6 +47,7 @@ export default function EditorCanvas() {
       </div>
 
       <TimelinePanel />
+      <PathDrawingTool />
       <SeekObjects />
     </section>
   );
