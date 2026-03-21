@@ -54,7 +54,7 @@ export function KeyframeDetailsPanel() {
             ariaLabel="Select keyframe transition"
             contentClassName="z-50 min-w-[160px] rounded-[6px] border border-[rgba(141,171,255,0.14)] bg-[rgba(25,25,28,0.98)] p-1 shadow-[0_28px_44px_rgba(141,171,255,0.06)] backdrop-blur-xl"
             options={EASING_OPTIONS.map((option) => ({
-              label: option,
+              label: formatEasingLabel(option),
               value: option,
             }))}
             triggerClassName="inline-flex h-8 w-full items-center justify-between gap-2 rounded-[4px] border border-[rgba(141,171,255,0.14)] bg-[var(--wise-surface-raised)] px-2.5 font-[var(--wise-font-ui)] text-[11px] text-[#f3f5f8] outline-none transition hover:bg-white/6"
@@ -78,6 +78,14 @@ export function KeyframeDetailsPanel() {
       </div>
     </section>
   );
+}
+
+function formatEasingLabel(easing: KeyframeEasing) {
+  if (easing === "easeIn") return "Ease In";
+  if (easing === "easeOut") return "Ease Out";
+  if (easing === "easeInOut") return "Ease In Out";
+  if (easing === "naturalness") return "Naturalness";
+  return easing.charAt(0).toUpperCase() + easing.slice(1);
 }
 
 /** Updates a keyframe easing value across numeric and color keyframe collections. */

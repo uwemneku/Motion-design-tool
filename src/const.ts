@@ -39,6 +39,7 @@ export const EASING_OPTIONS: KeyframeEasing[] = [
   "easeIn",
   "easeOut",
   "easeInOut",
+  "naturalness",
   "elastic",
   "bounce",
 ];

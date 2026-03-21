@@ -66,6 +66,7 @@ export function CanvasAppProvider({ children }: PropsWithChildren) {
 
       fabricContainerRef.current = node;
       const transformActionById = new Map<string, string>();
+      const transformStartAngleById = new Map<string, number>();
       const { height, width } = getHostContainerSize(node);
       const _canvas = new Canvas(node, {
         width,
@@ -164,9 +165,13 @@ export function CanvasAppProvider({ children }: PropsWithChildren) {
           let wroteAnyKeyframe = false;
 
           changedProperties.forEach((property) => {
+            const propertyValue =
+              property === "angle" && action === "rotate"
+                ? unwrapRotationAngle(snapshot.angle, transformStartAngleById.get(customId))
+                : snapshot[property];
             instance.addKeyframe({
               property,
-              value: snapshot[property],
+              value: propertyValue,
               time: timestamp,
               easing: "linear",
             });
@@ -181,6 +186,7 @@ export function CanvasAppProvider({ children }: PropsWithChildren) {
             wroteAnyKeyframe = true;
           }
           transformActionById.delete(customId);
+          transformStartAngleById.delete(customId);
 
           if (!wroteAnyKeyframe) return;
 
@@ -218,6 +224,9 @@ export function CanvasAppProvider({ children }: PropsWithChildren) {
           const customId = object.get("customId");
           if (!customId || typeof customId !== "string") return;
           transformActionById.set(customId, action);
+          if (action === "rotate") {
+            transformStartAngleById.set(customId, Number(object.angle ?? 0));
+          }
         });
       });
 
@@ -349,4 +358,12 @@ function getSelectedObjectIds(
     .filter((object) => object.selectable !== false && object.evented !== false)
     .map((object) => object.customId || object.get("customId"))
     .filter((customId): customId is string => typeof customId === "string");
+}
+
+/** Keeps rotation keyframes continuous so anticlockwise drags stay negative when appropriate. */
+function unwrapRotationAngle(nextAngle: number, previousAngle?: number) {
+  if (previousAngle === undefined || !Number.isFinite(previousAngle)) return nextAngle;
+  const safePreviousAngle = previousAngle;
+  const delta = ((((nextAngle - safePreviousAngle) % 360) + 540) % 360) - 180;
+  return safePreviousAngle + delta;
 }

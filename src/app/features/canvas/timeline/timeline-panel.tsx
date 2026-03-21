@@ -235,6 +235,7 @@ export default function TimelinePanel() {
                 const target = event.target as HTMLElement | null;
                 if (!target) return;
                 if (target.closest("[data-timeline-keyframe='true']")) return;
+                dispatch(setSelectedKeyframes([]));
                 if (!target.closest("[data-timeline-keyframe-track='true']")) return;
 
                 marqueeDraftRef.current = {

@@ -37,6 +37,7 @@ export type KeyframeEasing =
   | "easeIn"
   | "easeOut"
   | "easeInOut"
+  | "naturalness"
   | "elastic"
   | "bounce";
 

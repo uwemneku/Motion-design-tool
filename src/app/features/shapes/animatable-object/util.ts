@@ -36,6 +36,41 @@ function easeOutElastic(progress: number) {
   return Math.pow(2, -10 * progress) * Math.sin((progress * 10 - 0.75) * c4) + 1;
 }
 
+function cubicBezier(progress: number, x1: number, y1: number, x2: number, y2: number) {
+  const cx = 3 * x1;
+  const bx = 3 * (x2 - x1) - cx;
+  const ax = 1 - cx - bx;
+  const cy = 3 * y1;
+  const by = 3 * (y2 - y1) - cy;
+  const ay = 1 - cy - by;
+
+  const sampleCurveX = (t: number) => ((ax * t + bx) * t + cx) * t;
+  const sampleCurveY = (t: number) => ((ay * t + by) * t + cy) * t;
+  const sampleDerivativeX = (t: number) => (3 * ax * t + 2 * bx) * t + cx;
+
+  let t = progress;
+  for (let index = 0; index < 8; index += 1) {
+    const x = sampleCurveX(t) - progress;
+    const derivative = sampleDerivativeX(t);
+    if (Math.abs(x) < 1e-6 || Math.abs(derivative) < 1e-6) break;
+    t -= x / derivative;
+  }
+
+  let lower = 0;
+  let upper = 1;
+  while (sampleCurveX(t) > progress) {
+    upper = t;
+    t = (lower + upper) / 2;
+  }
+  while (sampleCurveX(t) < progress) {
+    lower = t;
+    t = (lower + upper) / 2;
+    if (upper - lower < 1e-6) break;
+  }
+
+  return sampleCurveY(t);
+}
+
 export function applyEasing(progress: number, easing: KeyframeEasing) {
   const t = clamp(progress, 0, 1);
   if (easing === "step") return t < 1 ? 0 : 1;
@@ -44,6 +79,7 @@ export function applyEasing(progress: number, easing: KeyframeEasing) {
   if (easing === "easeInOut") {
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
+  if (easing === "naturalness") return cubicBezier(t, 0.4, 0, 0.8, 1);
   if (easing === "elastic") return easeOutElastic(t);
   if (easing === "bounce") return easeOutBounce(t);
   return t;
