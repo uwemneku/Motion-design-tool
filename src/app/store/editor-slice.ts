@@ -15,6 +15,7 @@ export type EditorItemRecord = {
 export type EditorProjectInfo = {
   canvasWidth: number;
   canvasHeight: number;
+  durationSeconds: number;
   videoWidth: number;
   videoHeight: number;
   videoLeft: number;
@@ -59,6 +60,7 @@ const initialState: EditorState = {
   projectInfo: {
     canvasWidth: 0,
     canvasHeight: 0,
+    durationSeconds: 10,
     videoWidth: 0,
     videoHeight: 0,
     videoLeft: 0,

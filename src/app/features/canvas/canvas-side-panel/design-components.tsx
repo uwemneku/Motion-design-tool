@@ -2,10 +2,7 @@
 import { ChevronDown } from "lucide-react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
-import type {
-  HorizontalAlignment,
-  VerticalAlignment,
-} from "./design-helpers";
+import type { HorizontalAlignment, VerticalAlignment } from "./design-helpers";
 
 type FieldShellProps = {
   children: ReactNode;
@@ -78,9 +75,7 @@ export function KeyframeActionButton({
   variant = "absolute",
 }: KeyframeActionButtonProps) {
   const positionClass =
-    variant === "inline"
-      ? "relative shrink-0"
-      : "absolute right-1.5 top-1/2 -translate-y-1/2";
+    variant === "inline" ? "relative shrink-0" : "absolute right-1.5 top-1/2 -translate-y-1/2";
 
   return (
     <button
@@ -90,7 +85,7 @@ export function KeyframeActionButton({
         event.stopPropagation();
         onAddKeyframe();
       }}
-      className={`inline-flex size-2.5 cursor-pointer items-center justify-center rotate-45 border transition ${positionClass} ${
+      className={`inline-flex size-2 cursor-pointer items-center justify-center rotate-45 border transition ${positionClass} ${
         isKeyframed
           ? "border-[var(--wise-primary)] bg-[rgba(141,171,255,0.14)] text-[var(--wise-primary)]"
           : "border-[rgba(141,171,255,0.14)] bg-[rgba(255,255,255,0.02)] text-[var(--wise-content-secondary)] hover:border-[rgba(141,171,255,0.22)] hover:bg-white/6 hover:text-[var(--wise-content-primary)]"
@@ -151,12 +146,7 @@ type AccordionSectionProps = {
 };
 
 /** Wraps an inspector block in a compact accordion shell. */
-export function AccordionSection({
-  children,
-  isOpen,
-  onToggle,
-  title,
-}: AccordionSectionProps) {
+export function AccordionSection({ children, isOpen, onToggle, title }: AccordionSectionProps) {
   return (
     <section className="space-y-2 border-t border-white/10 pt-4 first:border-t-0 first:pt-0">
       <button

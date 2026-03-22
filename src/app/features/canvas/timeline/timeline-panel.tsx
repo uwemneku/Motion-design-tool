@@ -49,6 +49,9 @@ type MarqueeSelectionBox = {
 export default function TimelinePanel() {
   const dispatch = useAppDispatch();
   const canvasItemIds = useAppSelector((state) => state.editor.canvasItemIds);
+  const timelineDuration = useAppSelector(
+    (state) => state.editor.projectInfo.durationSeconds,
+  );
 
   const [timelineHeight, setTimelineHeight] = useState(TIMELINE_DEFAULT_HEIGHT);
   const [timelineZoom, setTimelineZoom] = useState(1);
@@ -56,8 +59,9 @@ export default function TimelinePanel() {
   const timelineContentRef = useRef<HTMLDivElement | null>(null);
   const marqueeDraftRef = useRef<MarqueeDraft | null>(null);
   const timelineZoomScale = 1 + (timelineZoom - TIMELINE_ZOOM_MIN) * TIMELINE_ZOOM_SCALE_FACTOR;
+  const timelineDurationScale = Math.max(1, timelineDuration / TIMELINE_DURATION);
   const timelineLabelStep = getTimelineLabelStep(timelineZoom);
-  const timelineContentWidth = `calc(${LABEL_COLUMN_WIDTH}px + (100% - ${LABEL_COLUMN_WIDTH}px) * ${timelineZoomScale})`;
+  const timelineContentWidth = `calc(${LABEL_COLUMN_WIDTH}px + (100% - ${LABEL_COLUMN_WIDTH}px) * ${timelineZoomScale * timelineDurationScale})`;
   const selectedKeyframes = useMemo(
     () => collectSelectedTimelineKeyframes(timelineContentRef.current, marqueeSelection),
     [marqueeSelection],
@@ -73,10 +77,10 @@ export default function TimelinePanel() {
       if (trackWidth <= 0) return;
 
       const x = clamp(event.clientX - bounds.left - paddingLeft, 0, trackWidth);
-      const nextTime = (x / trackWidth) * TIMELINE_DURATION;
+      const nextTime = (x / trackWidth) * timelineDuration;
       dispatch(setPlayheadTime(Number(nextTime.toFixed(3))));
     },
-    [dispatch],
+    [dispatch, timelineDuration],
   );
 
   useEffect(() => {
@@ -247,7 +251,7 @@ export default function TimelinePanel() {
               }}
             >
               <TimelinePlayhead
-                duration={TIMELINE_DURATION}
+                duration={timelineDuration}
                 keyframeSectionOffset={LABEL_COLUMN_WIDTH + KEYFRAME_SECTION_HORIZONTAL_PADDING}
                 keyframeSectionRightOffset={KEYFRAME_SECTION_HORIZONTAL_PADDING}
                 rulerHeight={TIMELINE_RULER_HEIGHT}
@@ -276,11 +280,11 @@ export default function TimelinePanel() {
                   <div className="relative h-full">
                     {Array.from(
                       {
-                        length: Math.floor(TIMELINE_DURATION / timelineLabelStep) + 1,
+                        length: Math.floor(timelineDuration / timelineLabelStep) + 1,
                       },
                       (_, index) => {
                         const time = Number((index * timelineLabelStep).toFixed(3));
-                        const left = clamp((time / TIMELINE_DURATION) * 100, 0, 100);
+                        const left = clamp((time / timelineDuration) * 100, 0, 100);
                         return (
                           <div
                             key={`timeline-label-${time}`}
@@ -308,7 +312,7 @@ export default function TimelinePanel() {
                       key={id}
                       id={id}
                       onSeekFromPointer={seekFromPointer}
-                      timelineDuration={TIMELINE_DURATION}
+                      timelineDuration={timelineDuration}
                     />
                   ))}
                 </div>

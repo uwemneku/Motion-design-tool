@@ -10,7 +10,7 @@ import {
   type TFabricObjectProps,
 } from "fabric";
 import { useCallback, useState, type MutableRefObject } from "react";
-import { EXPORT_DURATION_SECONDS, EXPORT_FPS, EXPORT_PIXEL_DENSITY } from "../../../const";
+import { EXPORT_FPS, EXPORT_PIXEL_DENSITY, TIMELINE_DURATION } from "../../../const";
 import { getVideoWorkAreaRect } from "./video-work-area";
 import { AnimatableObject, cloneAnimatablePathKeyframes } from "../shapes/animatable-object/object";
 import { VideoObject } from "../shapes/objects";
@@ -18,6 +18,7 @@ import { useCanvasAppContext } from "../canvas/hooks/use-canvas-app-context";
 import { exportCanvasAsVideo, type ExportVideoFormat } from "./export-media";
 import type { KeyframesByProperty } from "../shapes/animatable-object/types";
 import { toast } from "sonner";
+import { useAppSelector } from "../../store";
 
 type ExportMaskTrackingObject = FabricObject & {
   __maskProxyObject?: FabricObject;
@@ -30,6 +31,9 @@ type ExportMaskTrackingObject = FabricObject & {
  */
 function useExportVideo(fabricCanvas: MutableRefObject<Canvas | null>, activeAspectRatio: number) {
   const { instancesRef } = useCanvasAppContext();
+  const durationInSeconds = useAppSelector(
+    (state) => state.editor.projectInfo.durationSeconds ?? TIMELINE_DURATION,
+  );
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
 
@@ -71,7 +75,7 @@ function useExportVideo(fabricCanvas: MutableRefObject<Canvas | null>, activeAsp
         const sourceObjects = liveCanvas.getObjects();
         const exportAudioBuffer = await buildMixedVideoAudioTrack(
           sourceObjects,
-          EXPORT_DURATION_SECONDS,
+          durationInSeconds,
         );
         /**Store the instance of the fabric object from the live canvas */
         const sourceObjectsById = new Map<string, FabricObject>();
@@ -152,7 +156,7 @@ function useExportVideo(fabricCanvas: MutableRefObject<Canvas | null>, activeAsp
           canvas: exportElement,
           width: exportWidth,
           height: exportHeight,
-          durationInSeconds: EXPORT_DURATION_SECONDS,
+          durationInSeconds,
           format,
           fps: EXPORT_FPS,
           onFrame: async (timeInSeconds) => {
@@ -194,7 +198,7 @@ function useExportVideo(fabricCanvas: MutableRefObject<Canvas | null>, activeAsp
         exportCanvas?.dispose();
       }
     },
-    [activeAspectRatio, fabricCanvas, instancesRef],
+    [activeAspectRatio, durationInSeconds, fabricCanvas, instancesRef],
   );
 
   return [{ isExporting, exportProgress }, exportVideo] as const;
