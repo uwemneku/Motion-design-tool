@@ -1,6 +1,5 @@
 /** Canvas Items List Item.Tsx module implementation. */
 import {
-  ChevronRight,
   Eye,
   EyeOff,
   GripVertical,
@@ -26,7 +25,6 @@ type CanvasItemsListItemProps = {
 export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
   const dispatch = useAppDispatch();
   const name = useAppSelector((state) => state.editor.itemsRecord?.[id]?.name);
-  const childIds = useAppSelector((state) => state.editor.itemsRecord?.[id]?.childIds ?? []);
   const isLocked = useAppSelector((state) => state.editor.itemsRecord?.[id]?.isLocked ?? false);
   const selectedIds = useAppSelector((state) => state.editor.selectedId);
   const fabricCanvas = useCanvasAppContext();
@@ -41,9 +39,7 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [draftName, setDraftName] = useState(displayName);
   const [isEditingName, setIsEditingName] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const isGroup = childIds.length > 0;
 
   useEffect(() => {
     if (!isEditingName) return;
@@ -135,9 +131,6 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
     }
   };
 
-  /** Keeps the trailing action cluster width stable so long labels truncate cleanly. */
-  const actionAreaWidthClass = isGroup ? "w-[4.75rem]" : "w-[3.75rem]";
-
   return (
     <Reorder.Item
       value={id}
@@ -164,23 +157,6 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
         >
           <GripVertical className="h-4 w-4" strokeWidth={1.8} aria-hidden />
         </button>
-        {isGroup && (
-          <button
-            type="button"
-            onClick={() => {
-              setIsExpanded((isExpanded) => !isExpanded);
-            }}
-            className="grid h-6 w-4 shrink-0 place-items-center text-[#8f9aac] transition hover:text-[#d7dfeb]"
-            aria-label={isExpanded ? `Collapse ${displayName}` : `Expand ${displayName}`}
-            title={isExpanded ? "Collapse group" : "Expand group"}
-          >
-            <ChevronRight
-              className={`h-3.5 w-3.5 transition-transform ${isExpanded ? "rotate-90" : ""}`}
-              strokeWidth={1.8}
-              aria-hidden
-            />
-          </button>
-        )}
 
         <button
           type="button"
@@ -214,7 +190,7 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
         </button>
 
         <div
-          className={`ml-auto flex shrink-0 items-center justify-end gap-px bg-inherit transition ${actionAreaWidthClass} ${
+          className={`ml-auto flex w-[3.75rem] shrink-0 items-center justify-end gap-px bg-inherit transition ${
             isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
           }`}
           key={id}
@@ -263,13 +239,6 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
           </button>
         </div>
       </div>
-      {isGroup && isExpanded ? (
-        <div className="ml-3 mt-1 space-y-1 border-l border-white/8 pl-2 ">
-          {childIds.map((childId, childIndex) => (
-            <CanvasItemsListItem key={childId} id={childId} index={childIndex + 10} />
-          ))}
-        </div>
-      ) : null}
     </Reorder.Item>
   );
 }

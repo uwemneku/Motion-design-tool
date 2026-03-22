@@ -118,63 +118,34 @@ export default function TimelinePlayhead({
   );
   const lineTop = handleTop + handleHeight - 2;
 
-  useEffect(() => {
-    const container = containerRef.current;
-    const content = container?.parentElement;
-    const viewport = container?.closest(".timeline-scroll-viewport") as HTMLElement | null;
-    if (!container || !content) return;
-
-    /** Keeps the playhead column matched to the visible timeline body height. */
-    const syncMeasuredHeight = () => {
-      const visibleHeight = viewport?.clientHeight ?? 0;
-      const contentHeight = content.offsetHeight;
-      container.style.height = `${Math.max(visibleHeight, contentHeight)}px`;
-    };
-
-    syncMeasuredHeight();
-
-    const observer = new ResizeObserver(() => {
-      syncMeasuredHeight();
-    });
-
-    observer.observe(content);
-    if (viewport) {
-      observer.observe(viewport);
-    }
-
-    return () => {
-      observer.disconnect();
-      container.style.height = "";
-    };
-  }, []);
-
   return (
     <div
       ref={containerRef}
-      className="pointer-events-none absolute top-0 z-40"
+      className="pointer-events-none absolute inset-y-0 z-40"
       style={{
-        top: topOffset,
         left: keyframeSectionOffset,
         right: keyframeSectionRightOffset,
       }}
       aria-hidden
     >
-      <div
-        className="pointer-events-auto absolute top-0 bottom-0 z-40 w-4 -translate-x-1/2 cursor-ew-resize"
-        style={{ left: `${playheadPercent}%` }}
-        onMouseDown={startDragging}
-      >
+      <div className="pointer-events-none sticky top-0 z-40 h-full" style={{ top: topOffset }}>
         <div
-          className="absolute left-1/2 z-40 w-3 -translate-x-1/2 rounded-sm border-[0.5px] border-[#e5e7eb] bg-[var(--wise-accent)] shadow"
-          style={{
-            top: handleTop,
-            height: handleHeight,
-          }}
-        />
-        <div
-          className="absolute bottom-0 left-1/2 z-40 w-0.5 -translate-x-1/2 bg-[var(--wise-accent)]"
-          style={{ top: lineTop }}
-        />
+          className="pointer-events-auto absolute inset-y-0 z-40 w-4 -translate-x-1/2 cursor-ew-resize"
+          style={{ left: `${playheadPercent}%` }}
+          onMouseDown={startDragging}
+        >
+          <div
+            className="absolute left-1/2 z-40 w-3 -translate-x-1/2 rounded-sm border-[0.5px] border-[#e5e7eb] bg-[var(--wise-accent)] shadow"
+            style={{
+              top: handleTop,
+              height: handleHeight,
+            }}
+          />
+          <div
+            className="absolute bottom-0 left-1/2 z-40 w-0.5 -translate-x-1/2 bg-[var(--wise-accent)]"
+            style={{ top: lineTop }}
+          />
+        </div>
       </div>
     </div>
   );

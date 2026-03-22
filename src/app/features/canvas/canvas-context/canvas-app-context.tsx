@@ -47,6 +47,10 @@ export type CanvasAppContextValue = {
   bindHost: (node: HTMLCanvasElement | null) => void;
 };
 
+type SelectableCanvasObject = FabricObject & {
+  customId?: string;
+};
+
 /** Provides a shared registry of live canvas object instances. */
 export function CanvasAppProvider({ children }: PropsWithChildren) {
   const fabricCanvasRef = useRef<Canvas | null>(null);
@@ -115,6 +119,10 @@ export function CanvasAppProvider({ children }: PropsWithChildren) {
       };
 
       _canvas.on("selection:created", (event) => {
+        const activeSelection = _canvas.getActiveObject();
+        if (activeSelection) {
+          refreshObjectControls(activeSelection);
+        }
         const selectedIds = getSelectedObjectIds(event.selected ?? []);
 
         if (selectedIds.length > 0) {
@@ -131,6 +139,10 @@ export function CanvasAppProvider({ children }: PropsWithChildren) {
       });
 
       _canvas.on("selection:updated", (event) => {
+        const activeSelection = _canvas.getActiveObject();
+        if (activeSelection) {
+          refreshObjectControls(activeSelection);
+        }
         const selectedPath =
           event.selected?.length === 1 && event.selected[0] instanceof Path
             ? (event.selected[0] as Path)
@@ -146,14 +158,21 @@ export function CanvasAppProvider({ children }: PropsWithChildren) {
         dispatch(setSelectedId([]));
       });
 
-      _canvas.on("object:modified", () => {
+      _canvas.on("object:modified", ({ target }) => {
         const selectedIds = dispatch(dispatchableSelector((state) => state.editor.selectedId));
+        const targetIds = getTransformTargetIds(target);
+        const modifiedIds =
+          targetIds.length > 0
+            ? targetIds
+            : transformActionById.size > 0
+              ? Array.from(transformActionById.keys())
+              : selectedIds;
 
-        if (selectedIds.length === 0) return;
+        if (modifiedIds.length === 0) return;
 
         const timestamp = dispatch(dispatchableSelector((state) => state.editor.playHeadTime));
 
-        selectedIds.forEach((customId) => {
+        modifiedIds.forEach((customId: string) => {
           const instance = getInstanceById(customId);
           if (!instance) return;
 
@@ -345,11 +364,7 @@ export function CanvasAppProvider({ children }: PropsWithChildren) {
 
 /** Extracts stable custom ids from the current Fabric selection payload. */
 function getSelectedObjectIds(
-  objects: Array<
-    FabricObject & {
-      customId?: string;
-    }
-  >,
+  objects: SelectableCanvasObject[],
 ) {
   const nestedObjects = objects?.[0]?.group?._objects;
   const _objects = nestedObjects || objects;
@@ -358,6 +373,25 @@ function getSelectedObjectIds(
     .filter((object) => object.selectable !== false && object.evented !== false)
     .map((object) => object.customId || object.get("customId"))
     .filter((customId): customId is string => typeof customId === "string");
+}
+
+/** Resolves the concrete object ids touched by a Fabric transform target or active selection. */
+function getTransformTargetIds(target: SelectableCanvasObject | undefined) {
+  if (!target) return [];
+
+  const nestedObjects = isSelectionContainer(target) ? target._objects : undefined;
+  const resolvedObjects = nestedObjects && nestedObjects.length > 0 ? nestedObjects : [target];
+
+  return resolvedObjects
+    .map((object: SelectableCanvasObject) => object.customId || object.get("customId"))
+    .filter((customId): customId is string => typeof customId === "string");
+}
+
+/** Narrows Fabric selection containers that expose child objects through `_objects`. */
+function isSelectionContainer(
+  target: SelectableCanvasObject,
+): target is SelectableCanvasObject & { _objects: SelectableCanvasObject[] } {
+  return Array.isArray((target as { _objects?: unknown })._objects);
 }
 
 /** Keeps rotation keyframes continuous so anticlockwise drags stay negative when appropriate. */

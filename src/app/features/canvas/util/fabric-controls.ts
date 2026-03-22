@@ -965,6 +965,12 @@ export function syncObjectControlBorderScale(canvas: Canvas) {
       borderScaleFactor,
     });
   });
+  const activeObject = canvas.getActiveObject();
+  if (activeObject) {
+    activeObject.set({
+      borderScaleFactor,
+    });
+  }
 }
 
 /** Applies the global selection-control theme used by the editor canvas. */

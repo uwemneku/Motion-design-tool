@@ -1,7 +1,6 @@
 /** Use Canvas Items.Ts hook logic. */
 import {
   ActiveSelection,
-  Group,
   loadSVGFromString,
   Point,
   type Canvas,
@@ -11,12 +10,15 @@ import type { MutableRefObject } from "react";
 import { toast } from "sonner";
 import { loadVideoElement } from "../util/video-import";
 import { AnimatableObject } from "../../shapes/animatable-object/object";
-import type { KeyframeEasing } from "../../shapes/animatable-object/types";
+import type {
+  ColorAnimatableProperties,
+  KeyframeEasing,
+  NumericAnimatableProperties,
+} from "../../shapes/animatable-object/types";
 import { setObjectAnimationPosition } from "../../shapes/animatable-object/util";
 import { getVideoWorkAreaRect } from "../../export/video-work-area";
 import {
   removeItemRecord,
-  setCanvasItemIds,
   setSelectedId,
   upsertItemRecord,
 } from "../../../store/editor-slice";
@@ -34,7 +36,11 @@ import {
 
 import { useCanvasAppContext } from "./use-canvas-app-context";
 import { createRegularPolygonPoints, validateImageUrl } from "./util";
-import { createUniqueId, createKeyframeMarkerId } from "../util/animations-utils";
+import {
+  appendUniqueMarkerTimes,
+  createUniqueId,
+  createKeyframeMarkerId,
+} from "../util/animations-utils";
 import { CANVAS_KEYFRAME_EPSILON } from "../../../../const";
 
 type UseCanvasItemsParams = {
@@ -103,6 +109,8 @@ const CANVAS_ITEM_NUMERIC_KEYFRAME_FIELDS = [
 
 const CANVAS_ITEM_COLOR_KEYFRAME_FIELDS = ["fill", "stroke"] as const;
 const DEFAULT_PATH_DATA = "M 0 56 C 18 8 52 8 70 56 S 122 104 140 56";
+type NumericKeyframeProperty = keyof NumericAnimatableProperties;
+type ColorKeyframeProperty = keyof ColorAnimatableProperties;
 
 function isSvgFile(file: File) {
   // Detect SVG uploads by MIME type or extension so we can parse vector data.
@@ -260,6 +268,79 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
   } = useCanvasAppContext();
   const activeAspectRatio =
     useAppSelector((state) => state.editor.projectInfo.videoAspectRatio) ?? 1;
+
+  /** Updates one item's timeline markers so new keyframes show up in the UI. */
+  const syncItemMarkersAtTimes = (
+    id: string,
+    markerTimes: number[],
+  ) => {
+    const itemRecord = dispatch(dispatchableSelector((state) => state.editor.itemsRecord[id]));
+    if (!itemRecord) return;
+
+    dispatch(
+      upsertItemRecord({
+        id,
+        value: {
+          ...itemRecord,
+          keyframe: appendUniqueMarkerTimes(
+            itemRecord.keyframe,
+            markerTimes,
+            CANVAS_KEYFRAME_EPSILON,
+          ),
+        },
+      }),
+    );
+  };
+
+  /** Captures numeric snapshot keyframes for selected items and syncs their timeline markers. */
+  const captureNumericSnapshotKeyframes = (
+    ids: string[],
+    fields: NumericKeyframeProperty[],
+    time = dispatch(dispatchableSelector((state) => state.editor.playHeadTime)),
+  ) => {
+    ids.forEach((id) => {
+      const instance = getInstanceById(id);
+      if (!instance) return;
+
+      const snapshot = instance.getSnapshot();
+      fields.forEach((field) => {
+        instance.addKeyframe({
+          property: field,
+          value: snapshot[field],
+          time,
+          easing: "linear",
+        });
+      });
+      syncItemMarkersAtTimes(id, [time]);
+    });
+  };
+
+  /** Writes color keyframes for one item and keeps the timeline marker list in sync. */
+  const captureColorKeyframes = (
+    id: string,
+    values: Partial<Record<ColorKeyframeProperty, string>>,
+    time = dispatch(dispatchableSelector((state) => state.editor.playHeadTime)),
+  ) => {
+    const instance = getInstanceById(id);
+    if (!instance) return;
+
+    let wroteAnyKeyframe = false;
+    (Object.entries(values) as Array<[ColorKeyframeProperty, string | undefined]>).forEach(
+      ([property, value]) => {
+        if (typeof value !== "string" || value.length === 0) return;
+        instance.addColorKeyframe({
+          property,
+          value,
+          time,
+          easing: "linear",
+        });
+        wroteAnyKeyframe = true;
+      },
+    );
+
+    if (!wroteAnyKeyframe) return;
+    syncItemMarkersAtTimes(id, [time]);
+  };
 
   const getVideoCenter = (canvas: Canvas) => {
     const videoArea = getVideoWorkAreaRect(
@@ -541,75 +622,6 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     }
 
     return false;
-  };
-
-  /** Collapses the current Fabric multi-selection into one grouped canvas item. */
-  const groupSelectedItems = () => {
-    const canvas = fabricCanvas.current;
-    if (!canvas) return null;
-
-    const activeObjects = canvas.getActiveObjects().filter((object) => {
-      const customId = object.customId ?? object.get("customId");
-      return typeof customId === "string";
-    });
-    if (activeObjects.length < 2) return null;
-
-    const groupedIds = activeObjects
-      .map((object) => object.customId ?? object.get("customId"))
-      .filter((customId): customId is string => typeof customId === "string");
-
-    const groupedNames = groupedIds.map((id) => {
-      const itemRecord = dispatch(dispatchableSelector((state) => state.editor.itemsRecord[id]));
-      return itemRecord?.name ?? id;
-    });
-    const groupedInstances = groupedIds.map((id) => getInstanceById(id));
-    const previousCanvasItemIds = dispatch(
-      dispatchableSelector((state) => state.editor.canvasItemIds),
-    );
-
-    canvas.discardActiveObject();
-    activeObjects.forEach((object, index) => {
-      object.set("layerName", groupedNames[index] ?? getSvgLayerName(object, index));
-    });
-
-    const fabricGroup = new Group(activeObjects, {
-      originX: "center",
-      originY: "center",
-      subTargetCheck: true,
-    });
-    groupedInstances.forEach((instance) => {
-      instance?.rebasePositionKeyframes("toParent");
-    });
-
-    const groupId = addObjectToCanvas(new AnimatableObject(fabricGroup), "group", {
-      name: `group (${groupedIds.length})`,
-      shouldSetSelected: true,
-    });
-    if (groupId) {
-      const groupRecord = dispatch(
-        dispatchableSelector((state) => state.editor.itemsRecord[groupId]),
-      );
-      if (groupRecord) {
-        dispatch(
-          upsertItemRecord({
-            id: groupId,
-            value: {
-              ...groupRecord,
-              childIds: groupedIds,
-            },
-          }),
-        );
-      }
-      dispatch(
-        setCanvasItemIds([
-          groupId,
-          ...previousCanvasItemIds.filter((canvasItemId) => !groupedIds.includes(canvasItemId)),
-        ]),
-      );
-    }
-
-    canvas.requestRenderAll();
-    return groupId;
   };
 
   const addCircle = (options: AddItemOptions = {}) => {
@@ -1111,7 +1123,8 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     addVideoFromFile,
     addImageFromURL,
     copySelectedItems,
-    groupSelectedItems,
+    captureColorKeyframes,
+    captureNumericSnapshotKeyframes,
     pasteImageFromClipboard,
     pasteCopiedItems,
     removeItemById,

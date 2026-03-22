@@ -45,19 +45,16 @@ export default function TimelineItemRow({
 }: TimelineItemRowProps) {
   const dispatch = useAppDispatch();
   const { getObjectById } = useCanvasAppContext();
-  const [isGroupExpanded, setIsGroupExpanded] = useState(false);
   const [isKeyframeExpanded, setIsKeyframeExpanded] = useState(false);
 
   const isSelected = useAppSelector((state) => state.editor.selectedId.includes(id));
   const name = useAppSelector((state) => state.editor.itemsRecord[id]?.name ?? id);
-  const childIds = useAppSelector((state) => state.editor.itemsRecord[id]?.childIds ?? []);
   const itemKeyFrames = useAppSelector((state) => state.editor.itemsRecord[id]?.keyframe ?? null);
   const instance = getObjectById(id);
   const supportsPathTimeline = Boolean(instance?.pathKeyframes.pathData);
   // TODO: This should be derived from the item's keyframe data, not the markers.
   const animationSpan = getAnimationSpan(itemKeyFrames ?? []);
   const hasKeyframes = (itemKeyFrames?.length ?? 0) > 1;
-  const isGroup = childIds.length > 0;
 
   /** Updates the editor playhead using normalized timeline precision. */
   const seekToTime = (time: number) => {
@@ -76,25 +73,7 @@ export default function TimelineItemRow({
           }}
         >
           <div className="flex items-center gap-2">
-            {isGroup ? (
-              <button
-                type="button"
-                className="rounded p-0.5 text-slate-400 hover:bg-[var(--wise-surface-muted)] hover:text-slate-100"
-                aria-label={isGroupExpanded ? "Collapse group rows" : "Expand group rows"}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setIsGroupExpanded((prev) => !prev);
-                }}
-              >
-                <ChevronRight
-                  className={`size-3 transition-transform ${isGroupExpanded ? "rotate-90" : "rotate-0"}`}
-                  strokeWidth={2}
-                  aria-hidden
-                />
-              </button>
-            ) : (
-              <span className="block size-4 shrink-0" aria-hidden />
-            )}
+            <span className="block size-4 shrink-0" aria-hidden />
             {hasKeyframes ? (
               <button
                 type="button"
@@ -170,20 +149,6 @@ export default function TimelineItemRow({
               valueType={row.valueType}
               timelineDuration={timelineDuration}
             />
-          ))}
-        </div>
-      ) : null}
-
-      {isGroupExpanded ? (
-        <div className="border-t border-[var(--wise-border)] bg-[var(--wise-surface)]/50">
-          {childIds.map((childId) => (
-            <div key={childId} className="ml-5 border-l border-[var(--wise-border)]/70">
-              <TimelineItemRow
-                id={childId}
-                onSeekFromPointer={onSeekFromPointer}
-                timelineDuration={timelineDuration}
-              />
-            </div>
           ))}
         </div>
       ) : null}

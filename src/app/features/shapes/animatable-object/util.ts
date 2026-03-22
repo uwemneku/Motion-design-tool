@@ -95,7 +95,7 @@ export function getNumeric(value: number | undefined, fallback: number) {
 
 /** Reads object position in the same coordinate space used by grouped keyframes. */
 export function getObjectAnimationPosition(object: FabricObject) {
-  const position = object.group ? object.getRelativeXY() : object.getXY();
+  const position = object.getXY();
   return {
     left: getNumeric(position.x, 0),
     top: getNumeric(position.y, 0),
@@ -109,8 +109,7 @@ export function setObjectAnimationPosition(
   value: number,
 ) {
   const current = object.group ? object.getRelativeXY() : object.getXY();
-  const nextPoint =
-    property === "left" ? new Point(value, current.y) : new Point(current.x, value);
+  const nextPoint = property === "left" ? new Point(value, current.y) : new Point(current.x, value);
 
   if (object.group) {
     object.setRelativeXY(nextPoint);
@@ -148,10 +147,7 @@ export function findInsertionIndex<T extends { time: number }>(
   return [low, false];
 }
 
-export function findBoundingKeyframes<T extends { time: number }>(
-  keyframes: T[],
-  time: number,
-) {
+export function findBoundingKeyframes<T extends { time: number }>(keyframes: T[], time: number) {
   if (keyframes.length === 0) return { previous: null, next: null } as const;
 
   if (time <= keyframes[0].time) {
@@ -209,8 +205,7 @@ type RgbaColor = {
   a: number;
 };
 
-const colorParserCanvas =
-  typeof document !== "undefined" ? document.createElement("canvas") : null;
+const colorParserCanvas = typeof document !== "undefined" ? document.createElement("canvas") : null;
 const colorParserContext = colorParserCanvas?.getContext("2d") ?? null;
 
 function clampColorChannel(value: number) {
@@ -314,11 +309,7 @@ export function rgbaToCss(color: RgbaColor) {
 }
 
 /** Interpolates two RGBA byte vectors and returns a CSS rgba(...) string. */
-export function interpolateColorBytes(
-  start: ColorVector,
-  end: ColorVector,
-  progress: number,
-) {
+export function interpolateColorBytes(start: ColorVector, end: ColorVector, progress: number) {
   return rgbaToCss({
     r: lerp(start[0] ?? 0, end[0] ?? 0, progress),
     g: lerp(start[1] ?? 0, end[1] ?? 0, progress),

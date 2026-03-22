@@ -1,16 +1,15 @@
 /** Design.Tsx canvas side panel UI logic. */
 import { Path, type FabricObject, type Textbox } from "fabric";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { dispatchableSelector, useAppDispatch, useAppSelector } from "../../../store";
-import { upsertItemRecord } from "../../../store/editor-slice";
-import type { EditorItemRecord } from "../../../store/editor-slice";
+import { useAppSelector } from "../../../store";
 import { getVideoWorkAreaRect } from "../../export/video-work-area";
+import type { NumericAnimatableProperties } from "../../shapes/animatable-object/types";
 import {
   hasKeyframeNearTime,
   setObjectAnimationPosition,
 } from "../../shapes/animatable-object/util";
-import { appendUniqueMarkerTimes } from "../util/animations-utils";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
+import { useCanvasItems } from "../hooks/use-canvas-items";
 import {
   EMPTY_FORM,
   FONT_WEIGHT_OPTIONS,
@@ -72,8 +71,10 @@ const PATH_POINT_MODE_OPTIONS: Array<{ label: string; value: PathPointMode }> = 
 
 /** Design form for editing transform, style, text, and mask settings. */
 export default function CanvasSidePanelDesign() {
-  const dispatch = useAppDispatch();
   const { fabricCanvasRef, getObjectById: getInstanceById } = useCanvasAppContext();
+  const { captureColorKeyframes, captureNumericSnapshotKeyframes } = useCanvasItems({
+    fabricCanvas: fabricCanvasRef,
+  });
   const [designForm, setDesignForm] = useState<DesignFormState>(EMPTY_FORM);
   const [openSections, setOpenSections] =
     useState<Record<DesignSectionId, boolean>>(INITIAL_OPEN_SECTIONS);
@@ -174,63 +175,23 @@ export default function CanvasSidePanelDesign() {
   /** Adds keyframes for the requested properties at the current playhead time. */
   const addKeyframesForFields = useCallback(
     (fields: KeyframeField[], nextForm: DesignFormState) => {
-      const currentPlayheadTime = dispatch(
-        dispatchableSelector((state) => state.editor.playHeadTime),
-      );
-      const itemRecords = dispatch(dispatchableSelector((state) => state.editor.itemsRecord));
-
       // Split the requested field list once so both the multi-select and
       // single-select paths can reuse the same numeric-property decision.
       const numericFieldsToCapture = getNumericKeyframeFields(fields);
-
-      /** Syncs timeline markers back into the item record after keyframe changes. */
-      const updateItemMarkers = (id: string, item: EditorItemRecord | null | undefined) => {
-        if (!item) return;
-
-        const nextMarkers = appendUniqueMarkerTimes(
-          item.keyframe,
-          [currentPlayheadTime],
-          CANVAS_KEYFRAME_EPSILON,
-        );
-
-        dispatch(
-          upsertItemRecord({
-            id,
-            value: {
-              ...item,
-              keyframe: nextMarkers,
-            },
-          }),
-        );
-      };
+      const multiSelectNumericFieldsToCapture = isMultiSelected
+        ? expandMultiSelectNumericFields(numericFieldsToCapture)
+        : numericFieldsToCapture;
 
       if (isMultiSelected) {
         // Multi-select keyframing snapshots each selected object at the
         // current playhead time, but only for numeric properties.
         if (numericFieldsToCapture.length === 0) return;
 
-        selectedIds.forEach((id) => {
-          const instance = getInstanceById(id);
-          const item = itemRecords[id];
-          if (!instance) return;
-
-          const snapshot = instance.getSnapshot();
-          numericFieldsToCapture.forEach((field) => {
-            instance.addKeyframe({
-              property: field,
-              value: snapshot[field],
-              time: currentPlayheadTime,
-              easing: "linear",
-            });
-          });
-
-          updateItemMarkers(id, item);
-        });
+        captureNumericSnapshotKeyframes(selectedIds, multiSelectNumericFieldsToCapture);
         return;
       }
 
-      const selectedItem = selectedContext.id ? itemRecords[selectedContext.id] : null;
-      if (!selectedContext.id || !selectedItem || !selectedContext.instance) return;
+      if (!selectedContext.id || !selectedContext.instance) return;
 
       const selectedInstance = selectedContext.instance;
 
@@ -242,34 +203,24 @@ export default function CanvasSidePanelDesign() {
       numericFieldsToCapture.forEach((field) => {
         const numericValue = getNumericKeyframeValue(selectedInstance.fabricObject, field);
         if (!Number.isFinite(numericValue)) return;
-        selectedInstance.addKeyframe({
-          property: field,
-          value: numericValue,
-          time: currentPlayheadTime,
-          easing: "linear",
-        });
         createdKeyframe = true;
       });
+      if (numericFieldsToCapture.length > 0) {
+        captureNumericSnapshotKeyframes([selectedContext.id], numericFieldsToCapture);
+      }
 
       fields.forEach((field) => {
         if (field === "fill" || field === "stroke") {
           const colorValue = nextForm[field].trim();
           if (!colorValue) return;
-          selectedInstance.addColorKeyframe({
-            property: field,
-            value: colorValue,
-            time: currentPlayheadTime,
-            easing: "linear",
-          });
+          captureColorKeyframes(selectedContext.id, { [field]: colorValue });
           createdKeyframe = true;
         }
       });
 
       if (!createdKeyframe) return;
-
-      updateItemMarkers(selectedContext.id, selectedItem);
     },
-    [dispatch, getInstanceById, isMultiSelected, selectedContext, selectedIds],
+    [captureColorKeyframes, captureNumericSnapshotKeyframes, isMultiSelected, selectedContext, selectedIds],
   );
 
   const commitDesignForm = useCallback(
@@ -531,63 +482,21 @@ export default function CanvasSidePanelDesign() {
     transformTargetObject.setCoords();
     transformTargetObject.canvas?.requestRenderAll();
 
-    const currentPlayheadTime = dispatch(
-      dispatchableSelector((state) => state.editor.playHeadTime),
-    );
-    const itemRecords = dispatch(dispatchableSelector((state) => state.editor.itemsRecord));
-
-    /** Syncs marker rows after an alignment operation adds timeline keyframes. */
-    const updateItemMarkers = (id: string, item: EditorItemRecord | null | undefined) => {
-      if (!item) return;
-
-      const nextMarkers = appendUniqueMarkerTimes(
-        item.keyframe,
-        [currentPlayheadTime],
-        CANVAS_KEYFRAME_EPSILON,
-      );
-
-      dispatch(
-        upsertItemRecord({
-          id,
-          value: {
-            ...item,
-            keyframe: nextMarkers,
-          },
-        }),
-      );
-    };
-
     const idsToUpdate = isMultiSelected
       ? selectedIds
       : selectedContext.id
         ? [selectedContext.id]
         : [];
-
-    idsToUpdate.forEach((id) => {
-      const instance = getInstanceById(id);
-      const item = itemRecords[id];
-      if (!instance) return;
-
-      const snapshot = instance.getSnapshot();
-      if (Math.abs(deltaLeft) > CANVAS_KEYFRAME_EPSILON) {
-        instance.addKeyframe({
-          property: "left",
-          value: snapshot.left,
-          time: currentPlayheadTime,
-          easing: "linear",
-        });
-      }
-      if (Math.abs(deltaTop) > CANVAS_KEYFRAME_EPSILON) {
-        instance.addKeyframe({
-          property: "top",
-          value: snapshot.top,
-          time: currentPlayheadTime,
-          easing: "linear",
-        });
-      }
-
-      updateItemMarkers(id, item);
-    });
+    const alignmentFields: Array<keyof NumericAnimatableProperties> = [];
+    if (Math.abs(deltaLeft) > CANVAS_KEYFRAME_EPSILON) {
+      alignmentFields.push("left");
+    }
+    if (Math.abs(deltaTop) > CANVAS_KEYFRAME_EPSILON) {
+      alignmentFields.push("top");
+    }
+    if (alignmentFields.length > 0) {
+      captureNumericSnapshotKeyframes(idsToUpdate, alignmentFields);
+    }
 
     setDesignForm(readDesignFormFromObject(transformTargetObject));
   };
@@ -916,4 +825,19 @@ export default function CanvasSidePanelDesign() {
       ) : null}
     </>
   );
+}
+
+/** Adds position fields when a multi-select scale edit also repositions its children. */
+function expandMultiSelectNumericFields(fields: Array<keyof NumericAnimatableProperties>) {
+  const expandedFields = new Set<keyof NumericAnimatableProperties>(fields);
+  const updatesScale = fields.includes("width") || fields.includes("height");
+
+  if (updatesScale) {
+    expandedFields.add("left");
+    expandedFields.add("top");
+    expandedFields.add("width");
+    expandedFields.add("height");
+  }
+
+  return Array.from(expandedFields);
 }

@@ -15,7 +15,6 @@ export default function CanvasItemsList() {
   const selectedIds = useAppSelector((state) => state.editor.selectedId);
   const {
     copySelectedItems,
-    groupSelectedItems,
     pasteCopiedItems,
     pasteImageFromClipboard,
     removeItemById,
@@ -122,19 +121,6 @@ export default function CanvasItemsList() {
       className="pointer-events-auto absolute left-4 top-4 z-20 flex max-h-[min(440px,calc(100vh-184px))] w-60 flex-col overflow-hidden rounded-xl border border-white/8 bg-[rgba(43,43,46,0.9)] p-1 shadow-[0_16px_34px_rgba(0,0,0,0.22)] backdrop-blur-2xl"
       data-testid="floating-layers-panel"
     >
-      {selectedIds.length > 1 ? (
-        <div className="border-b border-white/8 px-1 pb-1">
-          <button
-            type="button"
-            onClick={() => {
-              groupSelectedItems();
-            }}
-            className="flex h-7 w-full items-center justify-center rounded-md border border-white/8 bg-[rgba(255,255,255,0.045)] px-2 text-[11px] font-medium text-[#f3f4f6] transition hover:border-white/14 hover:bg-[rgba(255,255,255,0.08)]"
-          >
-            Group selected
-          </button>
-        </div>
-      ) : null}
       <section className="min-h-0 flex-1 overflow-y-auto overflow-x-visible">
         <Reorder.Group
           axis="y"
