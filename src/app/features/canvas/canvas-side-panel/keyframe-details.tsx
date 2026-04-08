@@ -29,6 +29,8 @@ export function KeyframeDetailsPanel() {
     return getEasingById(instance, selectedKeyframeId);
   })();
 
+  if (!selectedKeyframeId) return null;
+
   return (
     <section className="shrink-0 border-t border-white/10 bg-[rgba(35,35,37,0.98)] px-2.5 py-2 backdrop-blur-xl">
       <div className="space-y-1.5">

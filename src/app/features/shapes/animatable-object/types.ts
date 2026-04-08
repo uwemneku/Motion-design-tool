@@ -15,6 +15,16 @@ export type ColorAnimatableProperties = {
   stroke: string;
 };
 
+export type TextAnimatableProperties = {
+  text: string;
+  fontFamily: string;
+  fontSize: number;
+  fontStyle: string;
+  fontWeight: string;
+  letterSpacing: number;
+  lineHeight: number;
+};
+
 export type PathCommand = [string, ...number[]];
 
 export type PathAnimatableProperties = {
@@ -43,6 +53,10 @@ export type KeyframeEasing =
 
 export type ColorSnapshot = Partial<{
   [K in keyof ColorAnimatableProperties]: ColorAnimatableProperties[K];
+}>;
+
+export type TextSnapshot = Partial<{
+  [K in keyof TextAnimatableProperties]: TextAnimatableProperties[K];
 }>;
 
 export interface Keyframe<
@@ -75,6 +89,16 @@ export interface PathKeyframe<
   easing: KeyframeEasing;
 }
 
+export interface TextKeyframe<
+  K extends keyof TextAnimatableProperties = keyof TextAnimatableProperties,
+> {
+  id: string;
+  property: K;
+  value: TextAnimatableProperties[K];
+  time: number;
+  easing: KeyframeEasing;
+}
+
 export type TimelineMarker = {
   id: string;
   time: number;
@@ -86,4 +110,7 @@ export type ColorKeyframesByProperty = Partial<
 >;
 export type PathKeyframesByProperty = Partial<
   Record<keyof PathAnimatableProperties, PathKeyframe[]>
+>;
+export type TextKeyframesByProperty = Partial<
+  Record<keyof TextAnimatableProperties, TextKeyframe[]>
 >;

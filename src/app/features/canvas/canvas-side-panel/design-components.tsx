@@ -1,5 +1,13 @@
 /** Render-only component helpers for the canvas design side panel. */
-import { ChevronDown } from "lucide-react";
+import {
+  AlignHorizontalJustifyCenter,
+  AlignHorizontalJustifyEnd,
+  AlignHorizontalJustifyStart,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+  AlignVerticalJustifyStart,
+  ChevronDown,
+} from "lucide-react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
 import type { HorizontalAlignment, VerticalAlignment } from "./design-helpers";
@@ -102,18 +110,15 @@ type HorizontalAlignIconProps = {
 
 /** Renders a horizontal alignment glyph for the inspector controls. */
 export function HorizontalAlignIcon({ action }: HorizontalAlignIconProps) {
-  const barClass = "h-0.5 rounded-full bg-current";
-  const shortBarClass = `${barClass} w-2.5`;
-  const longBarClass = `${barClass} w-4`;
-  const containerClass =
-    action === "left" ? "items-start" : action === "center" ? "items-center" : "items-end";
+  const Icon =
+    action === "left"
+      ? AlignHorizontalJustifyStart
+      : action === "center"
+        ? AlignHorizontalJustifyCenter
+        : AlignHorizontalJustifyEnd;
 
   return (
-    <span className={`flex w-3.5 flex-col ${containerClass} gap-[3px]`}>
-      <span className={shortBarClass} />
-      <span className={longBarClass} />
-      <span className={shortBarClass} />
-    </span>
+    <Icon className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden />
   );
 }
 
@@ -123,18 +128,15 @@ type VerticalAlignIconProps = {
 
 /** Renders a vertical alignment glyph for the inspector controls. */
 export function VerticalAlignIcon({ action }: VerticalAlignIconProps) {
-  const barClass = "w-0.5 rounded-full bg-current";
-  const shortBarClass = `${barClass} h-2.5`;
-  const longBarClass = `${barClass} h-4`;
-  const containerClass =
-    action === "top" ? "justify-start" : action === "middle" ? "justify-center" : "justify-end";
+  const Icon =
+    action === "top"
+      ? AlignVerticalJustifyStart
+      : action === "middle"
+        ? AlignVerticalJustifyCenter
+        : AlignVerticalJustifyEnd;
 
   return (
-    <span className={`flex h-3.5 w-3.5 ${containerClass} items-end gap-[3px]`}>
-      <span className={shortBarClass} />
-      <span className={longBarClass} />
-      <span className={shortBarClass} />
-    </span>
+    <Icon className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden />
   );
 }
 

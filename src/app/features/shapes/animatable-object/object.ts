@@ -15,6 +15,10 @@ import type {
   PathCommand,
   PathKeyframe,
   PathKeyframesByProperty,
+  TextAnimatableProperties,
+  TextKeyframe,
+  TextKeyframesByProperty,
+  TextSnapshot,
   TimelineMarker,
 } from "./types";
 import {
@@ -48,22 +52,34 @@ export class AnimatableObject {
   ];
   static colorAnimatableProperties: (keyof ColorAnimatableProperties)[] = ["fill", "stroke"];
   static pathAnimatableProperties: (keyof PathAnimatableProperties)[] = ["pathData"];
+  static textAnimatableProperties: (keyof TextAnimatableProperties)[] = [
+    "text",
+    "fontFamily",
+    "fontSize",
+    "fontStyle",
+    "fontWeight",
+    "letterSpacing",
+    "lineHeight",
+  ];
 
   fabricObject: FabricObject;
   keyframes: KeyframesByProperty;
   colorKeyframes: ColorKeyframesByProperty;
   pathKeyframes: PathKeyframesByProperty;
+  textKeyframes: TextKeyframesByProperty;
 
   constructor(
     fabricObject: FabricObject,
     keyframes: KeyframesByProperty = {},
     colorKeyframes: ColorKeyframesByProperty = {},
     pathKeyframes: PathKeyframesByProperty = {},
+    textKeyframes: TextKeyframesByProperty = {},
   ) {
     this.fabricObject = fabricObject;
     this.keyframes = normalizeNumericKeyframes(keyframes);
     this.colorKeyframes = normalizeColorKeyframes(colorKeyframes);
     this.pathKeyframes = normalizePathKeyframes(pathKeyframes);
+    this.textKeyframes = normalizeTextKeyframes(textKeyframes);
 
     const centerPoint = this.fabricObject.getCenterPoint();
     this.fabricObject.set({
@@ -76,7 +92,8 @@ export class AnimatableObject {
     if (
       Object.keys(this.keyframes).length === 0 &&
       Object.keys(this.colorKeyframes).length === 0 &&
-      Object.keys(this.pathKeyframes).length === 0
+      Object.keys(this.pathKeyframes).length === 0 &&
+      Object.keys(this.textKeyframes).length === 0
     ) {
       this.freezeProperties(0);
     } else {
@@ -103,6 +120,7 @@ export class AnimatableObject {
     this.addSnapshotKeyframe(time, snapshot);
     this.addColorSnapshotKeyframe(time, this.getColorSnapshot());
     this.addPathSnapshotKeyframe(time, this.getPathSnapshot());
+    this.addTextSnapshotKeyframe(time, this.getTextSnapshot());
   }
 
   /** Clones the animatable object with fresh keyframe ids and an optional position offset. */
@@ -121,6 +139,7 @@ export class AnimatableObject {
       cloneAnimatableNumericKeyframes(this.keyframes, positionOffset),
       cloneAnimatableColorKeyframes(this.colorKeyframes),
       cloneAnimatablePathKeyframes(this.pathKeyframes),
+      cloneAnimatableTextKeyframes(this.textKeyframes),
     );
   }
 
@@ -196,6 +215,45 @@ export class AnimatableObject {
         value,
         time,
         easing: "linear",
+      });
+    }
+  }
+
+  /** Reads a text snapshot from Fabric text objects in clone-safe primitive values. */
+  getTextSnapshot(): TextSnapshot {
+    const text = this.fabricObject.get("text");
+    if (typeof text !== "string") return {};
+
+    const fontFamily = this.fabricObject.get("fontFamily");
+    const fontSize = this.fabricObject.get("fontSize");
+    const fontStyle = this.fabricObject.get("fontStyle");
+    const fontWeight = this.fabricObject.get("fontWeight");
+    const charSpacing = this.fabricObject.get("charSpacing");
+    const lineHeight = this.fabricObject.get("lineHeight");
+
+    return {
+      text,
+      fontFamily: typeof fontFamily === "string" ? fontFamily : "",
+      fontSize: getNumeric(fontSize, 0),
+      fontStyle: typeof fontStyle === "string" ? fontStyle : "normal",
+      fontWeight:
+        typeof fontWeight === "string" || typeof fontWeight === "number"
+          ? String(fontWeight)
+          : "400",
+      letterSpacing: getNumeric(charSpacing, 0),
+      lineHeight: getNumeric(lineHeight, 1.16),
+    };
+  }
+
+  addTextSnapshotKeyframe(time: number, snapshot: TextSnapshot) {
+    for (const property of AnimatableObject.textAnimatableProperties) {
+      const value = snapshot[property];
+      if (value === undefined) continue;
+      this.addTextKeyframe({
+        property,
+        value,
+        time,
+        easing: "step",
       });
     }
   }
@@ -285,6 +343,23 @@ export class AnimatableObject {
     return nextKeyframe.id;
   }
 
+  addTextKeyframe<K extends keyof TextAnimatableProperties>(
+    keyframe: Omit<TextKeyframe<K>, "id" | "easing"> & { easing?: KeyframeEasing },
+  ) {
+    const propertyKeyframes = (this.textKeyframes[keyframe.property] ?? []) as TextKeyframe[];
+    const [insertIndex, shouldReplace] = findInsertionIndex(propertyKeyframes, keyframe.time);
+    const nextKeyframe: TextKeyframe = {
+      ...keyframe,
+      easing: keyframe.easing ?? "step",
+      id: createId("tkf"),
+    };
+
+    propertyKeyframes.splice(insertIndex, shouldReplace ? 1 : 0, nextKeyframe);
+    this.textKeyframes[keyframe.property] = propertyKeyframes;
+
+    return nextKeyframe.id;
+  }
+
   deleteKeyframeAtTime(time: number, epsilon = 0.02) {
     for (const property of AnimatableObject.animatableProperties) {
       const propertyKeyframes = this.keyframes[property];
@@ -324,9 +399,24 @@ export class AnimatableObject {
         delete this.pathKeyframes[property];
       }
     }
+
+    for (const property of AnimatableObject.textAnimatableProperties) {
+      const propertyKeyframes = this.textKeyframes[property];
+      if (!propertyKeyframes) continue;
+
+      this.textKeyframes[property] = propertyKeyframes.filter(
+        (keyframe) => Math.abs(keyframe.time - time) > epsilon,
+      ) as TextKeyframesByProperty[typeof property];
+
+      if (this.textKeyframes[property]?.length === 0) {
+        delete this.textKeyframes[property];
+      }
+    }
   }
 
   seek(time: number) {
+    let updatedTextProperty = false;
+
     for (const property of AnimatableObject.animatableProperties) {
       const propertyKeyframes = this.keyframes[property];
       if (!propertyKeyframes || propertyKeyframes.length === 0) continue;
@@ -388,6 +478,26 @@ export class AnimatableObject {
       );
     }
 
+    for (const property of AnimatableObject.textAnimatableProperties) {
+      const propertyKeyframes = this.textKeyframes[property];
+      if (!propertyKeyframes || propertyKeyframes.length === 0) continue;
+
+      const { previous, next } = findBoundingKeyframes(propertyKeyframes, time);
+      if (!previous || !next) continue;
+
+      this.updateTextProperty(property, previous.value);
+      updatedTextProperty = true;
+    }
+
+    if (updatedTextProperty) {
+      const textObject = this.fabricObject as FabricObject & {
+        dirty?: boolean;
+        initDimensions?: () => void;
+      };
+      textObject.initDimensions?.();
+      textObject.dirty = true;
+    }
+
     this.fabricObject.setCoords();
     if (this.fabricObject.isMaskSource) {
       this.fabricObject.fire("my:mask-source:seek", {
@@ -441,6 +551,20 @@ export class AnimatableObject {
       }
     }
 
+    for (const property of AnimatableObject.textAnimatableProperties) {
+      const propertyKeyframes = this.textKeyframes[property];
+      if (!propertyKeyframes) continue;
+
+      for (const keyframe of propertyKeyframes) {
+        const key = keyframe.time.toFixed(4);
+        if (map.has(key)) continue;
+        map.set(key, {
+          id: keyframe.id,
+          time: keyframe.time,
+        });
+      }
+    }
+
     return Array.from(map.values()).sort(byTimeAsc);
   }
 
@@ -457,6 +581,11 @@ export class AnimatableObject {
     }
     for (const property of AnimatableObject.pathAnimatableProperties) {
       const propertyKeyframes = this.pathKeyframes[property];
+      if (!propertyKeyframes) continue;
+      if (hasKeyframeNearTime(propertyKeyframes, time, epsilon)) return true;
+    }
+    for (const property of AnimatableObject.textAnimatableProperties) {
+      const propertyKeyframes = this.textKeyframes[property];
       if (!propertyKeyframes) continue;
       if (hasKeyframeNearTime(propertyKeyframes, time, epsilon)) return true;
     }
@@ -514,6 +643,18 @@ export class AnimatableObject {
       path: clonePathData(value as PathCommand[]),
       dirty: true,
     });
+  }
+
+  private updateTextProperty<K extends keyof TextAnimatableProperties>(
+    property: K,
+    value: TextAnimatableProperties[K],
+  ) {
+    if (property === "letterSpacing") {
+      this.fabricObject.set("charSpacing", value as number);
+      return;
+    }
+
+    this.fabricObject.set(property, value);
   }
 
   private getPathKeyframeAtTime(time: number, epsilon: number) {
@@ -587,6 +728,24 @@ export function cloneAnimatablePathKeyframes(pathKeyframes: PathKeyframesByPrope
   return nextKeyframes;
 }
 
+/** Clones text keyframes with fresh ids so duplicated text layers animate independently. */
+export function cloneAnimatableTextKeyframes(textKeyframes: TextKeyframesByProperty) {
+  const nextKeyframes: TextKeyframesByProperty = {};
+
+  Object.entries(textKeyframes).forEach(([property, propertyKeyframes]) => {
+    if (!propertyKeyframes || propertyKeyframes.length === 0) return;
+
+    nextKeyframes[property as keyof TextKeyframesByProperty] = propertyKeyframes.map(
+      (keyframe) => ({
+        ...keyframe,
+        id: createId("tkf"),
+      }),
+    );
+  });
+
+  return nextKeyframes;
+}
+
 /** Drops invalid loaded numeric keyframes and enforces time ordering once at hydration. */
 function normalizeNumericKeyframes(keyframes: KeyframesByProperty) {
   const nextKeyframes: KeyframesByProperty = {};
@@ -646,6 +805,33 @@ function normalizePathKeyframes(keyframes: PathKeyframesByProperty) {
       .map((frame) => ({
         ...frame,
         value: clonePathData(frame.value),
+      }))
+      .sort(byTimeAsc);
+
+    if (normalizedFrames.length > 0) {
+      nextKeyframes[property] = normalizedFrames;
+    }
+  }
+
+  return nextKeyframes;
+}
+
+/** Normalizes persisted text keyframes and coerces text weights into stable strings. */
+function normalizeTextKeyframes(keyframes: TextKeyframesByProperty) {
+  const nextKeyframes: TextKeyframesByProperty = {};
+
+  for (const property of Object.keys(keyframes) as Array<keyof TextKeyframesByProperty>) {
+    const frames = keyframes[property];
+    if (!frames) continue;
+
+    const normalizedFrames = frames
+      .filter((frame) => Number.isFinite(frame.time))
+      .map((frame) => ({
+        ...frame,
+        value:
+          property === "fontWeight" && typeof frame.value === "number"
+            ? String(frame.value)
+            : frame.value,
       }))
       .sort(byTimeAsc);
 

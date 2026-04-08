@@ -1,5 +1,6 @@
 /** Animations.Tsx canvas side panel UI logic. */
 import { Textbox } from "fabric";
+import { useMemo } from "react";
 import {
   dispatchableSelector,
   useAppDispatch,
@@ -39,19 +40,23 @@ export default function CanvasSidePanelAnimations({
   const selectedItem = useAppSelector((state) =>
     selectedId ? state.editor.itemsRecord[selectedId] : null,
   );
-  const isTextSelected = selectedItem?.name.trim().toLowerCase() === "text";
   const {
     getObjectById: getInstanceById,
     addCanvasObject: registerInstance,
     deleteCanvasObject: unregisterInstance,
   } = useCanvasAppContext();
+  const selectedInstance = useMemo(
+    () => (selectedId ? getInstanceById(selectedId) : undefined),
+    [getInstanceById, selectedId],
+  );
+  const isTextSelected = selectedInstance?.fabricObject instanceof Textbox;
 
   const applyAnimationTemplate = (
     template: (typeof animationTemplates)[number],
   ) => {
     if (!selectedId || !selectedItem) return;
 
-    const instance = getInstanceById(selectedId);
+    const instance = selectedInstance;
     if (!instance) return;
 
     const baseSnapshot = instance.getSnapshot();
@@ -147,13 +152,25 @@ export default function CanvasSidePanelAnimations({
       const baseAngle = sourceObject.angle ?? 0;
       const baseOpacity = sourceObject.opacity ?? 1;
       const fontSize = sourceObject.fontSize ?? 24;
+      const lineHeight = sourceObject.lineHeight ?? 1.16;
+      const charSpacing = sourceObject.charSpacing ?? 0;
+      const textAlign = sourceObject.textAlign ?? "left";
       const fill = sourceObject.fill;
+      const stroke = sourceObject.stroke;
+      const strokeWidth = sourceObject.strokeWidth ?? 0;
       const fontFamily = sourceObject.fontFamily;
       const fontWeight = sourceObject.fontWeight;
       const fontStyle = sourceObject.fontStyle;
       const charStagger = 0.06;
       const charDuration = 0.4;
-      let cursorX = 0;
+      const lineHeightPx = fontSize * lineHeight;
+      const letterSpacingPx = (charSpacing / 1000) * fontSize;
+      const lines = sourceText.split("\n");
+      const lineWidths = lines.map((line) => measureLineAdvance(line, sourceObject, letterSpacingPx));
+      const maxLineWidth = lineWidths.reduce((max, width) => Math.max(max, width), 0);
+      const totalHeight = Math.max(lineHeightPx, lines.length * lineHeightPx);
+      const baseLeftOrigin = resolveOriginLeft(baseLeft, originX, maxLineWidth);
+      const baseTopOrigin = resolveOriginTop(baseTop, originY, totalHeight);
 
       sourceCanvas.remove(sourceObject);
       unregisterInstance(selectedId);
@@ -163,67 +180,81 @@ export default function CanvasSidePanelAnimations({
       const createdIds: string[] = [];
       const markerTimesByChar = new Map<string, number[]>();
 
-      for (const character of sourceText.split("")) {
-        const advance = measureCharAdvance(character, sourceObject);
-        if (character === "\n") continue;
-        if (character === " ") {
-          cursorX += advance;
-          continue;
-        }
+      lines.forEach((line, lineIndex) => {
+        let cursorX = 0;
+        const lineStartOffset = resolveAlignedLineOffset(textAlign, maxLineWidth, lineWidths[lineIndex] ?? 0);
+        const lineTop = baseTopOrigin + lineIndex * lineHeightPx;
 
-        const charObject = new TextObject(character, {
-          left: baseLeft + cursorX,
-          top: baseTop,
-          fontSize,
-          fill,
-          fontFamily,
-          fontWeight,
-          fontStyle,
-          originX,
-          originY,
-          angle: baseAngle,
-          opacity: baseOpacity,
-          editable: false,
-          strokeUniform: true,
+        line.split("").forEach((character) => {
+          const advance = measureCharAdvance(character, sourceObject);
+          const characterLeft = baseLeftOrigin + lineStartOffset + cursorX;
+          const characterTop = lineTop;
+
+          if (character === " ") {
+            cursorX += advance + letterSpacingPx;
+            return;
+          }
+
+          const charObject = new TextObject(character, {
+            left: characterLeft,
+            top: characterTop,
+            fontSize,
+            fill,
+            stroke,
+            strokeWidth,
+            charSpacing: 0,
+            lineHeight,
+            fontFamily,
+            fontWeight,
+            fontStyle,
+            originX: "left",
+            originY: "top",
+            angle: baseAngle,
+            opacity: baseOpacity,
+            editable: false,
+            strokeUniform: true,
+            scaleX: sourceObject.scaleX ?? 1,
+            scaleY: sourceObject.scaleY ?? 1,
+          });
+
+          const charCustomId = createUniqueId("text-char");
+          charObject.fabricObject.customId = charCustomId;
+          charObject.fabricObject.set("customId", charCustomId);
+          registerInstance(charCustomId, charObject);
+          sourceCanvas.add(charObject.fabricObject);
+
+          const index = createdIds.length;
+          const charStart = startTime + index * charStagger;
+          const charEnd = charStart + charDuration;
+          const charSnapshot = charObject.getSnapshot();
+
+          charObject.addSnapshotKeyframe(charStart, {
+            left: characterLeft,
+            top: characterTop + 18,
+            opacity: 0,
+            angle: baseAngle,
+            width: charSnapshot.width,
+            height: charSnapshot.height,
+            borderRadius: charSnapshot.borderRadius,
+            strokeWidth: charSnapshot.strokeWidth,
+          });
+          charObject.addSnapshotKeyframe(charEnd, {
+            left: characterLeft,
+            top: characterTop,
+            opacity: baseOpacity,
+            angle: baseAngle,
+            width: charSnapshot.width,
+            height: charSnapshot.height,
+            borderRadius: charSnapshot.borderRadius,
+            strokeWidth: charSnapshot.strokeWidth,
+          });
+          charObject.seek(startTime);
+
+          createdIds.push(charCustomId);
+          markerTimesByChar.set(charCustomId, [charStart, charEnd]);
+          cursorX += advance + letterSpacingPx;
         });
-
-        const charCustomId = createUniqueId("text-char");
-        charObject.fabricObject.customId = charCustomId;
-        charObject.fabricObject.set("customId", charCustomId);
-        registerInstance(charCustomId, charObject);
-        sourceCanvas.add(charObject.fabricObject);
-
-        const index = createdIds.length;
-        const charStart = startTime + index * charStagger;
-        const charEnd = charStart + charDuration;
-        const charSnapshot = charObject.getSnapshot();
-
-        charObject.addSnapshotKeyframe(charStart, {
-          left: baseLeft + cursorX,
-          top: baseTop + 18,
-          opacity: 0,
-          angle: baseAngle,
-          width: charSnapshot.width,
-          height: charSnapshot.height,
-          borderRadius: charSnapshot.borderRadius,
-          strokeWidth: charSnapshot.strokeWidth,
-        });
-        charObject.addSnapshotKeyframe(charEnd, {
-          left: baseLeft + cursorX,
-          top: baseTop,
-          opacity: baseOpacity,
-          angle: baseAngle,
-          width: charSnapshot.width,
-          height: charSnapshot.height,
-          borderRadius: charSnapshot.borderRadius,
-          strokeWidth: charSnapshot.strokeWidth,
-        });
-        charObject.seek(startTime);
-
-        createdIds.push(charCustomId);
-        markerTimesByChar.set(charCustomId, [charStart, charEnd]);
-        cursorX += advance;
-      }
+      });
 
       createdIds.forEach((id, index) => {
         const markers = (markerTimesByChar.get(id) ?? [])
@@ -341,4 +372,36 @@ export default function CanvasSidePanelAnimations({
       ) : null}
     </section>
   );
+}
+
+/** Measures one line of text including Fabric-style letter spacing between characters. */
+function measureLineAdvance(line: string, sourceText: Textbox, letterSpacingPx: number) {
+  if (line.length === 0) return 0;
+
+  return line.split("").reduce((width, character, index) => {
+    const advance = measureCharAdvance(character, sourceText);
+    const spacing = index < line.length - 1 ? letterSpacingPx : 0;
+    return width + advance + spacing;
+  }, 0);
+}
+
+/** Resolves the left edge of a text block from its anchor origin. */
+function resolveOriginLeft(left: number, originX: string | number, width: number) {
+  if (originX === "center") return left - width / 2;
+  if (originX === "right") return left - width;
+  return left;
+}
+
+/** Resolves the top edge of a text block from its anchor origin. */
+function resolveOriginTop(top: number, originY: string | number, height: number) {
+  if (originY === "center") return top - height / 2;
+  if (originY === "bottom") return top - height;
+  return top;
+}
+
+/** Computes the horizontal offset for a line inside the overall text block width. */
+function resolveAlignedLineOffset(textAlign: string | undefined, blockWidth: number, lineWidth: number) {
+  if (textAlign === "center") return (blockWidth - lineWidth) / 2;
+  if (textAlign === "right") return blockWidth - lineWidth;
+  return 0;
 }

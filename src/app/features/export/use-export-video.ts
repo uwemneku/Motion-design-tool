@@ -12,7 +12,11 @@ import {
 import { useCallback, useState, type MutableRefObject } from "react";
 import { EXPORT_FPS, EXPORT_PIXEL_DENSITY, TIMELINE_DURATION } from "../../../const";
 import { getVideoWorkAreaRect } from "./video-work-area";
-import { AnimatableObject, cloneAnimatablePathKeyframes } from "../shapes/animatable-object/object";
+import {
+  AnimatableObject,
+  cloneAnimatablePathKeyframes,
+  cloneAnimatableTextKeyframes,
+} from "../shapes/animatable-object/object";
 import { VideoObject } from "../shapes/objects";
 import { useCanvasAppContext } from "../canvas/hooks/use-canvas-app-context";
 import { exportCanvasAsVideo, type ExportVideoFormat } from "./export-media";
@@ -126,11 +130,15 @@ function useExportVideo(fabricCanvas: MutableRefObject<Canvas | null>, activeAsp
               const exportPathKeyframes = cloneAnimatablePathKeyframes(
                 sourceInstance.pathKeyframes,
               );
+              const exportTextKeyframes = cloneAnimatableTextKeyframes(
+                sourceInstance.textKeyframes,
+              );
               const exportInstance = createExportAnimatableObject(
                 clonedObject,
                 exportKeyframes,
                 exportColorKeyframes,
                 exportPathKeyframes,
+                exportTextKeyframes,
               );
               exportInstances.set(customId, exportInstance);
               if (exportInstance instanceof VideoObject) {
@@ -339,6 +347,7 @@ function createExportAnimatableObject(
   keyframes: KeyframesByProperty,
   colorKeyframes: AnimatableObject["colorKeyframes"],
   pathKeyframes: AnimatableObject["pathKeyframes"],
+  textKeyframes: AnimatableObject["textKeyframes"],
 ) {
   if (object instanceof Path) {
     object.set({
@@ -347,10 +356,10 @@ function createExportAnimatableObject(
   }
 
   if (object instanceof FabricImage && object.getElement() instanceof HTMLVideoElement) {
-    return new VideoObject(object, {}, keyframes, colorKeyframes, pathKeyframes);
+    return new VideoObject(object, {}, keyframes, colorKeyframes, pathKeyframes, textKeyframes);
   }
 
-  return new AnimatableObject(object, keyframes, colorKeyframes, pathKeyframes);
+  return new AnimatableObject(object, keyframes, colorKeyframes, pathKeyframes, textKeyframes);
 }
 
 /** Builds a separate export-only video element so export seeking does not disturb the editor preview. */

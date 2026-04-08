@@ -5,12 +5,14 @@ import type {
   ColorKeyframesByProperty,
   KeyframesByProperty,
   PathKeyframesByProperty,
+  TextKeyframesByProperty,
 } from "../animatable-object/types";
 import {
   AnimatableObject,
   cloneAnimatableColorKeyframes,
   cloneAnimatableNumericKeyframes,
   cloneAnimatablePathKeyframes,
+  cloneAnimatableTextKeyframes,
 } from "../animatable-object/object";
 
 export class VideoObject extends AnimatableObject {
@@ -22,10 +24,11 @@ export class VideoObject extends AnimatableObject {
     keyframes: KeyframesByProperty = {},
     colorKeyframes: ColorKeyframesByProperty = {},
     pathKeyframes: PathKeyframesByProperty = {},
+    textKeyframes: TextKeyframesByProperty = {},
   ) {
     // Wrap videos with FabricImage so they behave like other animatable canvas items.
     const fabricObject = source instanceof FabricImage ? source : new FabricImage(source, options);
-    super(fabricObject, keyframes, colorKeyframes, pathKeyframes);
+    super(fabricObject, keyframes, colorKeyframes, pathKeyframes, textKeyframes);
     this.fabricObject = fabricObject;
   }
 
@@ -51,6 +54,7 @@ export class VideoObject extends AnimatableObject {
         cloneAnimatableNumericKeyframes(this.keyframes, positionOffset),
         cloneAnimatableColorKeyframes(this.colorKeyframes),
         cloneAnimatablePathKeyframes(this.pathKeyframes),
+        cloneAnimatableTextKeyframes(this.textKeyframes),
       );
     }
 
@@ -70,6 +74,7 @@ export class VideoObject extends AnimatableObject {
       cloneAnimatableNumericKeyframes(this.keyframes, positionOffset),
       cloneAnimatableColorKeyframes(this.colorKeyframes),
       cloneAnimatablePathKeyframes(this.pathKeyframes),
+      cloneAnimatableTextKeyframes(this.textKeyframes),
     );
   }
 

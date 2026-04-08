@@ -6,11 +6,12 @@ import type {
   AnimatableProperties,
   ColorAnimatableProperties,
   NumericAnimatableProperties,
+  TextAnimatableProperties,
 } from "../../shapes/animatable-object/types";
 import { getObjectAnimationPosition } from "../../shapes/animatable-object/util";
 
 export type ColorFieldKey = keyof ColorAnimatableProperties;
-export type KeyframeField = keyof Omit<DesignFormState, "text">;
+export type KeyframeField = keyof DesignFormState;
 export type NumericFieldKey =
   | keyof NumericAnimatableProperties
   | "borderRadius"
@@ -18,6 +19,7 @@ export type NumericFieldKey =
   | "letterSpacing"
   | "lineHeight";
 export type NumericKeyframeField = keyof NumericAnimatableProperties;
+export type TextKeyframeField = keyof TextAnimatableProperties;
 export type SupportedKeyframeField = Exclude<keyof AnimatableProperties, "pathData">;
 
 export type HorizontalAlignment = "left" | "center" | "right";
@@ -242,6 +244,27 @@ export function getNumericKeyframeFields(fields: KeyframeField[]) {
       }),
     ),
   );
+}
+
+/** Returns only the discrete text keyframe fields from a mixed field list. */
+export function getTextKeyframeFields(fields: KeyframeField[]) {
+  const textFields = new Set<TextKeyframeField>();
+
+  fields.forEach((field) => {
+    if (
+      field === "text" ||
+      field === "fontFamily" ||
+      field === "fontSize" ||
+      field === "fontStyle" ||
+      field === "fontWeight" ||
+      field === "letterSpacing" ||
+      field === "lineHeight"
+    ) {
+      textFields.add(field as TextKeyframeField);
+    }
+  });
+
+  return Array.from(textFields);
 }
 
 /** Reads the current numeric value for a keyframe-capable field from a Fabric object. */

@@ -35,6 +35,7 @@ export default function CanvasZoomControl({ ...buttonProps }: CanvasZoomControlP
   const canvasZoom = useAppSelector(
     (state) => state.editor.projectInfo.canvasZoom ?? INITIAL_CANVAS_ZOOM,
   );
+  const canvasItemCount = useAppSelector((state) => state.editor.canvasItemIds.length);
   const videoAspectRatio = useAppSelector((state) => state.editor.projectInfo.videoAspectRatio);
   const dispatch = useAppDispatch();
 
@@ -48,9 +49,10 @@ export default function CanvasZoomControl({ ...buttonProps }: CanvasZoomControlP
 
     const hostRect = host.getBoundingClientRect();
     const sidePanel = document.querySelector<HTMLElement>("[data-testid='canvas-side-panel']");
-    const floatingLayersPanel = getNarrowestVisibleElement(
-      "[data-testid='floating-layers-panel']",
-    );
+    const floatingLayersPanel =
+      canvasItemCount > 0
+        ? getNarrowestVisibleElement("[data-testid='floating-layers-panel']")
+        : null;
     const timeline = document.querySelector<HTMLElement>("[data-testid='timeline']");
     const sidePanelRect = sidePanel?.getBoundingClientRect();
     const floatingLayersRect = floatingLayersPanel?.getBoundingClientRect();
@@ -98,9 +100,8 @@ export default function CanvasZoomControl({ ...buttonProps }: CanvasZoomControlP
         ),
       ),
     );
-    const leftInset = usableLeft + FIT_VIEW_PADDING_RATIO * unobscuredWidth;
     const topInset = usableTop + FIT_VIEW_PADDING_RATIO * unobscuredHeight;
-    const visibleStageCenterX = leftInset + safeViewportWidth / 2;
+    const visibleStageCenterX = hostRect.width / 2;
     const visibleStageCenterY = topInset + safeViewportHeight / 2;
     const videoCenterX = videoRect.left + videoRect.width / 2;
     const videoCenterY = videoRect.top + videoRect.height / 2;

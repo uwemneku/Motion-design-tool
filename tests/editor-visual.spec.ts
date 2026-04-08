@@ -178,6 +178,26 @@ test.describe("Editor visual review", () => {
     });
   });
 
+  test("captures the chars rise text effect result", async ({ page }, testInfo) => {
+    await gotoEditor(page);
+    await addCanvasItem(page, "Add text");
+    await selectLayer(page, "text");
+
+    const sidePanel = page.getByTestId("canvas-side-panel");
+    await sidePanel.getByRole("button", { name: "Animation", exact: true }).click();
+    await expect(
+      sidePanel.getByRole("heading", { name: "Text Effects", exact: true }),
+    ).toBeVisible();
+
+    await sidePanel.getByRole("button", { name: /Chars Rise/i }).click();
+    await page.waitForTimeout(150);
+
+    await saveShot(page, testInfo, "text-chars-rise-review.png");
+    await saveLocatorShot(page.locator("main"), testInfo, "text-chars-rise-canvas.png");
+    await seekTimeline(page, 0.05);
+    await saveShot(page, testInfo, "text-chars-rise-mid-review.png");
+  });
+
   test("captures timeline zoom review state", async ({ page }) => {
     await gotoEditor(page);
     await addCanvasItem(page, "Add rectangle");

@@ -176,6 +176,8 @@ export default function CanvasToolsFab() {
             onMouseDown={onMouseDown}
           />
           <AddCircleButton onAddCircle={addCircle} onMouseDown={onMouseDown} />
+          <AddRectangleButton onAddRectangle={addRectangle} onMouseDown={onMouseDown} />
+          <AddTextButton onAddText={addText} onMouseDown={onMouseDown} />
           <AddLineButton onAddLine={addLine} onMouseDown={onMouseDown} />
           <AddPathButton
             isPathToolActive={activeCanvasTool === "path"}
@@ -184,14 +186,12 @@ export default function CanvasToolsFab() {
             }}
             onMouseDown={onMouseDown}
           />
-          <AddRectangleButton onAddRectangle={addRectangle} onMouseDown={onMouseDown} />
           <AddAssetButton
             onAddImageFile={addImageFromFile}
             onAddSvgFile={addSvgFromFile}
             onAddVideoFile={addVideoFromFile}
             onMouseDown={onMouseDown}
           />
-          <AddTextButton onAddText={addText} onMouseDown={onMouseDown} />
         </div>
       </div>
     </Tooltip.Provider>

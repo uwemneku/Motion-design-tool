@@ -33,6 +33,7 @@ import {
   clampMin,
   formatNumberInput,
   getNumericKeyframeFields,
+  getTextKeyframeFields,
   getNumericKeyframeValue,
   toPrecisionNumber,
   TRANSFORM_FIELD_ROWS,
@@ -72,9 +73,10 @@ const PATH_POINT_MODE_OPTIONS: Array<{ label: string; value: PathPointMode }> = 
 /** Design form for editing transform, style, text, and mask settings. */
 export default function CanvasSidePanelDesign() {
   const { fabricCanvasRef, getObjectById: getInstanceById } = useCanvasAppContext();
-  const { captureColorKeyframes, captureNumericSnapshotKeyframes } = useCanvasItems({
-    fabricCanvas: fabricCanvasRef,
-  });
+  const { captureColorKeyframes, captureNumericSnapshotKeyframes, captureTextSnapshotKeyframes } =
+    useCanvasItems({
+      fabricCanvas: fabricCanvasRef,
+    });
   const [designForm, setDesignForm] = useState<DesignFormState>(EMPTY_FORM);
   const [openSections, setOpenSections] =
     useState<Record<DesignSectionId, boolean>>(INITIAL_OPEN_SECTIONS);
@@ -178,6 +180,7 @@ export default function CanvasSidePanelDesign() {
       // Split the requested field list once so both the multi-select and
       // single-select paths can reuse the same numeric-property decision.
       const numericFieldsToCapture = getNumericKeyframeFields(fields);
+      const textFieldsToCapture = getTextKeyframeFields(fields);
       const multiSelectNumericFieldsToCapture = isMultiSelected
         ? expandMultiSelectNumericFields(numericFieldsToCapture)
         : numericFieldsToCapture;
@@ -207,6 +210,12 @@ export default function CanvasSidePanelDesign() {
       });
       if (numericFieldsToCapture.length > 0) {
         captureNumericSnapshotKeyframes([selectedContext.id], numericFieldsToCapture);
+        createdKeyframe = true;
+      }
+
+      if (textFieldsToCapture.length > 0) {
+        captureTextSnapshotKeyframes([selectedContext.id], textFieldsToCapture);
+        createdKeyframe = true;
       }
 
       fields.forEach((field) => {
@@ -220,7 +229,14 @@ export default function CanvasSidePanelDesign() {
 
       if (!createdKeyframe) return;
     },
-    [captureColorKeyframes, captureNumericSnapshotKeyframes, isMultiSelected, selectedContext, selectedIds],
+    [
+      captureColorKeyframes,
+      captureNumericSnapshotKeyframes,
+      captureTextSnapshotKeyframes,
+      isMultiSelected,
+      selectedContext,
+      selectedIds,
+    ],
   );
 
   const commitDesignForm = useCallback(
@@ -289,37 +305,48 @@ export default function CanvasSidePanelDesign() {
       }
       if (!isMultiSelected && supportsText) {
         const textObject = object as Textbox;
-        const currentScaleX = textObject.scaleX ?? 1;
-        const fixedWrapWidth =
-          currentScaleX !== 0 ? textObject.getScaledWidth() / currentScaleX : 0;
+        const shouldApplyTextLayout =
+          shouldApplyField("text") ||
+          shouldApplyField("fontFamily") ||
+          shouldApplyField("fontSize") ||
+          shouldApplyField("fontStyle") ||
+          shouldApplyField("fontWeight") ||
+          shouldApplyField("letterSpacing") ||
+          shouldApplyField("lineHeight");
 
-        if (Number.isFinite(fixedWrapWidth) && fixedWrapWidth > 0) {
-          textObject.set("width", fixedWrapWidth);
-        }
+        if (shouldApplyTextLayout) {
+          const currentScaleX = textObject.scaleX ?? 1;
+          const fixedWrapWidth =
+            currentScaleX !== 0 ? textObject.getScaledWidth() / currentScaleX : 0;
 
-        textObject.set("text", nextForm.text);
-        textObject.set("fontFamily", nextForm.fontFamily.trim());
-        const fontSize = toPrecisionNumber(Number(nextForm.fontSize));
-        const lineHeight = toPrecisionNumber(Number(nextForm.lineHeight));
-        const letterSpacing = toPrecisionNumber(Number(nextForm.letterSpacing));
-        if (Number.isFinite(fontSize) && fontSize > 0) {
-          textObject.set("fontSize", fontSize);
-        }
-        if (Number.isFinite(lineHeight) && lineHeight > 0) {
-          textObject.set("lineHeight", lineHeight);
-        }
-        if (Number.isFinite(letterSpacing)) {
-          textObject.set("charSpacing", letterSpacing);
-        }
-        textObject.set("fontStyle", nextForm.fontStyle);
-        textObject.set("fontWeight", nextForm.fontWeight);
-        textObject.initDimensions();
-        ensureGoogleFontsLoaded([nextForm.fontFamily.trim()]);
-        void document.fonts?.load(`16px ${nextForm.fontFamily.trim()}`).then(() => {
+          if (Number.isFinite(fixedWrapWidth) && fixedWrapWidth > 0) {
+            textObject.set("width", fixedWrapWidth);
+          }
+
+          textObject.set("text", nextForm.text);
+          textObject.set("fontFamily", nextForm.fontFamily.trim());
+          const fontSize = toPrecisionNumber(Number(nextForm.fontSize));
+          const lineHeight = toPrecisionNumber(Number(nextForm.lineHeight));
+          const letterSpacing = toPrecisionNumber(Number(nextForm.letterSpacing));
+          if (Number.isFinite(fontSize) && fontSize > 0) {
+            textObject.set("fontSize", fontSize);
+          }
+          if (Number.isFinite(lineHeight) && lineHeight > 0) {
+            textObject.set("lineHeight", lineHeight);
+          }
+          if (Number.isFinite(letterSpacing)) {
+            textObject.set("charSpacing", letterSpacing);
+          }
+          textObject.set("fontStyle", nextForm.fontStyle);
+          textObject.set("fontWeight", nextForm.fontWeight);
           textObject.initDimensions();
-          textObject.set("dirty", true);
-          textObject.canvas?.requestRenderAll();
-        });
+          ensureGoogleFontsLoaded([nextForm.fontFamily.trim()]);
+          void document.fonts?.load(`16px ${nextForm.fontFamily.trim()}`).then(() => {
+            textObject.initDimensions();
+            textObject.set("dirty", true);
+            textObject.canvas?.requestRenderAll();
+          });
+        }
       }
 
       // Fabric mutates object geometry as transforms are applied, so the form
@@ -727,7 +754,7 @@ export default function CanvasSidePanelDesign() {
                   commitDesignForm({
                     ...designForm,
                     fontFamily: value,
-                  });
+                  }, ["fontFamily"]);
                 }}
               />
             </label>
@@ -752,7 +779,7 @@ export default function CanvasSidePanelDesign() {
                     commitDesignForm({
                       ...designForm,
                       fontWeight: value,
-                    });
+                    }, ["fontWeight"]);
                   }}
                 />
               </label>
@@ -815,7 +842,7 @@ export default function CanvasSidePanelDesign() {
                     text: event.target.value,
                   }));
                 }}
-                onBlur={() => commitDesignForm(designForm)}
+                onBlur={() => commitDesignForm(designForm, ["text"])}
                 rows={3}
                 className="w-full resize-y rounded-[10px] border border-transparent bg-[rgba(255,255,255,0.055)] px-3 py-2.5 text-[13px] text-[#efefef] outline-none transition focus:border-white/15 focus:bg-[rgba(255,255,255,0.075)]"
               />

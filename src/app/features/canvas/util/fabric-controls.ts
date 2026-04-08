@@ -15,6 +15,11 @@ const PATH_CONTROL_DEEP_BLUE = "#1d4ed8";
 export type PathPointMode = "independent" | "mirrored" | "sharp";
 const DEFAULT_PATH_POINT_MODE: PathPointMode = "mirrored";
 
+/** Returns whether normal transform handles should be rendered by the custom DOM overlay. */
+export function usesDomTransformHandles(object: FabricObject) {
+  return !(object instanceof Line) && !(object instanceof Path);
+}
+
 /** Measures the rendered gap between the corner controls for one axis. */
 function getEdgeSpan(object: FabricObject, startKey: "tl" | "tr", endKey: "tr" | "bl") {
   object.setCoords();
@@ -883,16 +888,17 @@ function setPathPointWithAnchorPreserved(
 /** Applies the app's simplified selection styling to one Fabric object. */
 function styleObjectControls(object: FabricObject) {
   const isPathEditMode = object instanceof Path && object.isPathEditing;
+  const shouldUseDomHandles = usesDomTransformHandles(object);
 
   object.set({
-    borderColor: FIGMA_BLUE,
+    borderColor: shouldUseDomHandles ? "rgba(0,0,0,0)" : FIGMA_BLUE,
     borderScaleFactor: 1,
     borderOpacityWhenMoving: isPathEditMode ? 0 : 1,
-    cornerColor: "#ffffff",
-    cornerStrokeColor: FIGMA_BLUE,
+    cornerColor: shouldUseDomHandles ? "rgba(0,0,0,0)" : "#ffffff",
+    cornerStrokeColor: shouldUseDomHandles ? "rgba(0,0,0,0)" : FIGMA_BLUE,
     cornerStyle: "rect",
     cornerSize: 9,
-    hasBorders: !isPathEditMode,
+    hasBorders: !isPathEditMode && !shouldUseDomHandles,
     lockMovementX: isPathEditMode,
     lockMovementY: isPathEditMode,
     transparentCorners: false,
@@ -902,6 +908,21 @@ function styleObjectControls(object: FabricObject) {
   syncPathControls(object);
 
   if (isPathEditMode) {
+    object.setControlsVisibility({
+      bl: false,
+      br: false,
+      mb: false,
+      ml: false,
+      mr: false,
+      mt: false,
+      mtr: false,
+      tl: false,
+      tr: false,
+    });
+    return;
+  }
+
+  if (shouldUseDomHandles) {
     object.setControlsVisibility({
       bl: false,
       br: false,

@@ -14,6 +14,7 @@ import type {
   ColorAnimatableProperties,
   KeyframeEasing,
   NumericAnimatableProperties,
+  TextAnimatableProperties,
 } from "../../shapes/animatable-object/types";
 import { setObjectAnimationPosition } from "../../shapes/animatable-object/util";
 import { getVideoWorkAreaRect } from "../../export/video-work-area";
@@ -111,6 +112,7 @@ const CANVAS_ITEM_COLOR_KEYFRAME_FIELDS = ["fill", "stroke"] as const;
 const DEFAULT_PATH_DATA = "M 0 56 C 18 8 52 8 70 56 S 122 104 140 56";
 type NumericKeyframeProperty = keyof NumericAnimatableProperties;
 type ColorKeyframeProperty = keyof ColorAnimatableProperties;
+type TextKeyframeProperty = keyof TextAnimatableProperties;
 
 function isSvgFile(file: File) {
   // Detect SVG uploads by MIME type or extension so we can parse vector data.
@@ -340,6 +342,36 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
 
     if (!wroteAnyKeyframe) return;
     syncItemMarkersAtTimes(id, [time]);
+  };
+
+  /** Captures discrete text/style keyframes so text edits stay scoped to the playhead time. */
+  const captureTextSnapshotKeyframes = (
+    ids: string[],
+    fields: TextKeyframeProperty[],
+    time = dispatch(dispatchableSelector((state) => state.editor.playHeadTime)),
+  ) => {
+    ids.forEach((id) => {
+      const instance = getInstanceById(id);
+      if (!instance) return;
+
+      const snapshot = instance.getTextSnapshot();
+      let wroteAnyKeyframe = false;
+      fields.forEach((field) => {
+        const value = snapshot[field];
+        if (value === undefined) return;
+
+        instance.addTextKeyframe({
+          property: field,
+          value,
+          time,
+          easing: "step",
+        });
+        wroteAnyKeyframe = true;
+      });
+
+      if (!wroteAnyKeyframe) return;
+      syncItemMarkersAtTimes(id, [time]);
+    });
   };
 
   const getVideoCenter = (canvas: Canvas) => {
@@ -1022,6 +1054,12 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
       }
       if (typeof nextProps.text === "string") {
         object.set("text", nextProps.text);
+        instance.addTextKeyframe({
+          property: "text",
+          value: nextProps.text,
+          time: playheadTime,
+          easing: "step",
+        });
       }
 
       pushMarkerIfNeeded(playheadTime);
@@ -1125,6 +1163,7 @@ export function useCanvasItems({ fabricCanvas }: UseCanvasItemsParams) {
     copySelectedItems,
     captureColorKeyframes,
     captureNumericSnapshotKeyframes,
+    captureTextSnapshotKeyframes,
     pasteImageFromClipboard,
     pasteCopiedItems,
     removeItemById,

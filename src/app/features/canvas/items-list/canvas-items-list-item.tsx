@@ -1,4 +1,5 @@
 /** Canvas Items List Item.Tsx module implementation. */
+import { ActiveSelection } from "fabric";
 import {
   Eye,
   EyeOff,
@@ -8,7 +9,14 @@ import {
   Trash2,
 } from "lucide-react";
 import { Reorder, useDragControls } from "framer-motion";
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+} from "react";
 import { useAppDispatch, useAppSelector } from "../../../store";
 import { setSelectedId, toggleItemLocked, updateItemName } from "../../../store/editor-slice";
 import { useCanvasAppContext } from "../hooks/use-canvas-app-context";
@@ -47,13 +55,43 @@ export function CanvasItemsListItem({ id, index }: CanvasItemsListItemProps) {
     inputRef.current?.select();
   }, [isEditingName]);
 
-  /** Selects the clicked canvas item in the editor store. */
-  const handleClick = () => {
+  /** Selects one layer or extends the current Fabric selection with Shift-click. */
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
     if (isLocked) return;
-    dispatch(setSelectedId([id]));
-    if (instance) {
-      instance.fabricObject.canvas?.setActiveObject(instance.fabricObject);
+
+    if (!instance) {
+      dispatch(setSelectedId([id]));
+      return;
     }
+
+    const canvas = instance.fabricObject.canvas;
+    if (!canvas) {
+      dispatch(setSelectedId([id]));
+      return;
+    }
+
+    if (event.shiftKey) {
+      const activeObject = canvas.getActiveObject();
+      const existingObjects =
+        activeObject instanceof ActiveSelection
+          ? activeObject.getObjects()
+          : activeObject
+            ? [activeObject]
+            : [];
+      const nextObjects = existingObjects.includes(instance.fabricObject)
+        ? existingObjects
+        : [...existingObjects, instance.fabricObject];
+
+      if (nextObjects.length > 1) {
+        canvas.setActiveObject(new ActiveSelection(nextObjects, { canvas }));
+        canvas.requestRenderAll();
+        return;
+      }
+    }
+
+    dispatch(setSelectedId([id]));
+    canvas.setActiveObject(instance.fabricObject);
+    canvas.requestRenderAll();
   };
 
   /** Starts layer reordering from the dedicated row handle. */
